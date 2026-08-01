@@ -216,3 +216,24 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# RepoPilot-MAS
+.env.*
+!.env.example
+
+.idea/
+.vscode/
+
+reports/*
+!reports/.gitkeep
+
+data/workspaces/
+data/cache/
+data/indexes/
+
+tmp/
+temp/
+
+*.patch
+*.diff
