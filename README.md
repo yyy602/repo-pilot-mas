@@ -23,3 +23,23 @@ Phase 0：项目骨架与开发环境初始化。
 
 ```bash
 python -m pip install -e ".[dev]"
+
+```
+
+## 运行测试
+
+```bash
+python -m pytest
+```
+
+## 代码检查
+
+```bash
+python -m ruff check .
+```
+
+## 项目计划
+
+完整开发计划见：
+
+`docs/RepoPilot-MAS_完整计划.md`
