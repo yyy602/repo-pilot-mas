@@ -36,9 +36,10 @@ def apply_patch(
             raise ValueError("binary patches are not supported")
         if _contains_symlink_mode(patch_text):
             raise ValueError("symbolic-link patches are not supported")
+        normalized_patch = patch_text if patch_text.endswith("\n") else patch_text + "\n"
 
         guard = PathGuard(root)
-        changed_paths = _validate_patch_paths(guard, patch_text)
+        changed_paths = _validate_patch_paths(guard, normalized_patch)
         if not changed_paths:
             raise ValueError("patch does not contain any supported file headers")
         protected_violations = protected_path_violations(changed_paths, protected_paths)
@@ -55,8 +56,8 @@ def apply_patch(
 
         runner = CommandRunner(root)
         check_execution = runner.run(
-            ("git", "apply", "--check", "--whitespace=nowarn", "-"),
-            input_text=patch_text,
+            ("git", "apply", "--check", "--unidiff-zero", "--whitespace=nowarn", "-"),
+            input_text=normalized_patch,
             timeout_seconds=timeout_seconds,
             max_output_chars=max_output_chars,
         )
@@ -92,8 +93,8 @@ def apply_patch(
             )
 
         apply_execution = runner.run(
-            ("git", "apply", "--whitespace=nowarn", "-"),
-            input_text=patch_text,
+            ("git", "apply", "--unidiff-zero", "--whitespace=nowarn", "-"),
+            input_text=normalized_patch,
             timeout_seconds=timeout_seconds,
             max_output_chars=max_output_chars,
         )

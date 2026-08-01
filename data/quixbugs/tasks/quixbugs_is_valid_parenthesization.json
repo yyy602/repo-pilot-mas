@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "repository_path": "../is_valid_parenthesization",
+  "issue": "is_valid_parenthesization 会把只有未闭合左括号的字符串错误判断为有效。",
+  "failing_tests": ["tests/test_is_valid_parenthesization.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": [],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "missing_final_condition"}
+}

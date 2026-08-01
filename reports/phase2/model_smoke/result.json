@@ -1,0 +1,17 @@
+{
+  "status": "succeeded",
+  "model_id": "Qwen3-8B",
+  "structured_output": {
+    "tool_name": "list_files",
+    "arguments": {}
+  },
+  "usage": {
+    "input_tokens": 105,
+    "output_tokens": 14,
+    "total_tokens": 119
+  },
+  "latency_ms": 6758,
+  "attempts": 1,
+  "trace_id": "613623afe9324b788830ed98736e8044",
+  "raw_response_ref": "reports/phase2/model_smoke/raw/613623afe9324b788830ed98736e8044.json"
+}

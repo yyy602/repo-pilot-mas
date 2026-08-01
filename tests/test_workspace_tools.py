@@ -92,6 +92,23 @@ def test_patch_supports_add_and_delete(sample_repo: Path, tmp_path: Path) -> Non
     assert statuses["README.md"] == "deleted"
 
 
+def test_patch_accepts_zero_context_without_terminal_newline(
+    sample_repo: Path,
+    tmp_path: Path,
+) -> None:
+    workspace = WorkspaceManager(sample_repo, tmp_path / "workspaces").create("task-no-newline")
+    patch = """--- a/src/math_utils.py
++++ b/src/math_utils.py
+@@ -2 +2 @@
+-    return left + right
++    return int(left) + int(right)"""
+
+    result = apply_patch(workspace.root, patch)
+
+    assert result.ok
+    assert "int(left)" in (workspace.root / "src" / "math_utils.py").read_text(encoding="utf-8")
+
+
 def test_patch_rejects_binary_patch(sample_repo: Path, tmp_path: Path) -> None:
     workspace = WorkspaceManager(sample_repo, tmp_path / "workspaces").create("task-5")
     patch = """diff --git a/binary.dat b/binary.dat

@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_gcd",
+  "repository_path": "../gcd",
+  "issue": "gcd 对第二个参数非零的输入无法正确收敛并返回最大公约数。",
+  "failing_tests": ["tests/test_gcd.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": [],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "recursion_update"}
+}

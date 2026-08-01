@@ -8,12 +8,19 @@ version = "0.1.0"
 description = "A multi-agent code repair system with dynamic task graphs, state management, adversarial review, and test-driven replanning."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "PyYAML>=6.0",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
+]
+model = [
+    "accelerate>=1.0",
+    "torch>=2.1",
+    "transformers>=4.51",
 ]
 
 [tool.setuptools.packages.find]

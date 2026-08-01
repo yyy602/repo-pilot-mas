@@ -1,0 +1,12 @@
+model:
+  provider: local_transformers
+  model_path: /home/user50305/yjh/models/Qwen3-8B
+  device: cuda:0
+  dtype: bfloat16
+
+generation:
+  temperature: 0.0
+  max_output_tokens: 768
+  stop: []
+  timeout_seconds: 120
+  max_retries: 1

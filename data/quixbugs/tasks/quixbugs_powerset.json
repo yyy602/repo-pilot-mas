@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_powerset",
+  "repository_path": "../powerset",
+  "issue": "powerset 只返回包含首元素的子集，遗漏空集及不包含首元素的组合。",
+  "failing_tests": ["tests/test_powerset.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": [],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "missing_branch"}
+}

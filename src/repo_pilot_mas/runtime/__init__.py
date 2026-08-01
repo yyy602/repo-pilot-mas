@@ -6,6 +6,7 @@ from repo_pilot_mas.runtime.command_runner import (
     CommandRunner,
 )
 from repo_pilot_mas.runtime.path_guard import PathGuard, PathSecurityError
+from repo_pilot_mas.runtime.trace import TraceWriter
 from repo_pilot_mas.runtime.workspace import (
     Workspace,
     WorkspaceManager,
@@ -19,6 +20,7 @@ __all__ = [
     "CommandRunner",
     "PathGuard",
     "PathSecurityError",
+    "TraceWriter",
     "Workspace",
     "WorkspaceManager",
     "restore_workspace",

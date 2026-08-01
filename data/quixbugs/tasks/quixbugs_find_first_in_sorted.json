@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_find_first_in_sorted",
+  "repository_path": "../find_first_in_sorted",
+  "issue": "find_first_in_sorted 对不存在或位于边界的目标可能越界或无法正确缩小搜索区间。",
+  "failing_tests": ["tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": [],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "boundary_condition"}
+}

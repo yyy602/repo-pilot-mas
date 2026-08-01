@@ -209,6 +209,9 @@ tempCodeRunnerFile.py
 # PyPI configuration file
 .pypirc
 
+# RepoPilot-MAS runtime workspaces
+.repo_pilot_workspaces/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
@@ -227,6 +230,13 @@ __marimo__/
 
 reports/*
 !reports/.gitkeep
+!reports/phase2/
+reports/phase2/*
+!reports/phase2/acceptance_summary.json
+!reports/phase2/model_smoke/
+!reports/phase2/model_smoke/**
+!reports/phase2/acceptance/
+!reports/phase2/acceptance/**
 
 data/workspaces/
 data/cache/

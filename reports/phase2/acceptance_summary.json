@@ -1,0 +1,92 @@
+{
+  "phase": "Phase 2",
+  "status": "completed",
+  "evaluated_at": "2026-08-01",
+  "environment": {
+    "conda_environment": "multi_agent",
+    "python": "3.10.20",
+    "model": "Qwen3-8B",
+    "model_path": "/home/user50305/yjh/models/Qwen3-8B",
+    "torch": "2.5.1+cu118",
+    "transformers": "4.51.3",
+    "gpu": "NVIDIA GeForce RTX 3090"
+  },
+  "model_smoke": {
+    "status": "succeeded",
+    "result_path": "reports/phase2/model_smoke/result.json"
+  },
+  "baseline": {
+    "task_count": 5,
+    "succeeded": 1,
+    "failed": 4,
+    "resolution_rate": 0.2,
+    "model_calls": 39,
+    "tool_calls": 52,
+    "input_tokens": 147373,
+    "output_tokens": 4265,
+    "total_tokens": 151638,
+    "duration_ms": 276998
+  },
+  "selected_runs": [
+    {
+      "task_id": "quixbugs_gcd",
+      "run_id": "2247eb6c2bb5",
+      "status": "failed",
+      "reason": "TOKEN_OR_MODEL_BUDGET_EXHAUSTED",
+      "model_calls": 10,
+      "tool_calls": 12,
+      "total_tokens": 46571,
+      "duration_ms": 62206,
+      "report_path": "reports/phase2/acceptance/runs/quixbugs_gcd/2247eb6c2bb5/final_report.json",
+      "trace_path": "reports/phase2/acceptance/runs/quixbugs_gcd/2247eb6c2bb5/trace.jsonl"
+    },
+    {
+      "task_id": "quixbugs_is_valid_parenthesization",
+      "run_id": "8384e221da35",
+      "status": "succeeded",
+      "reason": "VALIDATION_PASSED",
+      "model_calls": 4,
+      "tool_calls": 9,
+      "total_tokens": 8415,
+      "duration_ms": 21633,
+      "report_path": "reports/phase2/acceptance/runs/quixbugs_is_valid_parenthesization/8384e221da35/final_report.json",
+      "trace_path": "reports/phase2/acceptance/runs/quixbugs_is_valid_parenthesization/8384e221da35/trace.jsonl"
+    },
+    {
+      "task_id": "quixbugs_powerset",
+      "run_id": "6649ad4390f1",
+      "status": "failed",
+      "reason": "TOKEN_OR_MODEL_BUDGET_EXHAUSTED",
+      "model_calls": 11,
+      "tool_calls": 12,
+      "total_tokens": 42914,
+      "duration_ms": 86914,
+      "report_path": "reports/phase2/acceptance/runs/quixbugs_powerset/6649ad4390f1/final_report.json",
+      "trace_path": "reports/phase2/acceptance/runs/quixbugs_powerset/6649ad4390f1/trace.jsonl"
+    },
+    {
+      "task_id": "quixbugs_max_sublist_sum",
+      "run_id": "53fb33a63f4a",
+      "status": "failed",
+      "reason": "NO_APPLIED_PATCH",
+      "model_calls": 4,
+      "tool_calls": 6,
+      "total_tokens": 13045,
+      "duration_ms": 23868,
+      "report_path": "reports/phase2/acceptance/runs/quixbugs_max_sublist_sum/53fb33a63f4a/final_report.json",
+      "trace_path": "reports/phase2/acceptance/runs/quixbugs_max_sublist_sum/53fb33a63f4a/trace.jsonl"
+    },
+    {
+      "task_id": "quixbugs_find_first_in_sorted",
+      "run_id": "d5e54f5eef76",
+      "status": "failed",
+      "reason": "MAX_STEPS_EXHAUSTED",
+      "model_calls": 10,
+      "tool_calls": 13,
+      "total_tokens": 40693,
+      "duration_ms": 82377,
+      "report_path": "reports/phase2/acceptance/runs/quixbugs_find_first_in_sorted/d5e54f5eef76/final_report.json",
+      "trace_path": "reports/phase2/acceptance/runs/quixbugs_find_first_in_sorted/d5e54f5eef76/trace.jsonl"
+    }
+  ]
+}

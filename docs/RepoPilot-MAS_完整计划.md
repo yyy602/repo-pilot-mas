@@ -5,7 +5,7 @@
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
 > 计划版本：v2.1
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0、Phase 1 已完成；当前下一阶段为 Phase 2，尚未开始
+> 当前进度：Phase 0、Phase 1、Phase 2 已完成；当前下一阶段为 Phase 3，尚未开始
 
 ---
 
@@ -1223,7 +1223,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 
 ### Phase 2：模型适配层与 Single-Agent 基线
 
-**状态：未开始，当前下一阶段。**
+**状态：已完成（2026-08-01）。**
 
 **目标：先形成一个完整、可运行的修复闭环。**
 
@@ -1246,13 +1246,14 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 
 验收标准：
 
-- FakeModelAdapter 单元测试不依赖 GPU；
-- 本地 Qwen3-8B 至少成功完成一次结构化工具调用；
-- 至少 5 个 QuixBugs 任务可以一条命令端到端运行；
-- 成功和失败任务都产生 FinalReport；
-- Agent 生成的 Patch 可以应用、测试和回滚；
-- 至少保存 5 条包含模型、工具、Token 和耗时的 Trace；
-- Single-Agent 结果可作为后续统一预算基线。
+- [x] FakeModelAdapter 单元测试不依赖 GPU；
+- [x] 本地 Qwen3-8B 成功完成结构化 `list_files` 工具调用；
+- [x] 5 个 QuixBugs 任务均可通过 `scripts/run_task.py` 一条命令端到端运行；
+- [x] 1 个成功任务和 4 个失败任务均产生 FinalReport；
+- [x] Agent 生成的 Patch 已完成应用、目标测试、完整回归、静态检查和回滚；
+- [x] 保存 5 条包含模型、工具、Token、耗时及原始响应引用的真实 Trace；
+- [x] 固定任务、模型和预算的 Single-Agent 初步结果为 1/5，可作为后续统一预算基线；
+- [x] 在 `multi_agent` 环境执行 60 项 pytest 全绿，Ruff 与 `git diff --check` 通过。
 
 输出物：
 
@@ -1262,7 +1263,11 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - `run_task.py`；
 - 至少 5 条真实 Trace。
 
+完整实现边界与验收证据分别见 `docs/Phase2_模型适配层与单智能体基线.md`、`docs/Phase2_验收报告.md` 和 `reports/phase2/acceptance_summary.json`。
+
 ### Phase 3：OrchestrationEngine、状态层与 SupervisorAgent
+
+**状态：未开始，当前下一阶段。**
 
 **目标：先证明动态控制内核正确，再接入真实 Supervisor 决策。**
 
@@ -1590,8 +1595,8 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
 
 ### 18.1 代码
 
-- [ ] Single-Agent baseline；
-- [ ] ModelAdapter 与 FakeModelAdapter；
+- [x] Single-Agent baseline；
+- [x] ModelAdapter 与 FakeModelAdapter；
 - [ ] SupervisorAgent；
 - [ ] OrchestrationEngine；
 - [ ] TaskGraph 与状态机；

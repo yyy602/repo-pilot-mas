@@ -1,0 +1,25 @@
+{
+  "trace_id": "6b90e2da84b44fe9beaa12f6cd5cbb3b",
+  "model_id": "Qwen3-8B",
+  "attempt": 1,
+  "messages": [
+    {
+      "role": "system",
+      "content": "你只能按给定 JSON Schema 返回工具选择。"
+    },
+    {
+      "role": "user",
+      "content": "请选择 list_files，参数为空对象。"
+    },
+    {
+      "role": "user",
+      "content": "只返回一个符合以下 JSON Schema 的 JSON 对象，不要使用 Markdown：\n{\"type\":\"object\",\"properties\":{\"tool_name\":{\"type\":\"string\",\"enum\":[\"list_files\"]},\"arguments\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},\"required\":[\"tool_name\",\"arguments\"],\"additionalProperties\":false}"
+    }
+  ],
+  "content": "{\"tool_name\": \"list_files\", \"arguments\": {}}",
+  "usage": {
+    "input_tokens": 105,
+    "output_tokens": 14,
+    "total_tokens": 119
+  }
+}
