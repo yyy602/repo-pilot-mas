@@ -8,6 +8,8 @@ Phase 0、Phase 1、Phase 2 已完成；当前下一阶段为 Phase 3（Orchestr
 
 当前版本已经打通本地 Qwen3-8B Single-Agent 修复闭环：模型只能按结构化 Schema 选择九个确定性工具，测试命令和受保护路径由 TaskSpec 固定；系统在隔离工作区应用 Patch，并以真实目标测试、完整回归、静态检查和 Diff 决定最终结果。阶段状态与后续验收以唯一计划基线为准。
 
+Phase 3 的默认模型分工已经固定：Supervisor 使用阿里云百炼强模型 API，本地 Qwen3-8B 只承担 Worker 任务，OrchestrationEngine 保持确定性。Supervisor 按 `qwen3.7-max-2026-06-08`、`qwen3.7-flash`、`qwen3.7-flash-2026-07-15` 的模型顺序，并在每个模型内按账号 1、账号 2 顺序切换。
+
 ## 已实现工具
 
 | 工具 | 功能 |
@@ -70,9 +72,20 @@ python scripts/run_task.py \
 
 Phase 2 的 5 个 QuixBugs 初步基线为 1/5 成功。该结果用于证明闭环及固定后续对照基线，不代表最终系统性能；精确运行 ID、Token、工具调用和耗时见 `reports/phase2/acceptance_summary.json`。
 
+## Supervisor API 凭据
+
+仓库只提交占位模板，真实 Key 不得写入 YAML 或文档：
+
+```bash
+cp .env.example .env.supervisor
+chmod 600 .env.supervisor
+```
+
+在 `.env.supervisor` 中填写两个账号的 Key。该文件由 `.gitignore` 的 `.env.*` 规则忽略；Phase 3 运行入口必须自动读取它，并保证 Key 不进入日志、Trace、检查点或报告。非敏感路由配置见 `configs/supervisor.yaml`，六个 API 槽位的脱敏预检结果见 `reports/phase3/preflight.json`。
+
 ## 项目计划
 
-- 唯一计划基线（v2.1）：`docs/RepoPilot-MAS_完整计划.md`
+- 唯一计划基线（v2.2）：`docs/RepoPilot-MAS_完整计划.md`
 - Phase 1 从属设计说明：`docs/Phase1_确定性工具层.md`
 - Phase 1 验收报告：`docs/Phase1_验收报告.md`
 - Phase 2 从属设计说明：`docs/Phase2_模型适配层与单智能体基线.md`

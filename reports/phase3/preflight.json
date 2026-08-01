@@ -1,0 +1,53 @@
+{
+  "phase": "Phase 3 preflight",
+  "checked_at": "2026-08-01",
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "routing_strategy": "model_first_account_second",
+  "credential_values_recorded": false,
+  "status": "succeeded",
+  "total_tokens": 905,
+  "routes": [
+    {
+      "priority": 1,
+      "model": "qwen3.7-max-2026-06-08",
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "http_status": 200,
+      "total_tokens": 36
+    },
+    {
+      "priority": 2,
+      "model": "qwen3.7-max-2026-06-08",
+      "api_key_env": "DASHSCOPE_API_KEY_2",
+      "http_status": 200,
+      "total_tokens": 36
+    },
+    {
+      "priority": 3,
+      "model": "qwen3.7-flash",
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "http_status": 200,
+      "total_tokens": 208
+    },
+    {
+      "priority": 4,
+      "model": "qwen3.7-flash",
+      "api_key_env": "DASHSCOPE_API_KEY_2",
+      "http_status": 200,
+      "total_tokens": 208
+    },
+    {
+      "priority": 5,
+      "model": "qwen3.7-flash-2026-07-15",
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "http_status": 200,
+      "total_tokens": 204
+    },
+    {
+      "priority": 6,
+      "model": "qwen3.7-flash-2026-07-15",
+      "api_key_env": "DASHSCOPE_API_KEY_2",
+      "http_status": 200,
+      "total_tokens": 213
+    }
+  ]
+}

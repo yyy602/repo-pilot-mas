@@ -1,9 +1,9 @@
-# RepoPilot-MAS 完整计划（唯一基线 v2.1）
+# RepoPilot-MAS 完整计划（唯一基线 v2.2）
 
 > 项目名称：RepoPilot-MAS
 > 中文定位：基于 Supervisor 主导、动态任务图与对抗审查的多智能体代码修复系统
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
-> 计划版本：v2.1
+> 计划版本：v2.2
 > 文档状态：唯一权威计划基线
 > 当前进度：Phase 0、Phase 1、Phase 2 已完成；当前下一阶段为 Phase 3，尚未开始
 
@@ -29,6 +29,7 @@
 5. 快速、标准、深度仅是执行 Trace 的结果分类，不是三套写死的 Pipeline；
 6. 保留结构化证据、独立根因分析、Challenge/Rebuttal、双补丁竞争、真实测试和定向重规划；
 7. 所有简历指标必须来自可复现的 Trace 和评测结果。
+8. 默认部署采用阿里云强模型 API 作为 Supervisor、本地 Qwen3-8B 作为 Worker，确定性 Engine 负责约束两者。
 
 ---
 
@@ -154,7 +155,7 @@
                                   ▼
                     ┌────────────────────────┐
                     │    SupervisorAgent     │
-                    │ 规划、路由与最终语义决策 │
+                    │ 阿里云强模型 API 全局决策 │
                     └────────────┬───────────┘
                                  │ SupervisorDecision
                                  ▼
@@ -167,6 +168,7 @@
               │                  │                  │
               ▼                  ▼                  ▼
      InvestigatorAgent   DiagnosticianAgent   ReviewerAgent
+       本地 Qwen3-8B       本地 Qwen3-8B        本地 Qwen3-8B
               │                  │                  │
               └──────────────────┼──────────────────┘
                                  ▼
@@ -201,6 +203,8 @@
 - Engine 执行状态迁移、预算和安全约束；
 - Agent 之间不转发完整聊天历史；
 - 每次 Worker 调用使用任务所需的最小上下文；
+- Supervisor 只接收压缩后的全局状态、Artifact 和证据引用，不默认上传完整仓库或聊天历史；
+- API Key 只从本机忽略文件加载，不得进入配置、日志、Trace、检查点或模型上下文；
 - 任何成功结论都必须引用 Engine 产生的 ValidationResult；
 - 原始仓库不作为补丁写入目标。
 
@@ -210,7 +214,7 @@
 
 ### 4.1 SupervisorAgent 的职责
 
-SupervisorAgent 是唯一全局主 Agent，负责：
+SupervisorAgent 是唯一全局主 Agent，默认由阿里云强模型 API 驱动，负责：
 
 - 理解 Issue 和验收条件；
 - 制定初始最小计划；
@@ -1037,15 +1041,21 @@ MVP 完成后再选择 3～5 个环境容易启动的 SWE-Gym Lite Python 任务
 
 ## 12. 模型适配层与配置
 
-### 12.1 初始模型
+### 12.1 按角色分配模型
 
-初始模型使用服务器本地 Qwen3-8B，当前模型目录：
+默认部署使用分层模型配置：
+
+- SupervisorAgent：调用阿里云百炼 OpenAI 兼容 API，使用更强的模型完成全局规划、路由、冲突判断、重规划和最终语义决策；
+- Worker Agent：使用服务器本地 Qwen3-8B，在 Supervisor 给定的目标和 Artifact 边界内完成调查、诊断、审查和补丁生成；
+- OrchestrationEngine：不调用模型，只执行 Schema、状态机、预算、检查点和安全约束。
+
+本地 Worker 模型目录为：
 
 ```text
 /home/user50305/yjh/models/Qwen3-8B
 ```
 
-模型路径只能由配置注入，不能硬编码在 Agent 实现中。
+模型路径、远程模型名和 API 地址只能由配置注入，不能硬编码在 Agent 实现中。Supervisor 的“全局视角”是压缩后的 TaskGraph、Artifact、证据、验证结果和剩余预算，不是未经筛选的完整源码或所有 Agent 聊天历史。
 
 ### 12.2 ModelAdapter
 
@@ -1060,32 +1070,53 @@ MVP 完成后再选择 3～5 个环境容易启动的 SWE-Gym Lite Python 任务
 - 原始响应日志引用；
 - FakeModelAdapter，供无 GPU 单元测试使用。
 
-第一版只实现实际需要的本地 provider 和 FakeModelAdapter。vLLM、DashScope、OpenAI-compatible API 属于后续适配，不预先实现空抽象。
+Phase 2 已实现本地 Transformers Provider 和 FakeModelAdapter。Phase 3 只新增实际采用的阿里云百炼 OpenAI 兼容 Provider，不预先实现其他远程 Provider。
 
 ### 12.3 推荐配置
 
+本地 Worker 继续使用 `configs/model.yaml`；Supervisor 使用 `configs/supervisor.yaml`。后者只保存非敏感配置：
+
 ```yaml
-model:
-  provider: local_transformers
-  model_path: /home/user50305/yjh/models/Qwen3-8B
-  device: cuda
-  dtype: bfloat16
-
-runtime:
-  max_concurrent_agents: 3
-  max_agent_calls: 18
-  max_tool_calls: 30
-  max_replans: 1
-  max_critique_rounds: 1
-  max_patch_candidates: 2
-  agent_timeout_seconds: 120
-  tool_timeout_seconds: 60
-
-validation:
-  protect_test_files: true
-  run_full_regression: true
-  require_syntax_check: true
+supervisor:
+  provider: dashscope_openai_compatible
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  credential_file: .env.supervisor
+  routing:
+    strategy: model_first_account_second
+    model_order:
+      - qwen3.7-max-2026-06-08
+      - qwen3.7-flash
+      - qwen3.7-flash-2026-07-15
+    api_key_envs:
+      - DASHSCOPE_API_KEY_1
+      - DASHSCOPE_API_KEY_2
 ```
+
+`credential_file` 由 Phase 3 运行入口自动读取，但不得写入 Trace；进程环境中已经显式设置的同名变量优先于文件值。
+
+### 12.4 Supervisor 路由顺序
+
+路由使用“模型优先、账号其次”的固定六槽位顺序：
+
+1. `qwen3.7-max-2026-06-08` + 账号 1；
+2. `qwen3.7-max-2026-06-08` + 账号 2；
+3. `qwen3.7-flash` + 账号 1；
+4. `qwen3.7-flash` + 账号 2；
+5. `qwen3.7-flash-2026-07-15` + 账号 1；
+6. `qwen3.7-flash-2026-07-15` + 账号 2。
+
+Engine 不根据模型自评动态改变该优先级。只有服务端明确返回免费额度耗尽时，Router 才把当前“模型 + 账号”槽位标记为耗尽，并将状态写入不含密钥的检查点。普通 429 可能是瞬时 RPS/TPM 限流，只执行有限退避并允许当次请求切换槽位，不能永久扣除免费额度。鉴权失败、模型不存在和参数错误属于配置错误，必须结构化失败，不能用切换模型掩盖。
+
+全部六个槽位不可用时返回 `SUPERVISOR_ROUTES_EXHAUSTED`，不得静默改用本地 Qwen3-8B 充当生产 Supervisor。Fake、Scripted 或本地 Supervisor 只能作为测试和消融中的显式配置。
+
+### 12.5 凭据安全
+
+- 两个真实 Key 只保存在仓库根目录 `.env.supervisor`；
+- `.gitignore` 的 `.env.*` 规则必须忽略该文件，仓库只提交 `.env.example`；
+- 本机文件权限设置为 `0600`；
+- 配置、异常、日志、Trace、检查点和 FinalReport 只记录 `api_key_env` 名称，绝不记录 Key 值；
+- 启动时缺少任一声明的环境变量必须立即失败；
+- 提交前必须扫描 Git 暂存区和全部受跟踪文件，确认没有 `sk-` 凭据。
 
 生成差异主要来自独立任务目标、证据子集和上下文隔离，不把不同 temperature 当作多 Agent 独立性的主要来源。
 
@@ -1095,10 +1126,12 @@ validation:
 
 ```text
 repo-pilot-mas/
+├── .env.example
 ├── README.md
 ├── pyproject.toml
 ├── configs/
 │   ├── model.yaml
+│   ├── supervisor.yaml
 │   ├── runtime.yaml
 │   └── evaluation.yaml
 ├── docs/
@@ -1278,8 +1311,10 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 3. SupervisorDecision Schema；
 4. Engine 预算、超时、重试和循环检测；
 5. Scripted/Fake Supervisor 决策测试；
-6. SupervisorAgent；
-7. 基础检查点和 Trace。
+6. 阿里云百炼 OpenAI 兼容 ModelAdapter；
+7. 双账号、三模型的确定顺序 SupervisorModelRouter；
+8. SupervisorAgent；
+9. 基础检查点和 Trace。
 
 验收标准：
 
@@ -1290,13 +1325,19 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - 至少一次状态变化使后继节点失效并被取消；
 - Scripted Supervisor 可确定性复现完整图变化；
 - 真实 Supervisor 输出不合法时可格式修复一次，仍失败则结构化终止；
-- 检查点可加载到一致状态。
+- 检查点可加载到一致状态；
+- `.env.supervisor` 可被运行入口自动读取，但 Key 不进入任何 Trace、报告或检查点；
+- 六个 Supervisor API 槽位的顺序与 `configs/supervisor.yaml` 完全一致；
+- Fake HTTP 测试覆盖额度耗尽切换、瞬时限流、鉴权失败、模型错误和全部槽位耗尽；
+- 明确额度耗尽状态可随 Engine 检查点恢复，瞬时限流不会被错误持久化；
+- 至少一次真实 Supervisor API 调用产生合法 SupervisorDecision，并记录模型、账号环境变量名、Token、延迟和请求 ID。
 
 输出物：
 
 - Engine 与 TaskGraph；
 - SupervisorDecision Schema；
 - Blackboard；
+- DashScope ModelAdapter 与 SupervisorModelRouter；
 - 一条动态图状态 Trace；
 - 一条超时或非法决策降级 Trace。
 
@@ -1310,6 +1351,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - DiagnosticianAgent 两种视角；
 - ReviewerAgent 各 mode；
 - PatchAgent 两种 strategy；
+- 默认全部 Worker 使用本地 Qwen3-8B；
 - mode-specific Prompt 和 Schema；
 - 独立上下文构造；
 - asyncio 并发调度；
@@ -1375,7 +1417,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 
 - 固定至少 10 个 QuixBugs 任务；
 - 运行三个主系统；
-- 统一模型、工具、任务、随机种子集合和预算；
+- 固定各系统的角色模型、工具、任务、随机种子集合和分项预算；
 - 汇总任务、成本、时延和协作指标；
 - 运行关键消融；
 - 编写 README、架构图和限制说明；
@@ -1388,7 +1430,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - 一条命令运行批量评测；
 - 至少 10 个任务都有结构化结果；
 - 所有表格数字可以追溯到 Trace；
-- 三个系统遵守相同最大预算；
+- 三个系统遵守预先声明的总预算，Fixed Hybrid 与 Proposed 另使用相同 API 和 Worker 分项预算；
 - README 明确失败任务、当前限制和环境要求；
 - 简历不声称未完成的数据集或虚构提升。
 
@@ -1400,11 +1442,13 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 
 | 系统 | 说明 |
 | --- | --- |
-| Baseline A：Single-Agent ReAct | 单 Agent、相同工具和最大预算 |
-| Baseline B：Fixed Multi-Agent Pipeline | 固定调查、诊断、审查、Patch 顺序，不动态扩展和重规划 |
-| Proposed：Dynamic Supervisor MAS | Supervisor + Engine + 按需 Worker + 动态图 + 对抗审查 |
+| Baseline A：Local Single-Agent ReAct | 本地 Qwen3-8B 单 Agent、相同工具和明确预算，作为低成本部署基线 |
+| Baseline B：Fixed Hybrid Pipeline | 与 Proposed 使用相同阿里云 Supervisor 池和本地 Worker，但固定调查、诊断、审查、Patch 顺序 |
+| Proposed：Dynamic Hybrid Supervisor MAS | 阿里云 Supervisor + Engine + 本地按需 Worker + 动态图 + 对抗审查 |
 
-固定 Pipeline 必须使用与 Proposed 相同的基础模型、工具和候选上限，不能故意削弱基线。
+Fixed Hybrid Pipeline 与 Proposed 必须使用相同的 Supervisor 模型池、Worker 模型、工具、候选上限和最大 API/Worker 预算，不能故意削弱基线。Baseline A 与混合系统的对比属于实际部署效果与成本对比，不能单独用于证明多 Agent 架构收益。
+
+另保留 `Dynamic Local-Supervisor` 消融：保持 Engine、动态图和 Worker 不变，只把 Supervisor 显式替换为本地 Qwen3-8B，用于区分强 Supervisor 模型带来的收益与动态机制本身的收益；该消融不是默认部署配置。
 
 ### 15.2 主要结果指标
 
@@ -1419,6 +1463,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 | End-to-End Latency | 单任务总耗时 |
 | Agent / Tool Calls | 模型和工具调用成本 |
 | Token Usage | 输入与输出 Token |
+| Supervisor Route Usage | 各模型和账号槽位的调用、额度切换与失败次数 |
 | Cost per Solved Task | 每个成功任务的平均成本 |
 
 ### 15.3 机制指标
@@ -1452,14 +1497,17 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
 
 ### 15.5 公平性
 
-- 相同基础模型和模型版本；
+- Fixed Hybrid 与 Proposed 使用相同 Supervisor 模型池及版本；
+- 所有涉及 Worker 的系统使用相同本地 Qwen3-8B 版本；
 - 相同任务输入和隐藏信息边界；
 - 相同工具权限；
 - 相同测试环境；
-- 相同最大 Agent、工具、Token 和时间预算；
+- Fixed Hybrid 与 Proposed 使用相同最大 API、Worker、工具、Token 和时间预算；
 - 相同随机种子集合；
 - 相同评测脚本；
 - 失败和超时均计入结果，不静默删除。
+
+跨模型配置的结果必须标注为“部署对比”，不能把强 API 模型带来的提升全部归因于动态编排。免费额度下实际账单可以为零，但仍必须报告各 Provider/模型 Token、延迟和按公开单价估算的等价成本。
 
 ---
 
@@ -1481,6 +1529,9 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
   "start_time": "...",
   "end_time": "...",
   "model_calls": 1,
+  "model_provider": "dashscope_openai_compatible",
+  "model_id": "qwen3.7-max-2026-06-08",
+  "api_key_env": "DASHSCOPE_API_KEY_1",
   "tool_calls": 0,
   "token_usage": {"input": 1234, "output": 356},
   "status": "success"
@@ -1664,7 +1715,7 @@ README 推荐结构：
 6. 实质冲突触发 Challenge/Rebuttal，不为展示而强制辩论；
 7. Patch 在独立工作区中由真实测试裁决；
 8. 失败只回退相关节点；
-9. 使用 Single-Agent 和固定 Pipeline 在统一预算下验证收益与成本。
+9. 使用 Single-Agent 做部署对比，并用同模型池的 Fixed Hybrid 验证动态机制的收益与成本。
 
 简历描述只能在 Phase 6 根据真实结果填写。可以描述已实现机制，但不得提前写入成功率提升、SWE-Gym 结果或训练成果。
 
@@ -1712,7 +1763,7 @@ README 推荐结构：
 
 1. 一条命令运行单个任务；
 2. 至少 10 个标准任务有真实结果；
-3. Single-Agent、固定 Pipeline 和动态系统使用统一预算；
+3. Single-Agent、固定 Pipeline 和动态系统使用预先声明的总预算，混合系统另固定 API 与 Worker 分项预算；
 4. 至少一次真实并行 Investigation；
 5. Diagnostician A/B 第一轮上下文隔离；
 6. 至少一次有效双向 Challenge/Rebuttal；

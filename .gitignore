@@ -237,6 +237,9 @@ reports/phase2/*
 !reports/phase2/model_smoke/**
 !reports/phase2/acceptance/
 !reports/phase2/acceptance/**
+!reports/phase3/
+reports/phase3/*
+!reports/phase3/preflight.json
 
 data/workspaces/
 data/cache/
