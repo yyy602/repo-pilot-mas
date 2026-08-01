@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
+import sys
+import threading
 import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import TextIO
 
 from repo_pilot_mas.runtime.path_guard import PathGuard
 
@@ -40,7 +44,10 @@ class CommandRunner:
         allowed_executables: frozenset[str] | None = None,
     ) -> None:
         self.guard = PathGuard(workspace_root)
-        self.allowed_executables = allowed_executables or self.DEFAULT_ALLOWED
+        self.allowed_executables = (
+            self.DEFAULT_ALLOWED if allowed_executables is None else allowed_executables
+        )
+        self._trusted_executables = self._resolve_trusted_executables()
 
     def run(
         self,
@@ -52,8 +59,7 @@ class CommandRunner:
         input_text: str | None = None,
         extra_env: Mapping[str, str] | None = None,
     ) -> CommandExecution:
-        normalized = tuple(str(part) for part in command)
-        self._validate_command(normalized)
+        normalized = self._normalize_command(command)
         safe_cwd = self.guard.resolve(cwd, must_exist=True)
         if not safe_cwd.is_dir():
             raise CommandPolicyError("cwd must be a directory")
@@ -84,6 +90,7 @@ class CommandRunner:
             env.update({str(key): str(value) for key, value in extra_env.items()})
 
         started = time.perf_counter()
+        deadline = started + timeout_seconds
         process = subprocess.Popen(
             normalized,
             cwd=safe_cwd,
@@ -95,19 +102,55 @@ class CommandRunner:
             env=env,
             start_new_session=os.name == "posix",
         )
+        stdout_capture = _BoundedStreamCapture(max_output_chars)
+        stderr_capture = _BoundedStreamCapture(max_output_chars)
+        assert process.stdout is not None
+        assert process.stderr is not None
+        readers = [
+            threading.Thread(
+                target=_read_stream,
+                args=(process.stdout, stdout_capture),
+                daemon=True,
+            ),
+            threading.Thread(
+                target=_read_stream,
+                args=(process.stderr, stderr_capture),
+                daemon=True,
+            ),
+        ]
+        for reader in readers:
+            reader.start()
+        writer = None
+        if input_text is not None:
+            assert process.stdin is not None
+            writer = threading.Thread(
+                target=_write_stdin,
+                args=(process.stdin, input_text),
+                daemon=True,
+            )
+            writer.start()
+        io_threads = [*readers, *([writer] if writer is not None else [])]
         try:
-            stdout_raw, stderr_raw = process.communicate(input=input_text, timeout=timeout_seconds)
+            process.wait(timeout=max(deadline - time.perf_counter(), 0.001))
             timed_out = False
             exit_code: int | None = process.returncode
         except subprocess.TimeoutExpired:
             timed_out = True
             exit_code = None
             _terminate_process_tree(process)
-            stdout_raw, stderr_raw = process.communicate()
+            process.wait()
+
+        if not _join_threads_until(io_threads, deadline):
+            timed_out = True
+            exit_code = None
+            _terminate_process_tree(process)
+            if process.poll() is None:
+                process.wait()
+            _join_threads_until(io_threads, time.perf_counter() + 1.0)
 
         duration_ms = int((time.perf_counter() - started) * 1000)
-        stdout, out_truncated = _truncate(stdout_raw, max_output_chars)
-        stderr, err_truncated = _truncate(stderr_raw, max_output_chars)
+        stdout, out_truncated = stdout_capture.render()
+        stderr, err_truncated = stderr_capture.render()
         return CommandExecution(
             command=normalized,
             exit_code=exit_code,
@@ -118,33 +161,125 @@ class CommandRunner:
             truncated=out_truncated or err_truncated,
         )
 
-    def _validate_command(self, command: tuple[str, ...]) -> None:
+    def _normalize_command(self, command: Sequence[str]) -> tuple[str, ...]:
+        normalized = tuple(str(part) for part in command)
+        command = normalized
         if not command:
             raise CommandPolicyError("command must not be empty")
-        executable = Path(command[0]).name
-        if executable not in self.allowed_executables:
-            raise CommandPolicyError(f"command is not allowlisted: {executable}")
         if any("\x00" in argument for argument in command):
             raise CommandPolicyError("command arguments must not contain NUL bytes")
 
+        raw_executable = command[0]
+        executable = Path(command[0]).name
+        if _contains_path_component(raw_executable):
+            try:
+                requested_path = Path(raw_executable).expanduser().resolve(strict=True)
+            except OSError as exc:
+                raise CommandPolicyError(
+                    f"command executable does not exist: {raw_executable}"
+                ) from exc
+            python_path = Path(sys.executable).resolve(strict=True)
+            if requested_path == python_path and self.allowed_executables.intersection(
+                {"python", "python3"}
+            ):
+                return (str(python_path), *command[1:])
+        if executable not in self.allowed_executables:
+            raise CommandPolicyError(f"command is not allowlisted: {executable}")
+
+        trusted_path = self._trusted_executables.get(executable)
+        if trusted_path is None:
+            raise CommandPolicyError(f"allowlisted command is not available: {executable}")
+        if _contains_path_component(raw_executable) and requested_path != trusted_path:
+            raise CommandPolicyError(f"command executable is not trusted: {raw_executable}")
+
+        return (str(trusted_path), *command[1:])
+
+    def _resolve_trusted_executables(self) -> dict[str, Path]:
+        trusted: dict[str, Path] = {}
+        python_path = Path(sys.executable).resolve(strict=True)
+        for executable in self.allowed_executables:
+            if executable in {"python", "python3"}:
+                trusted[executable] = python_path
+                continue
+            discovered = shutil.which(executable)
+            if discovered is not None:
+                trusted[executable] = Path(discovered).resolve(strict=True)
+        return trusted
+
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
-    if process.poll() is not None:
-        return
     if os.name == "posix":
         try:
             os.killpg(process.pid, signal.SIGKILL)
             return
         except ProcessLookupError:
-            return
-    process.kill()
+            pass
+    if process.poll() is None:
+        process.kill()
 
 
-def _truncate(value: str, limit: int) -> tuple[str, bool]:
-    if len(value) <= limit:
-        return value, False
-    marker = "\n... <output truncated> ...\n"
-    remaining = max(limit - len(marker), 2)
-    head = int(remaining * 0.6)
-    tail = remaining - head
-    return value[:head] + marker + value[-tail:], True
+def _contains_path_component(value: str) -> bool:
+    return Path(value).is_absolute() or "/" in value or "\\" in value
+
+
+def _join_threads_until(threads: Sequence[threading.Thread], deadline: float) -> bool:
+    for thread in threads:
+        thread.join(max(deadline - time.perf_counter(), 0.0))
+    return not any(thread.is_alive() for thread in threads)
+
+
+_TRUNCATION_MARKER = "\n... <output truncated> ...\n"
+
+
+@dataclass(slots=True)
+class _BoundedStreamCapture:
+    """Keep bounded head/tail output while continuously draining a process pipe."""
+
+    limit: int
+    prefix: str = ""
+    suffix: str = ""
+    total_chars: int = 0
+
+    @property
+    def _payload_limit(self) -> int:
+        return self.limit - len(_TRUNCATION_MARKER)
+
+    @property
+    def _prefix_limit(self) -> int:
+        return int(self._payload_limit * 0.6)
+
+    @property
+    def _suffix_limit(self) -> int:
+        return self._payload_limit - self._prefix_limit
+
+    def append(self, value: str) -> None:
+        self.total_chars += len(value)
+        prefix_room = self._prefix_limit - len(self.prefix)
+        if prefix_room > 0:
+            self.prefix += value[:prefix_room]
+            value = value[prefix_room:]
+        if value:
+            self.suffix = (self.suffix + value)[-self._suffix_limit :]
+
+    def render(self) -> tuple[str, bool]:
+        if self.total_chars <= self._payload_limit:
+            return self.prefix + self.suffix, False
+        return self.prefix + _TRUNCATION_MARKER + self.suffix, True
+
+
+def _read_stream(stream: TextIO, capture: _BoundedStreamCapture) -> None:
+    try:
+        while chunk := stream.read(8192):
+            capture.append(chunk)
+    finally:
+        stream.close()
+
+
+def _write_stdin(stream: TextIO, value: str) -> None:
+    try:
+        stream.write(value)
+        stream.flush()
+    except (BrokenPipeError, OSError):
+        pass
+    finally:
+        stream.close()

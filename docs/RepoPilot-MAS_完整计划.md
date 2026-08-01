@@ -1,988 +1,975 @@
-# RepoPilot-MAS：基于动态任务图与对抗审查的多智能体代码修复系统
+# RepoPilot-MAS 完整计划（唯一基线 v2.1）
 
-> 目标：在 3–5 天内完成一个可运行、可演示、可对比、可写入简历的多 Agent 代码修复 MVP。  
-> 核心机制：动态任务图、共享状态管理、阶段内并行调度、Agent 交叉质疑、Challenge–Rebuttal–Arbitration、候选补丁竞争、真实测试验证与失败驱动重规划。  
-> 原则：不以“Agent 数量”作为卖点，而是证明系统如何根据当前状态动态创建、暂停、恢复、取消和重试任务，并让多个 Agent 围绕同一个问题相互检查、发现错误和共同完成修复。
+> 项目名称：RepoPilot-MAS
+> 中文定位：基于 Supervisor 主导、动态任务图与对抗审查的多智能体代码修复系统
+> 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
+> 计划版本：v2.1
+> 文档状态：唯一权威计划基线
+> 当前进度：Phase 0、Phase 1 已完成；当前下一阶段为 Phase 2，尚未开始
 
 ---
 
-## 1. 项目定位
+## 0. 文档权威性与编号规则
 
-### 1.1 项目名称
+本文件是 RepoPilot-MAS 唯一的整体规划、架构和阶段验收依据。
 
-**RepoPilot-MAS：基于动态任务图与对抗审查的多智能体代码修复系统**
+- README、阶段说明、代码注释与本文件冲突时，以本文件为准；
+- 历史方案只保留在 Git 历史中，不在当前仓库维护第二份整体计划；
+- 开发进度只使用 `Phase 0` 至 `Phase 6`；
+- Investigation、Diagnosis、Review、Patch、Validation 等称为“工作流阶段”，不再使用“阶段 0～9”，避免与开发 Phase 混淆；
+- 每个 Phase 必须满足验收标准后才能标记完成；
+- 日历天数只作为节奏建议，不作为完成证据。
 
-英文名称可写为：
+本计划整合并替代早期方案，核心调整如下：
 
-**RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review**
+1. SupervisorAgent 是唯一拥有全局语义决策权的 Agent；
+2. OrchestrationEngine 是确定性执行内核，不是 Agent；
+3. 逻辑角色收敛为四类可复用 Worker Agent；
+4. 系统从最小任务图开始，按不确定性与风险逐节点扩展；
+5. 快速、标准、深度仅是执行 Trace 的结果分类，不是三套写死的 Pipeline；
+6. 保留结构化证据、独立根因分析、Challenge/Rebuttal、双补丁竞争、真实测试和定向重规划；
+7. 所有简历指标必须来自可复现的 Trace 和评测结果。
 
-### 1.2 项目要解决的问题
+---
 
-输入一个程序缺陷任务，包括：
+## 1. 项目定位与目标
+
+### 1.1 要解决的问题
+
+输入一个代码缺陷任务，包括：
 
 - Bug 描述或 Issue；
 - 待修复代码仓库；
-- 失败测试或错误日志；
-- 可选的验收要求。
+- 失败测试、错误堆栈或运行日志；
+- 可选的目标文件和验收条件；
+- 由任务清单提供的受信测试命令与资源预算。
 
 系统自动完成：
 
-1. 解析任务与验收条件；
-2. 并行检索代码、复现错误和分析依赖；
-3. 检查证据是否真实、完整和一致；
-4. 多个根因 Agent 独立提出根因假设；
-5. 根因 Agent 相互质疑并进行答辩；
-6. Arbiter 基于证据、质疑和答辩完成仲裁；
-7. 多个 Patch Agent 并行生成不同修复方案；
-8. Patch Agent 相互检查表面修复、过度修改和回归风险；
-9. 在隔离工作区中运行真实测试；
-10. 根据测试失败类型定向返回根因阶段或补丁阶段；
-11. 输出最终补丁、根因报告、测试结果和完整执行 Trace。
+1. 解析任务、验收条件和安全边界；
+2. 调查相关代码、复现失败并分析依赖；
+3. 审计证据的真实性、相关性与充分性；
+4. 根据不确定性决定是否增加调查或根因实例；
+5. 在需要时执行独立根因推理和 Challenge/Rebuttal；
+6. 由 Reviewer 给出专业建议，Supervisor 作最终根因决策；
+7. 根据风险生成一个或两个候选补丁；
+8. 在隔离工作区中应用补丁并运行真实测试；
+9. 根据失败类型定向返回 Investigation、Diagnosis 或 Patch；
+10. 输出最终补丁、证据链、验证结果、任务图和完整 Trace。
 
-### 1.3 项目的核心价值
+### 1.2 核心价值
 
-本项目重点体现以下 Agent 工程能力：
+项目的核心卖点不是 Agent 数量，而是：
 
-- Supervisor 驱动的动态任务图；
-- 基于任务状态的节点创建、激活、暂停、恢复、取消和重试；
-- Fork–Join、条件分支、局部回退和动态重规划；
-- 多 Agent 并行与异步调度；
-- 独立上下文、共享黑板和结构化状态管理；
-- Agent 之间的 Challenge、Rebuttal 和 Request Evidence；
-- Proposer–Critic–Arbiter 对抗协作协议；
-- 候选补丁竞争和相互审查；
-- 工具超时、局部失败、预算耗尽和循环检测；
-- 测试驱动的失败恢复与定向回退；
-- 单 Agent、固定流水线和动态任务图系统的量化对照评测。
+> SupervisorAgent 根据结构化证据、根因冲突、补丁风险和真实验证结果，动态创建、暂停、恢复、取消、重试和回退任务；OrchestrationEngine 保证所有决定被合法、安全、可追踪地执行。
+
+需要重点证明的工程能力：
+
+- 动态任务图、条件边、Fork–Join 和局部回退；
+- Agent 独立上下文与结构化共享黑板；
+- Supervisor 语义决策与 Engine 工程执行分离；
+- Challenge–Rebuttal 与候选补丁竞争；
+- 工具超时、预算、重试、循环检测和失败降级；
+- 测试驱动的真实验证，而不是模型自评；
+- Single-Agent、固定 Multi-Agent 和动态系统的公平对照。
+
+### 1.3 系统输出
+
+每个任务至少输出：
+
+- `FinalReport`；
+- 根因结论及证据引用；
+- 最终 Patch 和实际 Diff；
+- 目标测试、回归测试和静态检查结果；
+- 未选择候选及其淘汰原因；
+- Agent 协作与 Reviewer 建议；
+- 动态任务图与状态变化；
+- 预算使用、重规划记录和终止原因；
+- JSONL Trace 与汇总指标。
 
 ---
 
-## 2. 3–5 天 MVP 的范围边界
+## 2. MVP 范围边界
 
-### 2.1 必须实现的能力
-
-5 天版本必须实现：
+### 2.1 简历 MVP 必须具备
 
 - 一个 Single-Agent ReAct 基线；
-- 一个 Supervisor；
-- 3 个并行 Evidence Agent；
-- 一个 Evidence Critic；
-- 2 个独立 RootCause Agent；
-- RootCause Agent 双向交叉质疑；
-- 一轮 Rebuttal；
-- 一个 Arbiter；
-- 2 个候选 Patch Agent；
-- Patch Agent 相互审查；
-- 真实测试执行；
+- 一个 SupervisorAgent；
+- 一个确定性的 OrchestrationEngine；
+- 四类 Worker Agent：Investigator、Diagnostician、Reviewer、Patch；
+- 动态 TaskGraph、节点状态机和结构化 Blackboard；
+- 至少一个任务出现并行 Investigation；
+- 至少一个任务出现两个独立 Diagnostician；
+- 至少一个有效的双向 Challenge/Rebuttal 案例；
+- 至少一个双 Patch 竞争和审查案例；
+- 真实测试、静态检查和受保护路径检查；
 - 最多一次定向重规划；
-- Single-Agent 与 Multi-Agent 对照实验；
-- 结构化 Trace、README 和架构图。
+- 至少 10 个 QuixBugs Python 任务的真实结果；
+- Single-Agent、固定 Multi-Agent、动态 Supervisor MAS 三组对照；
+- 结构化 Trace、README、架构图和真实指标。
 
-### 2.2 3 天版本可缩减内容
+这里的“至少一个案例”用于证明机制真实执行，不代表所有任务都强制走深度路径。
 
-如果只有 3 天，可以缩减为：
+### 2.2 可以降级但不能伪装完成
 
-- Evidence Agent 只保留 Retrieval 和 Reproduction；
-- 不实现独立 Dependency Agent；
-- 只保留一个 Patch Agent；
-- RootCause A/B 双向质疑仍必须保留；
-- Critic 和 Arbiter 可以由同一个模型实例承担，但输出结构必须分开；
-- 只运行 QuixBugs 任务；
-- 只实现一次补丁失败后的重新生成。
+资源不足时允许：
+
+- Investigator 最大并发从 3 降为 2；
+- 只有高风险任务生成双 Patch；
+- Reviewer 的不同 mode 使用同一个基础模型；
+- SWE-Gym Lite 延后到 MVP 之后；
+- 完整消融只保留最关键的 2～3 组。
+
+以下能力不能从简历 MVP 中删除：
+
+- Single-Agent 基线；
+- 至少一次真实并行；
+- Diagnostician 第一轮上下文隔离；
+- Challenge/Rebuttal；
+- 真实测试验证；
+- 动态扩展或定向重规划；
+- 统一预算下的对照结果。
 
 ### 2.3 本阶段明确不做
 
-为了保证 3–5 天内完成，本阶段不做：
-
 - Qwen3-8B 的 LoRA、DPO 或强化学习；
-- 64 个 Agent 或大规模 Agent 集群；
+- 大规模 Agent 集群；
 - Redis、Kafka、Celery、Kubernetes；
-- 完整 SWE-bench Verified 500 任务评测；
-- 自动构建大规模仓库索引；
+- 完整 SWE-bench Verified 评测；
+- 自动构建大型全局代码索引；
 - 多轮无限辩论；
-- 每个动作都封装成 Agent；
-- 完整分布式状态管理；
+- 每个工具动作都封装成 Agent；
+- 分布式状态管理；
 - 前端可视化平台；
-- 复杂权限系统和生产级部署。
-
-这些内容可以写入后续扩展计划，但不能影响 MVP 交付。
-
----
-
-## 3. 动态任务图与状态管理
-
-动态任务图是本项目区别于固定多 Agent 流水线的核心。
-
-固定流水线通常是：
-
-```text
-Evidence → RootCause → Patch → Test → Review
-```
-
-而本项目中的任务图不是预先写死的。Supervisor 会根据当前任务状态、中间证据、审查结果、测试结果和剩余预算，动态决定：
-
-- 创建哪些任务节点；
-- 哪些节点可以并行执行；
-- 哪些节点必须等待前置条件；
-- 哪些节点需要暂停；
-- 哪些节点已经失效并应取消；
-- 哪些节点需要重新激活；
-- 失败后应回退到 Evidence、RootCause 还是 Patch 阶段；
-- 当前任务是否应降级、终止或转人工。
-
-### 3.1 任务图中的节点类型
-
-| 节点类型           | 作用                           |
-| ------------------ | ------------------------------ |
-| `EVIDENCE_TASK`    | 检索、复现、依赖分析和补充证据 |
-| `CRITIQUE_TASK`    | 检查证据、根因或补丁           |
-| `ROOT_CAUSE_TASK`  | 独立提出根因假设               |
-| `REBUTTAL_TASK`    | 回应质疑或修正假设             |
-| `ARBITRATION_TASK` | 综合证据、质疑和答辩           |
-| `PATCH_TASK`       | 生成候选补丁                   |
-| `VALIDATION_TASK`  | 运行测试和静态检查             |
-| `REPLAN_TASK`      | 根据失败结果修改任务图         |
-
-### 3.2 任务节点状态
-
-```text
-PENDING
-  ↓
-READY
-  ↓
-RUNNING
-  ├──→ SUCCEEDED
-  ├──→ FAILED
-  ├──→ TIMED_OUT
-  ├──→ BLOCKED
-  ├──→ PAUSED
-  └──→ CANCELLED
-```
-
-节点状态含义：
-
-- `PENDING`：已经创建，但前置依赖尚未满足；
-- `READY`：满足执行条件，可以进入调度队列；
-- `RUNNING`：Agent 或工具正在执行；
-- `SUCCEEDED`：产生有效结构化结果；
-- `FAILED`：执行失败，但可能重试或降级；
-- `TIMED_OUT`：超过最大执行时间；
-- `BLOCKED`：缺少关键证据或依赖；
-- `PAUSED`：等待其他 Agent 的质疑、答辩或补充结果；
-- `CANCELLED`：由于任务图变化，当前节点不再需要。
-
-### 3.3 条件边
-
-任务图中的边不只是固定的先后关系，还包含条件：
-
-```text
-Evidence Critic = PASS
-    → 激活 RootCause A/B
-
-Evidence Critic = NEEDS_MORE_EVIDENCE
-    → 新建定向 Evidence 节点
-
-RootCause 存在冲突
-    → 激活 Challenge/Rebuttal
-
-Arbiter = REQUEST_EVIDENCE
-    → 返回 Evidence 阶段
-
-Patch 测试失败且根因可信
-    → 返回 Patch 阶段
-
-两个 Patch 都失败且无法解释
-    → 返回 RootCause 阶段
-
-预算耗尽
-    → 终止任务
-```
-
-### 3.4 Fork–Join 与并行
-
-并行探索是动态任务图中的一种调度模式，而不是项目的最高层定位。
-
-典型 Fork–Join：
-
-```text
-Supervisor
-    ├── Retrieval
-    ├── Reproduction
-    └── Dependency
-          ↓
-       Join Barrier
-          ↓
-    Evidence Critic
-```
-
-另一个 Fork–Join：
-
-```text
-Arbiter 确认根因
-    ├── Minimal Patch
-    └── Robust Patch
-          ↓
-       Join Barrier
-          ↓
-     Cross Review/Test
-```
-
-### 3.5 共享状态与版本管理
-
-动态任务图需要依赖共享状态，而不是依赖完整聊天记录。
-
-状态至少包括：
-
-- 当前任务阶段；
-- 活跃节点；
-- 已完成节点；
-- 节点依赖；
-- Evidence 版本；
-- Hypothesis 版本；
-- Critique 和 Rebuttal；
-- Patch 版本；
-- 测试结果；
-- 预算消耗；
-- 重规划历史；
-- 终止原因。
-
-每个可修改对象都带版本号：
-
-```json
-{
-  "hypothesis_id": "H1",
-  "version": 2,
-  "supersedes": "H1@v1",
-  "status": "revised",
-  "updated_by": "root_cause_a",
-  "triggered_by": "challenge_C2"
-}
-```
-
-这样可以回答：
-
-- 哪个质疑导致了根因修订；
-- 哪个根因版本指导了当前补丁；
-- 哪次测试失败触发了任务图回退；
-- 为什么某个节点被取消；
-- 当前状态是否可以从检查点恢复。
-
-### 3.6 状态机与检查点
-
-每个阶段完成后保存检查点：
-
-```text
-INIT
-  → EVIDENCE_COLLECTION
-  → EVIDENCE_REVIEW
-  → ROOT_CAUSE_PROPOSAL
-  → CROSS_EXAMINATION
-  → ARBITRATION
-  → PATCH_GENERATION
-  → PATCH_REVIEW
-  → VALIDATION
-  → COMPLETED / REPLAN / FAILED
-```
-
-检查点至少保存：
-
-- `task_state.json`；
-- `task_graph.json`；
-- `blackboard.json`；
-- `trace.jsonl`；
-- 当前工作区和 Patch 引用。
-
-发生模型服务中断或进程退出后，可以从最近检查点继续，而不必重新执行全部 Agent。
+- 多用户队列和生产级部署；
+- 没有真实实验支撑的性能或准确率宣传。
 
 ---
 
-## 4. 系统总体架构
+## 3. 总体架构
 
 ```text
-                                  Bug / Issue
-                                       │
-                                       ▼
-                              Supervisor Agent
-                     任务解析、预算控制、状态管理、重规划
-                                       │
-             ┌─────────────────────────┼─────────────────────────┐
-             │                         │                         │
-             ▼                         ▼                         ▼
-      Retrieval Agent         Reproduction Agent        Dependency Agent
-       代码与测试检索             错误复现与日志             调用链与影响范围
-             │                         │                         │
-             └─────────────────────────┼─────────────────────────┘
-                                       ▼
-                              Evidence Critic
-                    检查证据真实性、相关性、冲突和缺失项
-                                       │
-                          证据不足时定向请求补充
-                                       ▼
-                    ┌──────────────────┴──────────────────┐
-                    │                                     │
-                    ▼                                     ▼
-            RootCause Agent A                     RootCause Agent B
-             运行行为视角                            代码语义视角
-                    │                                     │
-                    ├──── A Challenge B ─────────────────►│
-                    │◄─── B Challenge A ──────────────────┤
-                    │                                     │
-                    ▼                                     ▼
-              Rebuttal / Revise                      Rebuttal / Revise
-                    │                                     │
-                    └──────────────────┬──────────────────┘
-                                       ▼
-                                Arbiter Agent
-                   综合证据、假设、质疑和答辩确定根因
-                                       │
-                    ┌──────────────────┴──────────────────┐
-                    │                                     │
-                    ▼                                     ▼
-           Minimal Patch Agent                    Robust Patch Agent
-             最小范围修改                            根因级鲁棒修复
-                    │                                     │
-                    ├──── Cross Review / Challenge ───────┤
-                    │                                     │
-                    └──────────────────┬──────────────────┘
-                                       ▼
-                          Test Runner / Validator
-                      独立工作区、真实测试、静态检查
-                                       │
-                           ┌───────────┴───────────┐
-                           │                       │
-                         通过                     失败
-                           │                       │
-                           ▼                       ▼
-                      输出最佳补丁        Supervisor 判断失败类型
-                                                   │
-                               ┌───────────────────┴───────────────────┐
-                               │                                       │
-                        根因或证据不足                           补丁实现错误
-                               │                                       │
-                     返回 RootCause/Evidence                     返回 Patch 阶段
+                              User Task
+                                  │
+                                  ▼
+                    ┌────────────────────────┐
+                    │    SupervisorAgent     │
+                    │ 规划、路由与最终语义决策 │
+                    └────────────┬───────────┘
+                                 │ SupervisorDecision
+                                 ▼
+                    ┌────────────────────────┐
+                    │  OrchestrationEngine   │
+                    │ Schema、DAG、预算与硬约束 │
+                    └────────────┬───────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+     InvestigatorAgent   DiagnosticianAgent   ReviewerAgent
+              │                  │                  │
+              └──────────────────┼──────────────────┘
+                                 ▼
+                            PatchAgent
+                                 │
+                                 ▼
+                    Deterministic Tool Layer
+                                 │
+                                 ▼
+                  Isolated Validation Workspace
+                                 │
+                                 ▼
+              Blackboard + Artifact Store + Trace
+                                 │
+                                 └────→ SupervisorAgent
 ```
+
+系统分为六层：
+
+1. Supervisor 决策层；
+2. OrchestrationEngine 编排执行层；
+3. Worker Agent 推理层；
+4. Blackboard 与 Artifact 状态层；
+5. 确定性工具层；
+6. 隔离运行环境层。
 
 ### 3.1 架构原则
 
-整个系统不是所有 Agent 永久同时运行，而是：
-
-- 阶段之间存在必要依赖；
-- 阶段内部进行并行；
-- 关键结论必须经过交叉审查；
-- Agent 之间通过共享黑板交换结构化信息；
-- 测试失败后只重新执行相关阶段；
-- 所有写操作必须发生在隔离工作区。
+- Agent 类型固定，运行时实例按需创建；
+- Worker 只能提交 Artifact 和建议，不能修改全局任务图；
+- Supervisor 只能输出结构化决策，不能直接操作进程和文件；
+- Engine 执行状态迁移、预算和安全约束；
+- Agent 之间不转发完整聊天历史；
+- 每次 Worker 调用使用任务所需的最小上下文；
+- 任何成功结论都必须引用 Engine 产生的 ValidationResult；
+- 原始仓库不作为补丁写入目标。
 
 ---
 
-## 5. Agent 划分
+## 4. SupervisorAgent 与 OrchestrationEngine
 
-## 4.1 Supervisor Agent
+### 4.1 SupervisorAgent 的职责
 
-### 职责
+SupervisorAgent 是唯一全局主 Agent，负责：
 
-- 解析 Bug 描述；
-- 提取期望行为和当前异常行为；
-- 生成验收条件；
-- 创建任务图；
-- 并行调度 Agent；
-- 维护最大模型调用数、工具调用数和重规划次数；
+- 理解 Issue 和验收条件；
+- 制定初始最小计划；
+- 创建、暂停、恢复或取消 Worker 任务；
 - 判断是否需要补充证据；
-- 判断测试失败属于根因错误还是补丁实现错误；
-- 选择继续、降级、终止或输出结果。
+- 判断根因是否存在实质冲突；
+- 决定是否进入 Challenge/Rebuttal；
+- 决定生成一个还是两个 Patch；
+- 根据真实测试结果选择回退位置；
+- 在预算内选择最终根因和补丁；
+- 宣布成功、失败或需要人工处理。
 
-### 不负责
+只有 Supervisor 可以提出以下全局动作：
 
-- 不直接检索全部代码；
-- 不直接生成最终补丁；
-- 不替代 Critic 和 Arbiter；
-- 不模拟执行测试。
-
-### 输出示例
-
-```json
-{
-  "task_id": "qb_binary_search",
-  "status": "evidence_collection",
-  "acceptance_criteria": [
-    "修复错误返回结果",
-    "全部已有测试通过",
-    "不修改测试文件"
-  ],
-  "budget": {
-    "max_model_calls": 18,
-    "max_tool_calls": 30,
-    "max_replans": 1
-  }
-}
+```text
+CREATE_TASK
+CANCEL_TASK
+PAUSE_TASK
+RESUME_TASK
+CHANGE_WORKFLOW_STAGE
+REQUEST_REPLAN
+ACCEPT_HYPOTHESIS
+SELECT_PATCH
+FINALIZE_TASK
+TERMINATE_TASK
 ```
 
----
+Supervisor 不负责：
 
-## 4.2 Evidence Agent Pool
+- 遍历全部代码；
+- 直接执行测试；
+- 管理线程和进程；
+- 直接写入工作区；
+- 自己生成并审查同一个补丁；
+- 绕过 Engine 修改全局状态。
 
-Evidence Agent 使用统一基类，通过不同模式运行。
+### 4.2 SupervisorDecision
 
-### Retrieval Agent
-
-负责：
-
-- 根据 Bug 描述检索相关文件；
-- 定位函数、类、变量和测试；
-- 返回代码片段及相关原因；
-- 标记直接证据和推测。
-
-输出内容：
-
-- 文件路径；
-- 符号名；
-- 行号；
-- 相关代码；
-- 与 Issue 的关联说明；
-- 置信度。
-
-### Reproduction Agent
-
-负责：
-
-- 执行已有测试；
-- 提取失败用例；
-- 收集异常栈；
-- 记录运行命令和环境信息；
-- 尝试构建最小复现。
-
-输出内容：
-
-- 失败测试名；
-- 错误类型；
-- 失败输入；
-- 实际输出；
-- 期望输出；
-- 异常栈；
-- 复现命令。
-
-### Dependency Agent
-
-负责：
-
-- 分析目标符号的调用方和被调用方；
-- 分析数据流和输入来源；
-- 估计修改影响范围；
-- 返回可能受影响的测试和模块。
-
-MVP 中优先使用 Python AST 和简单引用搜索，不构建复杂全局图数据库。
-
-### Evidence Agent 统一输出
+Supervisor 每次读取压缩后的状态快照，并输出结构化决定：
 
 ```json
 {
-  "evidence_id": "E3",
-  "producer": "reproduction_agent",
-  "type": "runtime_failure",
-  "claim": "binary_search 在目标不存在时返回错误索引",
-  "source": {
-    "test": "test_binary_search_not_found",
-    "command": "pytest -q"
-  },
-  "content": {
-    "expected": -1,
-    "actual": 4
-  },
-  "confidence": 0.98,
-  "status": "unverified"
-}
-```
-
----
-
-## 4.3 Evidence Critic
-
-### 职责
-
-Evidence Critic 不负责推断最终根因，只检查证据。
-
-检查项：
-
-- 证据是否来自真实工具结果；
-- 代码路径和行号是否存在；
-- 测试是否真的失败；
-- Claim 是否超出了 Source 能支持的范围；
-- 检索到的位置是否只是异常发生点而非根因；
-- 不同 Agent 的证据是否冲突；
-- 是否缺少关键调用方、失败输入或环境信息；
-- 是否存在模型虚构的证据。
-
-### 质疑示例
-
-```json
-{
-  "message_type": "CHALLENGE",
-  "sender": "evidence_critic",
-  "receiver": "retrieval_agent",
-  "target_id": "E5",
-  "objection": "该代码位置只是返回错误结果的位置，尚未证明循环边界计算是根因。",
-  "required_evidence": [
-    "目标函数的边界变量变化轨迹",
-    "失败输入对应的循环执行过程"
-  ],
-  "severity": "blocking"
-}
-```
-
-### 处理逻辑
-
-- 非关键证据不足：标记为低置信度，继续流程；
-- 关键证据不足：Supervisor 只重新激活对应 Evidence Agent；
-- Agent 超时：保留其他证据，允许降级继续；
-- 证据冲突：记录冲突，交给 RootCause Agent 解释。
-
----
-
-## 4.4 RootCause Agent A 和 B
-
-两个 RootCause Agent 使用同一个基础模型，但必须拥有：
-
-- 独立上下文；
-- 独立推理历史；
-- 不同分析视角；
-- 第一轮互不可见；
-- 统一输出 Schema。
-
-### RootCause Agent A：运行行为视角
-
-重点分析：
-
-- 失败输入如何触发错误；
-- 程序执行路径；
-- 变量如何变化；
-- 异常或错误结果在哪一步产生；
-- 哪个条件判断最可能失效。
-
-### RootCause Agent B：代码语义与依赖视角
-
-重点分析：
-
-- 函数契约；
-- 边界条件；
-- 调用链；
-- 上游输入来源；
-- 修改点对其他代码的影响；
-- 是否存在更上游的根本原因。
-
-### 根因输出 Schema
-
-```json
-{
-  "hypothesis_id": "H1",
-  "producer": "root_cause_a",
-  "root_cause": "循环更新右边界时使用了 mid + 1，导致搜索区间无法正确收缩",
-  "direct_cause": "目标不存在时仍返回当前索引",
-  "supporting_evidence": ["E1", "E3", "E6"],
-  "counter_evidence": [],
-  "affected_symbols": ["binary_search"],
-  "verification_plan": [
-    "记录每轮 left、right 和 mid",
-    "使用不存在的目标值运行测试"
-  ],
-  "confidence": 0.83
-}
-```
-
----
-
-## 4.5 RootCause 交叉质疑机制
-
-### 执行流程
-
-1. RootCause A 和 B 独立生成 H1 和 H2；
-2. A 获得 H2，但不能修改 H2；
-3. B 获得 H1，但不能修改 H1；
-4. A 对 H2 发起 Challenge；
-5. B 对 H1 发起 Challenge；
-6. A、B 分别收到对方质疑；
-7. 每个 Agent进行一次 Rebuttal；
-8. Agent 可以接受质疑、补充证据或修改假设；
-9. 结果交给 Arbiter。
-
-### Challenge 必须包含
-
-- 被质疑的具体 Claim；
-- 为什么现有证据不足；
-- 可能存在的反例；
-- 需要什么证据才能验证；
-- 严重程度。
-
-```json
-{
-  "message_type": "CHALLENGE",
-  "sender": "root_cause_b",
-  "receiver": "root_cause_a",
-  "target_id": "H1",
-  "objections": [
+  "decision_id": "D12",
+  "action": "CREATE_TASK",
+  "reason": "两个根因均依赖尚未验证的缓存失效路径。",
+  "create_tasks": [
     {
-      "claim": "错误仅由返回值处理引起",
-      "problem": "该假设无法解释循环提前退出的现象",
-      "required_evidence": "失败输入下的边界变量变化轨迹",
-      "severity": "blocking"
-    }
-  ]
-}
-```
-
-### Rebuttal 必须包含
-
-- 接受、部分接受或拒绝质疑；
-- 新增证据；
-- 修订后的假设；
-- 尚未解决的问题。
-
-```json
-{
-  "message_type": "REBUTTAL",
-  "sender": "root_cause_a",
-  "target_challenge": "C2",
-  "decision": "revise",
-  "revised_hypothesis": "错误由区间收缩逻辑和最终返回值共同导致，其中区间边界更新是根本原因。",
-  "new_evidence": ["E8"],
-  "remaining_uncertainty": []
-}
-```
-
-### 停止条件
-
-MVP 只进行一轮 Challenge 和一轮 Rebuttal，防止无限争论。
-
----
-
-## 4.6 Arbiter Agent
-
-### 职责
-
-Arbiter 只做综合判断，不负责发起质疑。
-
-输入包括：
-
-- 原始任务；
-- 经过 Evidence Critic 检查的证据；
-- H1 和 H2；
-- 双方 Challenge；
-- 双方 Rebuttal；
-- 新增工具结果。
-
-输出三种决策：
-
-1. `SELECT_HYPOTHESIS`：选择或合并根因；
-2. `REQUEST_EVIDENCE`：证据不足，定向补充；
-3. `UNRESOLVED`：预算不足或无法确定，终止或降级。
-
-### 输出示例
-
-```json
-{
-  "decision": "SELECT_HYPOTHESIS",
-  "selected_hypothesis": "H1_REVISED",
-  "reason": "修订后的 H1 能同时解释区间更新异常、错误返回值和全部失败测试。",
-  "supporting_evidence": ["E3", "E6", "E8"],
-  "rejected_hypotheses": [
-    {
-      "id": "H2",
-      "reason": "H2 仅解释了返回值现象，无法解释循环区间异常。"
+      "agent_type": "investigator",
+      "mode": "dependency_trace",
+      "objective": "确认缓存写入与失效路径",
+      "input_artifact_ids": ["H1", "H2", "E4"]
     }
   ],
-  "patch_constraints": [
-    "不得修改测试文件",
-    "优先修改目标函数",
-    "必须覆盖目标不存在和边界位置两类输入"
-  ]
+  "cancel_task_ids": [],
+  "next_workflow_stage": "investigation",
+  "evidence_refs": ["E4", "H1", "H2"]
 }
 ```
 
+模型自报 confidence 只作为辅助 Trace，不是 Engine 接受决定或任务成功的依据。
+
+### 4.3 OrchestrationEngine 的职责
+
+OrchestrationEngine 不是 Agent。它负责：
+
+- 校验 SupervisorDecision Schema；
+- 验证动作是否适用于当前状态；
+- 创建和更新 TaskNode；
+- 维护依赖、条件边和 Join Barrier；
+- 将节点从 PENDING 转为 READY；
+- 调度 Worker Agent 和确定性工具；
+- 控制最大并发、超时、重试和重规划次数；
+- 保存 Artifact、状态版本、检查点和 Trace；
+- 检测重复节点、无进展循环和预算耗尽；
+- 在预定决策点唤醒 Supervisor。
+
+Supervisor 只在以下决策点调用，Engine 不为普通状态更新反复调用模型：
+
+1. 初始任务解析完成；
+2. 一组 Investigation Join 完成；
+3. Diagnosis 或 Review 产生冲突；
+4. Patch 验证完成或失败；
+5. 需要重规划或最终结束。
+
+### 4.4 Engine 硬约束
+
+Engine 必须拒绝：
+
+- 不符合 Schema 的 Supervisor 决策；
+- 超过 Agent、工具、时间、Token 或重规划预算的动作；
+- 创建与现有活动节点等价的重复任务；
+- 依赖未满足时运行节点；
+- Worker 直接修改 TaskGraph 或 Blackboard 的行为；
+- Agent 提供或改写任务级测试命令；
+- 修改 `protected_paths` 的 Patch；
+- 选择不存在、未应用或未验证的 Patch；
+- 没有目标测试和回归测试结果就宣布成功；
+- 仍存在未处理 Blocking Review 时 Finalize；
+- 将 Agent 自报的“测试通过”视为 ValidationResult。
+
+最终成功必须绑定到具体 Patch 哈希、实际 Diff、测试命令、退出码和 Trace ID。
+
 ---
 
-## 4.7 Patch Agent Pool
+## 5. Worker Agent 类型
 
-### Minimal Patch Agent
+系统只保留四类 Worker 实现。mode 和 strategy 表示逻辑任务，不意味着共享上下文。
 
-目标：
+### 5.1 InvestigatorAgent
 
-- 尽可能少改文件；
-- 尽可能少改代码；
-- 不进行无关重构；
-- 不改变公开接口；
-- 优先降低回归风险。
+负责调查和证据收集，支持：
 
-### Robust Patch Agent
-
-目标：
-
-- 从仲裁后的根因修复；
-- 覆盖同类边界条件；
-- 避免仅针对当前测试硬编码；
-- 必要时进行有限局部重构；
-- 显式说明潜在影响。
-
-### Patch 输出 Schema
-
-```json
-{
-  "patch_id": "P1",
-  "producer": "minimal_patch_agent",
-  "strategy": "minimal",
-  "resolved_hypothesis": "H1_REVISED",
-  "modified_files": ["python_programs/binary_search.py"],
-  "diff": "...",
-  "expected_effect": [
-    "正确收缩搜索区间",
-    "目标不存在时返回 -1"
-  ],
-  "known_risks": [],
-  "required_tests": [
-    "test_not_found",
-    "test_first_element",
-    "test_last_element"
-  ]
-}
+```text
+mode=code_retrieval
+mode=failure_reproduction
+mode=dependency_trace
+mode=evidence_completion
+mode=regression_scope
 ```
 
----
+主要工具权限：
 
-## 4.8 Patch 相互审查
+- `list_files`
+- `search_code`
+- `inspect_code`
+- `find_references`
+- `run_tests`
+- `static_check`
 
-### Minimal Patch Agent 审查 Robust Patch
+每个 Investigation 任务返回 EvidenceArtifact，必须区分：
 
-重点检查：
+- 工具直接观察；
+- 从代码推导的结论；
+- 尚未验证的假设；
+- 建议补充的证据。
 
-- 是否过度修改；
-- 是否引入不必要重构；
-- 是否改变公开接口；
-- 是否增加不相关逻辑；
-- 是否扩大回归风险。
+### 5.2 DiagnosticianAgent
 
-### Robust Patch Agent 审查 Minimal Patch
+负责根因分析。需要时创建两个独立实例：
 
-重点检查：
-
-- 是否只修复表面现象；
-- 是否存在测试硬编码；
-- 是否吞掉异常；
-- 是否遗漏同类边界；
-- 是否真正对应仲裁后的根因。
-
-### Patch Critique 示例
-
-```json
-{
-  "reviewed_patch": "P1",
-  "reviewer": "robust_patch_agent",
-  "verdict": "needs_revision",
-  "objections": [
-    {
-      "severity": "blocking",
-      "problem": "补丁只修改最终返回值，没有修复搜索区间更新错误。",
-      "counterexample": "目标位于最后一个位置时仍会失败。"
-    }
-  ]
-}
+```text
+Diagnostician A：控制流、边界条件、异常路径和运行行为
+Diagnostician B：数据流、状态变化、接口契约和依赖影响
 ```
 
-Patch 相互审查不是最终裁决，最终结果仍由真实测试决定。
+第一轮必须满足：
+
+- 上下文相互隔离；
+- 不读取对方 Hypothesis；
+- 引用 Evidence ID；
+- 区分直接原因和根本原因；
+- 给出可执行验证计划；
+- 主动列出反例和缺失证据。
+
+Supervisor 授权后，同一 Agent 类型可以使用：
+
+```text
+mode=challenge
+mode=rebuttal
+```
+
+Challenge 与 Rebuttal 必须是新的任务调用，不复用对方的私有推理历史。
+
+### 5.3 ReviewerAgent
+
+Reviewer 提供专业审查建议，不拥有最终决策权。支持：
+
+```text
+mode=evidence_review
+mode=hypothesis_comparison
+mode=challenge_quality
+mode=root_cause_recommendation
+mode=patch_review
+mode=final_risk_review
+```
+
+不同 mode 使用：
+
+- 独立输入视图；
+- 独立 Prompt；
+- 独立输出 Schema；
+- 新的模型上下文。
+
+Reviewer 可以推荐根因或 Patch，但最终 `ACCEPT_HYPOTHESIS` 和 `SELECT_PATCH` 只能由 Supervisor 提出，并由 Engine 校验。
+
+### 5.4 PatchAgent
+
+PatchAgent 根据已接受根因和 Patch Constraints 生成 Unified Diff：
+
+```text
+strategy=minimal
+strategy=robust
+```
+
+Minimal：
+
+- 优先最小修改范围；
+- 直接修复已确认根因；
+- 避免无关重构和公开接口变化。
+
+Robust：
+
+- 允许必要的输入校验和状态一致性处理；
+- 允许处理已被证据支持的相邻边界情况；
+- 必须解释相对 Minimal 增加的修改和风险。
+
+PatchAgent 不得修改任务自带的测试和其他 `protected_paths`。它可以提出额外回归测试，但只能作为独立 GeneratedTestArtifact 或写入临时验证区域；额外测试不能替代官方目标测试和回归测试。
+
+### 5.5 运行时实例
+
+| 类型 | 常见实例数 | 最大 LLM 并发 |
+| --- | ---: | ---: |
+| SupervisorAgent | 1 | 1 |
+| InvestigatorAgent | 1～3 | 2～3 |
+| DiagnosticianAgent | 1～2 | 2 |
+| ReviewerAgent | 0～1 | 1 |
+| PatchAgent | 1～2 | 2 |
+
+“实例”表示一次隔离任务上下文，不要求常驻一个模型进程。
 
 ---
 
-## 4.9 Test Runner 与 Validator
+## 6. Agent 协议、Artifact 与共享状态
 
-### Test Runner 是工具，不是大模型
+### 6.1 消息类型
 
-负责：
+```text
+PROPOSE
+CHALLENGE
+REBUTTAL
+REQUEST_EVIDENCE
+RECOMMEND
+VERDICT
+REPLAN
+```
 
-- 创建隔离工作区；
-- 应用候选补丁；
-- 运行目标测试；
-- 运行全部回归测试；
-- 收集退出码、日志和耗时；
-- 检查是否修改测试文件；
-- 执行简单静态检查；
-- 回滚工作区。
-
-### Validator Agent
-
-负责解释测试结果：
-
-- 补丁是否可应用；
-- 原失败测试是否通过；
-- 原有测试是否仍然通过；
-- 是否修改测试；
-- 是否存在明显硬编码；
-- 是否有 Blocking Critique；
-- 哪个候选补丁更合适；
-- 失败应该回退到哪个阶段。
-
-### 验证硬约束
-
-最终补丁至少满足：
-
-1. 补丁成功应用；
-2. 目标失败测试通过；
-3. 原有测试不退化；
-4. 不修改受保护测试；
-5. 不出现明显语法错误；
-6. 不存在未处理的 Blocking Critique。
-
----
-
-## 6. Agent 交互协议
-
-MVP 定义以下消息类型：
-
-| 消息类型           | 用途                         |
-| ------------------ | ---------------------------- |
-| `PROPOSE`          | 提出证据、根因或补丁         |
-| `CHALLENGE`        | 质疑另一个 Agent 的结论      |
-| `REBUTTAL`         | 回应质疑或修正结论           |
-| `REQUEST_EVIDENCE` | 请求补充工具或证据           |
-| `VERDICT`          | 给出仲裁或验证结果           |
-| `REPLAN`           | 请求 Supervisor 修改执行路径 |
-
-统一消息格式：
+统一消息结构：
 
 ```json
 {
   "message_id": "M12",
   "message_type": "CHALLENGE",
-  "sender": "root_cause_b",
-  "receiver": "root_cause_a",
+  "sender": "diagnostician_b",
+  "receiver": "diagnostician_a",
   "target_id": "H1",
   "content": {},
-  "created_at": "2026-07-31T23:00:00+08:00"
+  "created_at": "...",
+  "trace_id": "..."
 }
 ```
 
-### 协议要求
+协议要求：
 
-- Agent 不直接修改其他 Agent 的输出；
-- 所有质疑必须引用具体目标 ID；
-- 所有结论必须引用证据 ID；
-- Agent 不能通过自然语言模糊表达“我不同意”；
-- Blocking 质疑必须在进入下一阶段前处理；
-- 所有消息写入 Trace。
+- Agent 不能直接修改其他 Agent 的 Artifact；
+- 所有质疑必须引用目标 ID 和具体 Claim；
+- 结论必须引用 Evidence ID；
+- Blocking 质疑必须在 Finalize 前解决或明确拒绝理由；
+- 所有消息写入 Trace；
+- 自然语言输出不能替代结构化 Artifact。
 
----
+### 6.2 Artifact 基础字段
 
-## 7. 共享黑板与状态存储设计
+每个 Artifact 至少包含：
 
-共享黑板只保存结构化结果，不保存所有 Agent 的完整聊天历史。它同时作为动态任务图的状态源，为节点调度、条件判断、版本追踪、重规划和断点恢复提供依据。
+```json
+{
+  "artifact_id": "H1",
+  "artifact_type": "hypothesis",
+  "version": 2,
+  "status": "revised",
+  "created_by": "diagnostician_a",
+  "created_at": "...",
+  "supersedes": "H1@v1",
+  "input_refs": ["E3", "E7"],
+  "trace_id": "..."
+}
+```
+
+核心对象：
+
+```text
+TaskSpec
+TaskNode
+SupervisorDecision
+EvidenceArtifact
+EvidenceReview
+HypothesisArtifact
+ChallengeArtifact
+RebuttalArtifact
+ReviewArtifact
+PatchCandidate
+GeneratedTestArtifact
+ValidationResult
+ReplanRecord
+FinalReport
+```
+
+### 6.3 核心 Artifact 要求
+
+**EvidenceArtifact**
+
+- `claim`；
+- `source`；
+- `content`；
+- `observation_type`：direct / derived / hypothesis；
+- `confidence`；
+- `status`：unverified / verified / rejected；
+- 工具调用 Trace ID。
+
+**HypothesisArtifact**
+
+- `root_cause`；
+- `direct_cause`；
+- `supporting_evidence`；
+- `counter_evidence`；
+- `affected_symbols`；
+- `verification_plan`；
+- `missing_evidence`；
+- `confidence`。
+
+**ChallengeArtifact**
+
+- 被质疑的具体 Claim；
+- 证据不足或因果链错误的原因；
+- 反例；
+- `required_evidence`；
+- `severity`：blocking / non_blocking。
+
+**RebuttalArtifact**
+
+- `response_to`；
+- `decision`：accept / partial_accept / reject；
+- 新证据引用；
+- 修订后的 Hypothesis 引用；
+- 对反例的解释。
+
+**PatchCandidate**
+
+- `strategy`；
+- `based_on_hypothesis`；
+- `diff`；
+- `changed_files`；
+- `rationale`；
+- `risk_notes`；
+- `protected_path_check`；
+- 工作区 ID。
+
+**ValidationResult**
+
+- Patch ID 和内容哈希；
+- 实际应用结果；
+- 目标测试命令、退出码与日志引用；
+- 回归测试命令、退出码与日志引用；
+- 静态检查结果；
+- protected path 结果；
+- 修改文件和行数；
+- 最终 `passed` 布尔值。
+
+### 6.4 Blackboard 与版本管理
+
+Blackboard 只保存结构化状态和 Artifact 引用，不保存所有完整聊天历史。
 
 ```text
 TaskState
-├── IssueSpec
-├── AcceptanceCriteria
+├── TaskSpec
 ├── Budget
 ├── TaskGraph
-├── Evidence[]
-├── EvidenceCritiques[]
-├── Hypotheses[]
-├── Challenges[]
-├── Rebuttals[]
-├── ArbiterDecision
-├── Patches[]
-├── PatchCritiques[]
-├── TestResults[]
-├── ReplanHistory[]
-└── ExecutionTrace[]
+├── Active / Completed / Blocked Node IDs
+├── EvidenceArtifact[]
+├── HypothesisArtifact[]
+├── ChallengeArtifact[]
+├── RebuttalArtifact[]
+├── ReviewArtifact[]
+├── PatchCandidate[]
+├── ValidationResult[]
+├── ReplanRecord[]
+└── Trace References[]
 ```
 
-### TaskState 建议字段
+每次状态修改必须增加 `state_version`。Artifact 修订通过 `version` 和 `supersedes` 建立关系，禁止原地覆盖历史结论。
 
-```python
-class TaskState:
-    task_id: str
-    status: str
-    issue_spec: dict
-    acceptance_criteria: list[str]
+上下文最小化规则：
 
-    task_graph: dict
-    active_node_ids: list[str]
-    completed_node_ids: list[str]
-    blocked_node_ids: list[str]
-    state_version: int
-    checkpoint_id: str | None
-
-    evidence: list[dict]
-    evidence_critiques: list[dict]
-    hypotheses: list[dict]
-    challenges: list[dict]
-    rebuttals: list[dict]
-    arbiter_decision: dict | None
-
-    patches: list[dict]
-    patch_critiques: list[dict]
-    test_results: list[dict]
-
-    model_calls: int
-    tool_calls: int
-    replan_count: int
-    token_usage: int
-    start_time: str
-    end_time: str | None
-    termination_reason: str | None
-```
-
-### 上下文隔离
-
-不同 Agent 只读取必要信息：
-
-- Evidence Agent：Issue、仓库和工具结果；
-- Evidence Critic：全部证据，但不看根因结论；
-- RootCause Agent：经过审计的证据；
-- Critic：目标假设和证据；
-- Arbiter：证据、假设、Challenge 和 Rebuttal；
-- Patch Agent：确认根因和修改约束；
-- Validator：Patch、Critique 和测试结果。
+- Investigator：TaskSpec、目标范围和必要工具结果；
+- Diagnostician：经过审计的 Evidence；
+- Reviewer：目标 Artifact 与其直接证据；
+- PatchAgent：已接受 Hypothesis、约束和相关代码；
+- Supervisor：压缩状态快照和 Artifact 摘要；
+- Engine：完整结构化状态，不读取模型私有推理。
 
 ---
 
-## 8. 工具层设计
+## 7. 动态任务图
 
-### 7.1 必须工具
+### 7.1 节点类型
 
-| 工具                 | 功能                   |
-| -------------------- | ---------------------- |
-| `list_files`         | 列出仓库目录           |
-| `search_code`        | 关键词检索代码         |
-| `inspect_code`       | 查看文件或符号上下文   |
-| `find_references`    | 查找函数或变量引用     |
-| `run_tests`          | 执行 pytest 或指定测试 |
-| `apply_patch`        | 在工作区应用 Diff      |
-| `collect_diff`       | 获取修改内容           |
-| `rollback_workspace` | 回滚候选补丁           |
-| `static_check`       | 执行语法和基础静态检查 |
+```text
+INVESTIGATION_TASK
+DIAGNOSIS_TASK
+CHALLENGE_TASK
+REBUTTAL_TASK
+REVIEW_TASK
+PATCH_TASK
+VALIDATION_TASK
+REPLAN_TASK
+FINALIZATION_TASK
+```
 
-### 7.2 MVP 可选工具
+### 7.2 节点状态
 
-- `git_history`：查看文件历史；
-- `trace_variables`：插桩记录变量变化；
-- `ast_dependency`：构建简单 AST 调用关系。
+```text
+PENDING → READY → RUNNING
+                    ├── SUCCEEDED
+                    ├── FAILED
+                    ├── TIMED_OUT
+                    ├── BLOCKED
+                    ├── PAUSED
+                    └── CANCELLED
+```
 
-### 7.3 工具安全约束
+状态含义：
 
-- 所有命令必须有超时；
-- 禁止任意网络访问；
-- 禁止修改宿主机项目；
-- 每个 Patch 使用独立临时工作区；
-- 只允许白名单命令；
-- 保存标准输出、标准错误和退出码；
-- 超时只重试一次；
-- 写操作必须可回滚。
+- `PENDING`：已经创建但依赖未满足；
+- `READY`：满足条件并等待调度；
+- `RUNNING`：Worker 或工具正在执行；
+- `SUCCEEDED`：产生通过 Schema 校验的结果；
+- `FAILED`：执行失败，可按策略重试或降级；
+- `TIMED_OUT`：超过节点超时；
+- `BLOCKED`：缺少必要输入或环境；
+- `PAUSED`：等待质疑、答辩或补充证据；
+- `CANCELLED`：状态变化后节点已失效。
+
+### 7.3 最小种子图与按需扩展
+
+系统不在开始时选择一条固定 Pipeline，而是创建最小种子图：
+
+```text
+Investigation → Diagnosis → Patch → Validation → Finalization
+```
+
+Supervisor 根据中间状态插入或取消节点：
+
+```text
+证据不足
+  → 插入第二个 Investigation 或 Evidence Review
+
+存在多个可解释故障链
+  → 插入第二个 Diagnosis
+
+根因实质冲突
+  → 插入 Challenge → Rebuttal → Root Cause Recommendation
+
+修复策略存在真实取舍
+  → Fork Minimal / Robust Patch → Join Review
+
+Patch 失败且根因可信
+  → 创建新 Patch，取消失效 Patch 后继节点
+
+新失败无法由根因解释
+  → 回退 Diagnosis 或 Investigation
+```
+
+执行结束后，根据实际激活节点将 Trace 标记为：
+
+- `fast`：单路调查、单路诊断、单 Patch；
+- `standard`：出现并行调查、双诊断或 Reviewer；
+- `deep`：出现 Challenge/Rebuttal、双 Patch 或重规划。
+
+路径标签用于分析成本和扩展行为，不参与路由实现。
+
+### 7.4 Fork–Join
+
+典型 Investigation Fork–Join：
+
+```text
+             ┌── code_retrieval ──────┐
+Supervisor ──┼── failure_reproduction ┼── Join → Review/Diagnosis
+             └── dependency_trace ────┘
+```
+
+典型 Patch Fork–Join：
+
+```text
+Accepted Hypothesis
+       ├── minimal Patch ── independent workspace ── Validation
+       └── robust Patch ─── independent workspace ── Validation
+                                                   ↓
+                                              Join / Review
+```
+
+Join 等待所有节点进入终态，不要求所有节点成功。单个非关键 Worker 失败不得使整个流程直接崩溃。
+
+### 7.5 动态门控
+
+启动第二个 Investigator 的依据：
+
+- 错误堆栈与检索位置不一致；
+- 失败无法稳定复现；
+- 涉及多个模块或调用链；
+- 关键 Claim 只有单一来源；
+- Reviewer 请求独立验证。
+
+启动第二个 Diagnostician 的依据：
+
+- 首个结论依赖未验证假设；
+- 多个故障链都能解释现象；
+- 根因涉及状态、缓存、并发或生命周期；
+- 首轮 Patch 失败且实现本身无明显错误。
+
+进入 Challenge/Rebuttal 的依据：
+
+- H1 与 H2 对根因位置、机制或修复方向存在实质冲突；
+- 两个表述只是同一根因的不同粒度时直接合并，不发起辩论；
+- Challenge 必须满足结构化有效性要求，否则只记录而不阻塞。
+
+生成第二个 Patch 的依据：
+
+- 修改范围与鲁棒性存在明显取舍；
+- 涉及公共接口或兼容性风险；
+- Minimal 可能只修复表面症状；
+- Reviewer 指出可验证的回归风险。
+
+门控决定必须记录触发 Artifact、理由和预算影响，不能只记录模型 confidence。
+
+### 7.6 检查点与恢复
+
+关键 Join、根因接受、Patch 生成和 Validation 后保存检查点：
+
+```text
+task_state.json
+task_graph.json
+blackboard.json
+trace.jsonl
+workspace_refs.json
+```
+
+MVP 至少支持进程中断后从最近结构化检查点加载状态；是否自动恢复执行在 Phase 3 验收中明确。
 
 ---
 
-## 9. 数据集与任务准备
+## 8. Challenge、Rebuttal 与 Patch 审查
 
-## 8.1 5 天版本推荐数据
+### 8.1 根因交叉质疑
 
-### 主开发与评测集：QuixBugs Python
+仅在两个 Hypothesis 实质冲突时执行：
 
-建议选择 10–15 个任务，覆盖：
+1. A、B 独立生成 H1、H2；
+2. A 只读取 H2 及其证据，生成对 H2 的 Challenge；
+3. B 只读取 H1 及其证据，生成对 H1 的 Challenge；
+4. A、B 分别收到针对自己的 Challenge；
+5. 各进行一次 Rebuttal，可接受、部分接受或拒绝；
+6. 接受质疑时生成新 Hypothesis 版本；
+7. Reviewer 输出 RootCauseRecommendation；
+8. Supervisor 作最终 ACCEPT_HYPOTHESIS 或 REQUEST_EVIDENCE 决定。
+
+MVP 只允许一轮 Challenge/Rebuttal。
+
+有效 Challenge 必须：
+
+- 指向具体 Claim；
+- 解释现有证据为何不足；
+- 提供反例或替代因果链；
+- 提出可执行的证据请求；
+- 标明严重程度。
+
+### 8.2 Patch 审查
+
+生成双 Patch 时：
+
+- Minimal 侧重点审查 Robust 是否过度修改；
+- Robust 侧重点审查 Minimal 是否只修复表面症状；
+- Reviewer 汇总 Blocking 风险；
+- PatchAgent 最多各修订一次；
+- 最终选择仍以真实验证为第一依据。
+
+Blocking 问题包括：
+
+- 修改受保护测试；
+- 明显硬编码具体用例；
+- 吞掉异常或破坏错误语义；
+- 修改与根因无关；
+- 无必要地改变公开接口；
+- 引入语法错误或确定性回归；
+- Diff 与声明的修改范围不一致。
+
+---
+
+## 9. 完整工作流与失败恢复
+
+### 9.1 初始化
+
+Engine：
+
+1. 加载并校验 TaskSpec；
+2. 确认仓库、测试命令和受保护路径；
+3. 建立只读语义基线和候选工作区；
+4. 初始化预算、Blackboard、TaskGraph 和 Trace；
+5. 调用 Supervisor 生成最小调查任务。
+
+任务为空、仓库不存在或环境无法启动时，输出结构化 environment/input failure，不进入 Agent 流程。
+
+### 9.2 Investigation
+
+- 一个或多个 Investigator 收集代码、复现和依赖证据；
+- 并行节点记录真实起止时间；
+- Reproduction 失败通常为关键问题；
+- Dependency 失败可以降级为 AST 引用搜索；
+- Join 后由 Reviewer 或 Supervisor 判断证据是否足够。
+
+证据结果：
+
+- `PASS`：进入 Diagnosis；
+- `NEEDS_MORE_EVIDENCE`：最多补充一次定向 Investigation；
+- `CONFLICT`：保留冲突供 Diagnostician 解释；
+- `BLOCKED`：没有可靠复现且预算不足，终止。
+
+### 9.3 Diagnosis 与根因决定
+
+- 默认一个 Diagnostician；
+- 触发门控时创建第二个独立实例；
+- 无实质冲突时 Reviewer 比较或 Supervisor 直接接受；
+- 有实质冲突时执行一次 Challenge/Rebuttal；
+- Reviewer 只推荐，Supervisor 决定选择、合并或补充证据。
+
+### 9.4 Patch 与 Validation
+
+每个 Patch 使用独立工作区，并按顺序执行：
+
+1. 校验 protected paths；
+2. `git apply --check`；
+3. 应用 Patch；
+4. 收集实际 Diff；
+5. 运行目标测试；
+6. 运行全部回归测试；
+7. 运行语法和静态检查；
+8. 再次检查 protected paths；
+9. 保存 ValidationResult；
+10. 回滚或销毁工作区。
+
+候选选择优先级：
+
+1. 受保护路径无违规；
+2. Patch 成功应用；
+3. 目标测试通过；
+4. 全部回归测试通过；
+5. 静态检查通过；
+6. 无未处理 Blocking Review；
+7. 在前述条件相同时，改动更小、风险更低。
+
+### 9.5 定向重规划
+
+MVP 最多允许一次重规划。
+
+回退 Investigation：
+
+- 测试无法复现；
+- 找错文件；
+- 新错误指向未分析模块；
+- 工具结果不完整；
+- 根因与运行证据明显矛盾。
+
+回退 Diagnosis：
+
+- 两个 Patch 都无法解决目标测试；
+- 新失败无法由当前根因解释；
+- Reviewer 指出根因层级错误；
+- 反例推翻核心因果链。
+
+回退 Patch：
+
+- 根因可信但 Diff 无法应用；
+- Patch 有语法或局部实现错误；
+- 单个候选产生回归；
+- 存在可局部修正的 Blocking Review。
+
+终止条件：
+
+- 超过最大重规划次数；
+- Agent、工具、Token 或时间预算耗尽；
+- 连续两个决策点没有新增有效 Artifact；
+- 环境不可用；
+- 所有候选失败且没有新的可验证方向。
+
+---
+## 10. 确定性工具层与安全边界
+
+### 10.1 九个基础工具
+
+| 工具 | 作用 |
+| --- | --- |
+| `list_files` | 在路径边界内列出文件与目录 |
+| `search_code` | 关键词或正则代码检索 |
+| `inspect_code` | 查看文件区间或 Python 符号 |
+| `find_references` | 基于 AST 查找定义和引用 |
+| `run_tests` | 执行 TaskSpec 指定的 pytest/unittest |
+| `apply_patch` | 校验并应用 Unified Diff |
+| `collect_diff` | 比较候选工作区和基线 |
+| `rollback_workspace` | 恢复候选工作区 |
+| `static_check` | Python 语法检查和 Ruff |
+
+Test Runner 不是 Agent。测试、静态检查、Diff 和回滚全部由 Engine 调用确定性工具完成。
+
+### 10.2 工具结果
+
+所有工具返回统一 ToolResult：
+
+```text
+tool
+ok
+data
+error.code / error.message / error.details
+stdout / stderr
+exit_code
+command
+duration_ms
+truncated
+trace_id
+started_at
+```
+
+工具可预期失败以结构化结果返回；编程错误可以抛出并由 Engine 记录为内部失败。工具结果必须可 JSON 序列化。
+
+### 10.3 安全硬约束
+
+- 只接受仓库内相对路径；
+- 拒绝目录穿越、绝对路径、`.git` 和越界符号链接；
+- 测试命令来自受信 TaskSpec，Agent 不能提供任意可执行路径；
+- 可执行文件必须解析到 Engine 配置的受信解释器或白名单路径，不能只校验 basename；
+- 子进程不使用 Shell 展开；
+- 所有命令有超时并终止进程组；
+- 标准输出、标准错误和 Diff 必须有实际资源上限，不能在完整读入内存后才截断；
+- 每个 Patch 使用独立候选工作区；
+- rollback/delete 必须验证受管工作区身份并拒绝 symlink 替换；
+- baseline 不得被候选代码当作可写恢复源；
+- protected paths 的修改在应用前后都必须检查；
+- MVP 只运行受信 QuixBugs 数据；真实第三方仓库必须进入容器或等价 OS 隔离；
+- 清除代理变量不等于禁止网络，文档不得将应用层限制描述为 OS 级沙箱。
+
+### 10.4 Phase 1 关闭前必须补齐的验证
+
+- 合法测试命令成功、普通失败和超时；
+- 伪造同名可执行文件不能产生假测试通过；
+- 路径穿越、越界 symlink 和工作区 symlink 替换；
+- Patch 新增、修改、删除、二进制和非法路径；
+- Patch 校验失败不污染工作区；
+- 两个候选工作区互不污染；
+- baseline 不可作为被候选修改后的回滚源；
+- 输出和 Diff 上限分支；
+- protected paths 违规淘汰；
+- 九个工具都包含 Trace ID 和结构化错误；
+- pytest 与 Ruff 全部通过。
+
+---
+
+## 11. 数据集与统一任务格式
+
+### 11.1 主开发与评测集：QuixBugs Python
+
+准备 10～15 个任务，覆盖：
 
 - 边界条件错误；
 - 循环更新错误；
@@ -993,709 +980,100 @@ class TaskState:
 
 用途：
 
-- 工具链验证；
-- Single-Agent 与 Multi-Agent 对比；
-- Critic 纠错演示；
-- 重规划演示。
+- 工具和 Single-Agent 闭环；
+- 固定 Multi-Agent 与动态系统对照；
+- 动态扩展和成本评测；
+- Critique、双 Patch 和重规划演示。
 
-### 真实仓库演示：SWE-Gym Lite
+参考修复和隐藏验收信息不能提供给 Agent。
 
-时间允许时选择 3–5 个环境容易启动的 Python 任务。
+### 11.2 机制演示案例
 
-用途：
+单独准备至少两个对抗案例：
 
-- 证明系统不仅能处理单文件算法错误；
-- 展示多文件检索和依赖分析；
-- 演示真实 Issue 输入。
+1. 表面错误位置与真正根因不同；
+2. Minimal Patch 通过目标测试但引入回归。
 
-如果 5 天内无法稳定运行，不在简历中声称已完成 SWE-Gym 评测。
+机制案例只能用于验证 Challenge、Review 和重规划，不与标准 QuixBugs 成功率混为一个指标。
 
-### 人工构造对抗案例
+### 11.3 可选真实仓库任务
 
-准备 2 个专门用于演示质疑机制的案例：
+MVP 完成后再选择 3～5 个环境容易启动的 SWE-Gym Lite Python 任务，用于展示多文件检索和真实 Issue。未稳定运行时不得写入简历成果。
 
-1. 表面根因与真正根因不同；
-2. Minimal Patch 通过目标测试但导致回归失败。
-
-人工构造案例只能作为机制演示，不能与标准数据集结果混为同一指标。
-
-## 8.2 统一任务格式
+### 11.4 TaskSpec 唯一格式
 
 ```json
 {
   "task_id": "quixbugs_binary_search",
-  "repo_path": "data/quixbugs",
-  "problem_statement": "binary_search returns an incorrect index when the target is absent.",
-  "test_command": "pytest -q",
+  "repository_path": "data/quixbugs",
+  "issue": "binary_search returns an incorrect index when the target is absent.",
+  "failing_tests": ["tests/test_binary_search.py"],
+  "acceptance_criteria": [
+    "target test passes",
+    "full regression passes",
+    "protected paths are unchanged"
+  ],
+  "test_command": ["python", "-m", "pytest", "-q"],
   "target_files": [],
   "protected_paths": ["tests"],
-  "max_runtime_seconds": 60
+  "max_runtime_seconds": 60,
+  "metadata": {
+    "dataset": "quixbugs",
+    "category": "boundary_condition"
+  }
 }
 ```
 
----
+字段规则：
 
-## 10. 完整执行流程
-
-## 9.1 阶段 0：任务初始化
-
-Supervisor：
-
-1. 读取任务；
-2. 提取异常行为；
-3. 提取期望行为；
-4. 生成验收条件；
-5. 设置预算；
-6. 初始化共享黑板；
-7. 创建 Evidence 任务。
-
-失败处理：
-
-- 任务描述为空：终止；
-- 仓库不存在：终止；
-- 测试命令缺失：使用默认配置或终止；
-- 环境无法启动：记录为 environment failure。
+- `task_id` 是安全、稳定、唯一的标识；
+- `repository_path` 由任务加载器解析，Agent 不直接改变；
+- `test_command` 是参数数组，不能是 Shell 字符串；
+- `protected_paths` 默认至少包含任务自带测试目录；
+- `target_files` 可以为空，不能向 Agent 泄露参考修复位置；
+- 所有任务必须经过 Schema 校验才能创建工作区。
 
 ---
 
-## 9.2 阶段 1：并行证据收集
+## 12. 模型适配层与配置
 
-通过 `asyncio.gather()` 并行启动：
+### 12.1 初始模型
 
-- Retrieval Agent；
-- Reproduction Agent；
-- Dependency Agent。
-
-要求记录：
-
-- 每个 Agent 的开始时间；
-- 每个 Agent 的结束时间；
-- Agent 使用的工具；
-- Agent 输出证据；
-- 超时和失败信息。
-
-Fork–Join 逻辑：
+初始模型使用服务器本地 Qwen3-8B，当前模型目录：
 
 ```text
-fork:
-  Retrieval
-  Reproduction
-  Dependency
-
-join:
-  等待全部完成、失败或超时
+/home/user50305/yjh/models/Qwen3-8B
 ```
 
-允许部分失败：
+模型路径只能由配置注入，不能硬编码在 Agent 实现中。
 
-- 一个 Agent 超时，其他两个证据足够时继续；
-- Reproduction 失败通常为关键失败，应优先处理；
-- Dependency Agent 失败可以降级为简单引用搜索。
+### 12.2 ModelAdapter
 
----
+统一接口至少提供：
 
-## 9.3 阶段 2：证据审计
+- 同步和异步生成；
+- System/User 消息输入；
+- JSON Schema 或结构化输出约束；
+- 温度、最大输出 Token 和停止条件；
+- 超时、一次格式修复和有限重试；
+- 输入/输出 Token、延迟和模型标识；
+- 原始响应日志引用；
+- FakeModelAdapter，供无 GPU 单元测试使用。
 
-Evidence Critic 检查全部证据。
+第一版只实现实际需要的本地 provider 和 FakeModelAdapter。vLLM、DashScope、OpenAI-compatible API 属于后续适配，不预先实现空抽象。
 
-结果：
-
-- `PASS`：进入根因阶段；
-- `NEEDS_MORE_EVIDENCE`：定向补充一次；
-- `CONFLICT`：保留冲突，交给 RootCause Agent；
-- `BLOCKED`：没有可靠复现或关键证据，终止。
-
-MVP 最多补充一次证据。
-
----
-
-## 9.4 阶段 3：独立根因推理
-
-并行启动 RootCause A 和 B。
-
-要求：
-
-- 不共享第一轮结果；
-- 使用不同 Prompt 视角；
-- 引用证据 ID；
-- 给出可验证实验；
-- 明确区分直接原因和根本原因。
-
----
-
-## 9.5 阶段 4：交叉质疑与答辩
-
-执行：
-
-```text
-A reviews H2
-B reviews H1
-A rebuts B's challenge
-B rebuts A's challenge
-```
-
-MVP 只执行一轮。
-
-质疑无效的判定：
-
-- 没有引用具体 Claim；
-- 没有说明证据不足原因；
-- 仅表达偏好；
-- 没有反例或验证要求；
-- 与任务无关。
-
-无效质疑仍保存，但不影响下一阶段。
-
----
-
-## 9.6 阶段 5：根因仲裁
-
-Arbiter：
-
-- 比较 H1、H2；
-- 检查双方是否回应 Blocking Challenge；
-- 判断是否选择、合并或退回；
-- 生成 Patch Constraints。
-
-若需要补充证据：
-
-- 最多触发一次 `REQUEST_EVIDENCE`；
-- 超过预算则选择低风险假设或终止。
-
----
-
-## 9.7 阶段 6：候选补丁生成
-
-并行启动：
-
-- Minimal Patch Agent；
-- Robust Patch Agent。
-
-要求：
-
-- 基于同一根因和约束；
-- 不查看对方补丁；
-- 输出统一 Diff；
-- 明确修改原因和风险；
-- 不允许直接修改测试文件。
-
----
-
-## 9.8 阶段 7：Patch 交叉审查
-
-Minimal 审查 Robust，Robust 审查 Minimal。
-
-Blocking 问题包括：
-
-- 修改测试以通过；
-- 明显硬编码；
-- 吞掉异常；
-- 修改与根因无关；
-- 改变公开接口且无必要；
-- 引入明显语法或逻辑错误。
-
-审查后允许 Patch Agent 各修改一次补丁，时间不足时可跳过修改，仅将 Critique 交给 Validator。
-
----
-
-## 9.9 阶段 8：隔离验证
-
-为 P1、P2 创建独立工作区。
-
-每个候选补丁执行：
-
-1. 应用补丁；
-2. 运行目标测试；
-3. 运行全部测试；
-4. 运行基础静态检查；
-5. 检查测试文件是否修改；
-6. 统计修改文件和行数；
-7. 保存日志；
-8. 回滚或销毁工作区。
-
-候选补丁选择优先级：
-
-1. 全部目标测试通过；
-2. 全部回归测试通过；
-3. 无 Blocking Critique；
-4. 不修改测试；
-5. 修改范围更小；
-6. 风险更低；
-7. 执行结果更稳定。
-
----
-
-## 9.10 阶段 9：失败驱动重规划
-
-最多允许一次重规划。
-
-### 回退到 Evidence 阶段
-
-触发条件：
-
-- 找错文件；
-- 测试无法复现；
-- 新错误指向未分析模块；
-- 根因与执行结果明显矛盾。
-
-### 回退到 RootCause 阶段
-
-触发条件：
-
-- 两个 Patch 都无法解决目标测试；
-- 新失败现象无法由选定根因解释；
-- Patch Critique 指出根因层级错误。
-
-### 回退到 Patch 阶段
-
-触发条件：
-
-- 根因可信，但补丁实现错误；
-- 单个候选补丁回归失败；
-- Patch 可应用但语法错误；
-- 存在可局部修正的 Blocking Critique。
-
-### 终止条件
-
-- 超过最大重规划次数；
-- 超过最大模型调用数；
-- 超过最大工具调用数；
-- 连续两轮没有新增证据；
-- 环境不可用；
-- 所有候选补丁失败。
-
----
-
-## 11. 推荐项目目录
-
-```text
-repo_pilot_mas/
-├── README.md
-├── requirements.txt
-├── configs/
-│   ├── agents.yaml
-│   ├── runtime.yaml
-│   └── evaluation.yaml
-│
-├── src/
-│   ├── orchestrator/
-│   │   ├── supervisor.py
-│   │   ├── workflow.py
-│   │   ├── task_graph.py
-│   │   ├── state_machine.py
-│   │   ├── scheduler.py
-│   │   ├── router.py
-│   │   ├── replanner.py
-│   │   └── termination.py
-│   │
-│   ├── agents/
-│   │   ├── base_agent.py
-│   │   ├── evidence_agent.py
-│   │   ├── evidence_critic.py
-│   │   ├── root_cause_agent.py
-│   │   ├── arbiter_agent.py
-│   │   ├── patch_agent.py
-│   │   └── validator_agent.py
-│   │
-│   ├── protocol/
-│   │   ├── messages.py
-│   │   └── schemas.py
-│   │
-│   ├── state/
-│   │   ├── task_state.py
-│   │   ├── node_state.py
-│   │   ├── blackboard.py
-│   │   ├── version_store.py
-│   │   └── checkpoint.py
-│   │
-│   ├── tools/
-│   │   ├── list_files.py
-│   │   ├── search_code.py
-│   │   ├── inspect_code.py
-│   │   ├── find_references.py
-│   │   ├── run_tests.py
-│   │   ├── apply_patch.py
-│   │   ├── rollback.py
-│   │   └── static_check.py
-│   │
-│   ├── runtime/
-│   │   ├── model_client.py
-│   │   ├── workspace.py
-│   │   └── async_executor.py
-│   │
-│   └── observability/
-│       ├── trace.py
-│       ├── metrics.py
-│       └── logger.py
-│
-├── data/
-│   ├── quixbugs/
-│   ├── swe_gym_subset/
-│   └── tasks/
-│
-├── scripts/
-│   ├── run_task.py
-│   ├── run_eval.py
-│   └── summarize_results.py
-│
-├── tests/
-│   ├── test_protocol.py
-│   ├── test_blackboard.py
-│   ├── test_tools.py
-│   └── test_workflow.py
-│
-└── reports/
-    ├── traces/
-    ├── patches/
-    ├── logs/
-    └── eval/
-```
-
----
-
-## 12. 5 天实施计划
-
-## Day 1：工具闭环与 Single-Agent 基线
-
-### 目标
-
-先完成一个可运行的代码修复闭环。
-
-### 工作内容
-
-- 初始化项目；
-- 准备 10–15 个 QuixBugs Python 任务；
-- 定义任务 JSON；
-- 实现 `list_files`；
-- 实现 `search_code`；
-- 实现 `inspect_code`；
-- 实现 `run_tests`；
-- 实现 `apply_patch`；
-- 实现 `rollback_workspace`；
-- 实现模型客户端；
-- 完成 Single-Agent ReAct 流程；
-- 保存基础 Trace。
-
-### Day 1 验收标准
-
-- 至少 5 个任务可以端到端运行；
-- Agent 可以生成补丁；
-- 补丁可以应用；
-- 真实测试可以执行；
-- 工作区可以回滚；
-- 无论修复成功或失败，都能输出结构化结果。
-
-### Day 1 输出物
-
-- `single_agent.py` 或对应工作流；
-- 5 条运行 Trace；
-- 基础工具单元测试；
-- 一条运行命令。
-
----
-
-## Day 2：并行 Evidence Agent 与证据质疑
-
-### 目标
-
-实现第一层真正的多 Agent 并行与审查。
-
-### 工作内容
-
-- 实现 `BaseAgent`；
-- 实现 Retrieval Agent；
-- 实现 Reproduction Agent；
-- 实现 Dependency Agent；
-- 使用 `asyncio.gather()` 并行调度；
-- 实现共享黑板；
-- 实现 TaskGraph、TaskNode 和节点状态流转；
-- 实现 Fork–Join 和条件边；
-- 实现基础检查点持久化；
-- 实现 Evidence Schema；
-- 实现 Evidence Critic；
-- 实现 `CHALLENGE`；
-- 实现一次 `REQUEST_EVIDENCE`；
-- 记录并发开始和结束时间。
-
-### Day 2 验收标准
-
-- 三个 Evidence Agent 具有独立上下文；
-- Trace 中显示时间重叠；
-- 动态任务图可以记录节点从 PENDING、READY、RUNNING 到终态的变化；
-- 所有输出符合统一 Schema；
-- Evidence Critic 能指出至少一种证据不足；
-- 能定向重新调用一个 Evidence Agent；
-- 单个 Agent 超时不会导致整个流程崩溃。
-
-### Day 2 输出物
-
-- 并行 Evidence 流程；
-- Evidence Critic Trace；
-- Agent 超时降级案例。
-
----
-
-## Day 3：根因竞争、交叉质疑、答辩与仲裁
-
-### 目标
-
-完成项目最核心的对抗协作协议。
-
-### 工作内容
-
-- 实现 RootCause Agent A；
-- 实现 RootCause Agent B；
-- 设置不同分析视角；
-- 第一轮独立推理；
-- A Challenge B；
-- B Challenge A；
-- A/B 各进行一次 Rebuttal；
-- 实现 Arbiter；
-- 支持选择、合并和请求补充证据；
-- 记录完整根因演化链路。
-
-### Day 3 验收标准
-
-- 两个 RootCause Agent 不能互相看到第一轮结果；
-- 至少一个任务产生两个不同根因；
-- 至少出现一次有效 Challenge；
-- 被质疑 Agent 能修改或补充自己的结论；
-- Arbiter 的结论引用 Evidence、Challenge 和 Rebuttal；
-- 不以 Agent 自报的 confidence 作为唯一选择依据。
-
-### Day 3 输出物
-
-- 一条完整 Challenge–Rebuttal–Arbitration Trace；
-- 一个被质疑后修正根因的案例；
-- 根因 Schema 和协议测试。
-
----
-
-## Day 4：双候选补丁、相互审查、真实测试与重规划
-
-### 目标
-
-形成完整自动修复闭环。
-
-### 工作内容
-
-- 实现 Minimal Patch Agent；
-- 实现 Robust Patch Agent；
-- 并行生成 P1 和 P2；
-- 实现 Patch Cross Review；
-- 为每个 Patch 创建独立工作区；
-- 运行目标测试和回归测试；
-- 实现 Validator；
-- 根据失败类型修改动态任务图并定向回退；
-- 取消已经失效的节点并创建新的 Patch 或 RootCause 节点；
-- 保存重规划前后的状态版本；
-- 最多执行一次重规划；
-- 输出最终补丁和选择原因。
-
-### Day 4 验收标准
-
-- P1 和 P2 不会污染彼此；
-- 至少出现一次 Patch Critique；
-- Test Runner 可以推翻 Agent 的错误判断；
-- 目标测试失败时能返回 Patch 或 RootCause 阶段；
-- 输出最终选择和未选择原因；
-- 完整流程不会无限循环。
-
-### Day 4 输出物
-
-- 一条双补丁竞争 Trace；
-- 一条测试推翻错误补丁的 Trace；
-- 一条重规划后成功或失败的 Trace。
-
----
-
-## Day 5：对照实验、评测、README 与简历材料
-
-### 目标
-
-将项目整理为可展示、可解释和可量化的简历项目。
-
-### 对照版本
-
-| 版本                                    | 并行证据 | 根因交叉质疑 | 双补丁 | 重规划 |
-| --------------------------------------- | -------: | -----------: | -----: | -----: |
-| Single-Agent                            |       否 |           否 |     否 |     否 |
-| Serial Multi-Agent                      |       否 |           否 |     否 |     否 |
-| Parallel Multi-Agent                    |       是 |           否 |     是 |     否 |
-| Dynamic-Graph Multi-Agent               |       是 |           否 |     是 |     是 |
-| Full Dynamic-Graph + Adversarial Review |       是 |           是 |     是 |     是 |
-
-### 工作内容
-
-- 固定任务集；
-- 固定模型和生成参数；
-- 统一最大调用预算；
-- 运行四组实验；
-- 统计任务成功率；
-- 统计 Agent 和工具调用；
-- 统计 Token 和时延；
-- 统计 Critic 纠错次数；
-- 统计重规划恢复次数；
-- 编写 README；
-- 绘制架构图；
-- 整理一条最佳演示 Trace；
-- 准备面试讲解稿；
-- 更新简历描述。
-
-### Day 5 验收标准
-
-- 至少有 10 个任务的真实结果；
-- 所有数字来自实际 Trace；
-- 可以一条命令运行单个任务；
-- 可以一条命令运行批量评测；
-- README 中说明当前限制；
-- 简历中不出现未完成的数据集和虚构指标。
-
----
-
-## 13. 3 天压缩计划
-
-### Day 1
-
-- QuixBugs 任务准备；
-- 代码工具；
-- 测试工具；
-- Single-Agent 基线；
-- Patch 应用与回滚。
-
-### Day 2
-
-- Retrieval 和 Reproduction 并行；
-- Evidence Critic；
-- RootCause A/B 独立分析；
-- 双向 Challenge；
-- 一轮 Rebuttal；
-- Critic/Arbiter 可暂时共用一个模型调用。
-
-### Day 3
-
-- 一个 Patch Agent；
-- Patch Critique 由 RootCause Agent 或 Validator 承担；
-- 真实测试；
-- 一次失败重生成；
-- Single-Agent 与 Adversarial Multi-Agent 对照；
-- README、架构图和简历描述。
-
-### 3 天版本必须保留
-
-- 并行 Evidence；
-- RootCause A/B 独立推理；
-- A/B 双向质疑；
-- 一轮 Rebuttal；
-- 测试验证。
-
-否则项目容易退化成串行多 Prompt 流水线。
-
----
-
-## 14. 评测方案
-
-## 13.1 任务结果指标
-
-| 指标                     | 含义                   |
-| ------------------------ | ---------------------- |
-| Task Resolution Rate     | 测试全部通过的任务比例 |
-| Patch Apply Rate         | 候选补丁成功应用比例   |
-| Target Test Pass Rate    | 原失败测试修复比例     |
-| Regression Pass Rate     | 原有测试保持通过比例   |
-| Syntax Valid Rate        | 补丁无语法错误比例     |
-| Protected Test Violation | 修改受保护测试的次数   |
-
-## 13.2 多 Agent 协作指标
-
-| 指标                        | 含义                                      |
-| --------------------------- | ----------------------------------------- |
-| Valid Challenge Rate        | 有具体证据和问题的质疑比例                |
-| Critique Acceptance Rate    | 被审查 Agent 接受或部分接受质疑的比例     |
-| Critique-Induced Correction | 质疑导致根因或补丁修正的次数              |
-| Arbitration Accuracy        | Arbiter 选择最终成功根因或补丁的比例      |
-| Evidence Request Utility    | 补充证据后任务取得进展的比例              |
-| Replan Recovery Rate        | 首轮失败后重规划成功比例                  |
-| Graph Routing Accuracy      | Supervisor 将任务路由到正确节点类型的比例 |
-| Invalidated Node Rate       | 因状态变化而取消的无效节点比例            |
-| State Recovery Success      | 从检查点恢复后继续完成任务的比例          |
-| Invalid Agent Call Rate     | 无效或重复 Agent 调用比例                 |
-
-## 13.3 系统效率指标
-
-| 指标                   | 含义                       |
-| ---------------------- | -------------------------- |
-| End-to-End Latency     | 单任务总耗时               |
-| Parallel Stage Latency | 并行阶段耗时               |
-| Model Calls            | 模型调用次数               |
-| Tool Calls             | 工具调用次数               |
-| Token Usage            | 输入和输出 Token           |
-| Parallel Speedup       | 相对串行执行的时延改善     |
-| Cost per Solved Task   | 每个成功任务的平均调用成本 |
-
-## 13.4 实验公平性
-
-所有版本必须尽量保持：
-
-- 相同基础模型；
-- 相同任务输入；
-- 相同工具权限；
-- 相同最大调用预算；
-- 相同测试环境；
-- 相同随机种子集合；
-- 相同评测脚本。
-
-不能给 Full System 无限预算，再与受限 Single-Agent 比较。
-
----
-
-## 15. Trace 设计
-
-每次运行至少记录：
-
-```json
-{
-  "event_id": "EVT_001",
-  "task_id": "quixbugs_binary_search",
-  "stage": "root_cause_challenge",
-  "agent": "root_cause_b",
-  "event_type": "CHALLENGE",
-  "input_refs": ["H1", "E3", "E8"],
-  "output_ref": "C2",
-  "start_time": "...",
-  "end_time": "...",
-  "model_calls": 1,
-  "tool_calls": 0,
-  "token_usage": {
-    "input": 1234,
-    "output": 356
-  },
-  "status": "success"
-}
-```
-
-### 演示 Trace 至少包含
-
-1. 并行 Evidence Agent 开始和结束；
-2. Evidence Critic 质疑；
-3. RootCause A 和 B 的不同假设；
-4. A Challenge B；
-5. B Challenge A；
-6. 一个 Agent 修正假设；
-7. Arbiter 选择根因；
-8. 两个候选补丁；
-9. Patch 相互审查；
-10. 测试结果；
-11. Supervisor 最终选择或重规划。
-
----
-
-## 16. 配置建议
+### 12.3 推荐配置
 
 ```yaml
+model:
+  provider: local_transformers
+  model_path: /home/user50305/yjh/models/Qwen3-8B
+  device: cuda
+  dtype: bfloat16
+
 runtime:
   max_concurrent_agents: 3
-  max_model_calls: 18
+  max_agent_calls: 18
   max_tool_calls: 30
   max_replans: 1
   max_critique_rounds: 1
@@ -1703,263 +1081,646 @@ runtime:
   agent_timeout_seconds: 120
   tool_timeout_seconds: 60
 
-generation:
-  temperature_root_cause_a: 0.3
-  temperature_root_cause_b: 0.7
-  temperature_critic: 0.2
-  temperature_arbiter: 0.1
-  temperature_patch: 0.2
-
 validation:
   protect_test_files: true
   run_full_regression: true
   require_syntax_check: true
 ```
 
-使用不同温度只能增加一定输出差异，真正的多样性主要来自：
+生成差异主要来自独立任务目标、证据子集和上下文隔离，不把不同 temperature 当作多 Agent 独立性的主要来源。
 
-- 不同分析视角；
-- 不同可见证据；
-- 独立上下文；
-- 独立工具调用；
-- 不同目标约束。
+---
+
+## 13. 推荐项目目录
+
+```text
+repo-pilot-mas/
+├── README.md
+├── pyproject.toml
+├── configs/
+│   ├── model.yaml
+│   ├── runtime.yaml
+│   └── evaluation.yaml
+├── docs/
+│   ├── RepoPilot-MAS_完整计划.md
+│   └── Phase1_确定性工具层.md
+├── src/repo_pilot_mas/
+│   ├── agents/
+│   │   ├── base.py
+│   │   ├── single_agent.py
+│   │   ├── supervisor.py
+│   │   ├── investigator.py
+│   │   ├── diagnostician.py
+│   │   ├── reviewer.py
+│   │   └── patch_agent.py
+│   ├── models/
+│   │   ├── base.py
+│   │   ├── fake.py
+│   │   └── local_transformers.py
+│   ├── orchestration/
+│   │   ├── engine.py
+│   │   ├── task_graph.py
+│   │   ├── state_machine.py
+│   │   ├── scheduler.py
+│   │   ├── decision_policy.py
+│   │   └── replanner.py
+│   ├── protocol/
+│   │   ├── messages.py
+│   │   ├── artifacts.py
+│   │   └── decisions.py
+│   ├── state/
+│   │   ├── task_state.py
+│   │   ├── blackboard.py
+│   │   ├── version_store.py
+│   │   └── checkpoint.py
+│   ├── runtime/
+│   │   ├── command_runner.py
+│   │   ├── path_guard.py
+│   │   ├── workspace.py
+│   │   └── react_loop.py
+│   ├── tools/
+│   │   ├── registry.py
+│   │   └── ... existing deterministic tools
+│   ├── observability/
+│   │   ├── trace.py
+│   │   ├── metrics.py
+│   │   └── logger.py
+│   └── schemas/
+│       ├── task.py
+│       └── tool_result.py
+├── prompts/
+├── data/
+│   ├── quixbugs/
+│   ├── tasks/
+│   └── adversarial_cases/
+├── scripts/
+│   ├── run_task.py
+│   ├── run_eval.py
+│   └── summarize_results.py
+├── tests/
+└── reports/
+    ├── traces/
+    ├── patches/
+    ├── logs/
+    └── eval/
+```
+
+目录按 Phase 逐步创建，不为未来能力提前生成空模块。
+
+---
+
+## 14. 开发 Phase 与验收门
+
+Phase 是唯一开发进度编号。任何“已完成”都必须由代码、测试和输出物共同证明。
+
+### Phase 0：项目初始化
+
+**状态：已完成。**
+
+内容：
+
+- Python `src` 项目骨架；
+- `pyproject.toml`；
+- pytest 与 Ruff 配置；
+- README；
+- Git 仓库和服务器开发环境。
+
+验收：
+
+- 包可以在声明的 Python 版本中安装和导入；
+- 测试和静态检查命令写入 README；
+- 工作区没有依赖未记录的手工路径操作。
+
+### Phase 1：确定性工具层
+
+**状态：已完成（2026-08-01）。**
+
+已实现：
+
+- TaskSpec、ToolResult；
+- PathGuard、CommandRunner、WorkspaceManager；
+- 九个确定性工具；
+- 超时、错误结构、Trace ID 和回滚基础测试。
+
+验收结果：
+
+- [x] 受信可执行文件绑定，杜绝同名程序伪造测试通过；
+- [x] 工作区身份、symlink 与 baseline 恢复边界加固；
+- [x] 标准输出、标准错误和 Diff 采用真实有界收集；
+- [x] `target_files`、`protected_paths`、`max_runtime_seconds` 纳入 TaskSpec；
+- [x] 第 10.4 节全部正常与负向分支已覆盖；
+- [x] 在 `multi_agent` 的 Python 3.10.20 环境执行 48 项 pytest，全绿；
+- [x] Ruff 0.16.1 全绿；
+- [x] README 已记录实际环境和可复现命令。
+
+完整验收证据见 `docs/Phase1_验收报告.md`。
+
+输出物：
+
+- 可靠的九工具 API；
+- Phase 1 设计说明；
+- 完整工具测试报告。
+
+### Phase 2：模型适配层与 Single-Agent 基线
+
+**状态：未开始，当前下一阶段。**
+
+**目标：先形成一个完整、可运行的修复闭环。**
+
+工作内容：
+
+- ModelAdapter 与 FakeModelAdapter；
+- Tool Registry 及每个工具的 Agent 可见 Schema；
+- 有最大步数和预算的 ReAct Loop；
+- SingleAgent；
+- 基础 TraceWriter；
+- QuixBugs TaskSpec 和任务加载器；
+- `scripts/run_task.py` 单任务入口。
+
+硬约束：
+
+- Agent 只能选择已注册工具和结构化参数；
+- Agent 不能创建测试命令或改变 protected paths；
+- Patch 必须通过 Phase 1 工作区应用和验证；
+- 达到最大步数后输出结构化失败，不能无限循环。
+
+验收标准：
+
+- FakeModelAdapter 单元测试不依赖 GPU；
+- 本地 Qwen3-8B 至少成功完成一次结构化工具调用；
+- 至少 5 个 QuixBugs 任务可以一条命令端到端运行；
+- 成功和失败任务都产生 FinalReport；
+- Agent 生成的 Patch 可以应用、测试和回滚；
+- 至少保存 5 条包含模型、工具、Token 和耗时的 Trace；
+- Single-Agent 结果可作为后续统一预算基线。
+
+输出物：
+
+- `single_agent.py`；
+- `react_loop.py`；
+- `model_adapter`；
+- `run_task.py`；
+- 至少 5 条真实 Trace。
+
+### Phase 3：OrchestrationEngine、状态层与 SupervisorAgent
+
+**目标：先证明动态控制内核正确，再接入真实 Supervisor 决策。**
+
+工作内容：
+
+1. TaskNode、TaskGraph 和状态迁移；
+2. Blackboard、Artifact Store 和状态版本；
+3. SupervisorDecision Schema；
+4. Engine 预算、超时、重试和循环检测；
+5. Scripted/Fake Supervisor 决策测试；
+6. SupervisorAgent；
+7. 基础检查点和 Trace。
+
+验收标准：
+
+- PENDING、READY、RUNNING 到所有终态的迁移有测试；
+- Engine 拒绝非法决策、未满足依赖和超预算动作；
+- 能动态创建、暂停、恢复、取消节点；
+- Join 能处理成功、失败和超时混合结果；
+- 至少一次状态变化使后继节点失效并被取消；
+- Scripted Supervisor 可确定性复现完整图变化；
+- 真实 Supervisor 输出不合法时可格式修复一次，仍失败则结构化终止；
+- 检查点可加载到一致状态。
+
+输出物：
+
+- Engine 与 TaskGraph；
+- SupervisorDecision Schema；
+- Blackboard；
+- 一条动态图状态 Trace；
+- 一条超时或非法决策降级 Trace。
+
+### Phase 4：专业 Worker Agent 池
+
+**目标：实现真实多 Agent 调查、诊断、审查和补丁任务。**
+
+工作内容：
+
+- InvestigatorAgent 各 mode；
+- DiagnosticianAgent 两种视角；
+- ReviewerAgent 各 mode；
+- PatchAgent 两种 strategy；
+- mode-specific Prompt 和 Schema；
+- 独立上下文构造；
+- asyncio 并发调度；
+- Evidence、Hypothesis、Review、Patch Artifact。
+
+验收标准：
+
+- 至少两个 Investigator 在 Trace 中有真实时间重叠；
+- 单个 Worker 超时不使 Engine 崩溃；
+- Worker 只返回 Artifact，不能修改 TaskGraph；
+- 两个 Diagnostician 第一轮输入中没有对方 Hypothesis；
+- Reviewer 结论引用目标 Artifact 和 Evidence；
+- 两个 Patch 使用独立工作区且互不污染；
+- 所有输出通过对应 Schema。
+
+输出物：
+
+- 四类 Worker；
+- 并行 Investigation Trace；
+- 独立 Diagnosis Trace；
+- 双工作区 Patch Trace。
+
+### Phase 5：动态门控与对抗协作
+
+**目标：完成项目最有辨识度的动态与对抗闭环。**
+
+工作内容：
+
+- 按需增加 Investigator 和 Diagnostician；
+- 根因冲突识别；
+- 双向 Challenge 和一轮 Rebuttal；
+- Reviewer RootCauseRecommendation；
+- Minimal/Robust Patch 竞争；
+- Patch Review；
+- 测试失败分类与一次定向重规划；
+- fast/standard/deep Trace 后验分类。
+
+验收标准：
+
+- 简单任务不会无条件创建全部 Worker；
+- 至少一个任务产生两个实质不同 Hypothesis；
+- 至少一次有效双向 Challenge；
+- 至少一个 Diagnostician 因质疑修订结论；
+- Supervisor 最终决定引用 Evidence、Challenge、Rebuttal 和 Reviewer 建议；
+- 至少一个错误 Patch 被 Reviewer 或真实测试淘汰；
+- 至少一次重规划定向返回正确工作流阶段；
+- 达到最大重规划或无进展条件后确定性终止；
+- 路径标签由实际节点计算，而不是预先选择。
+
+输出物：
+
+- 完整 Challenge–Rebuttal Trace；
+- 双 Patch 竞争 Trace；
+- 测试推翻 Patch Trace；
+- 重规划 Trace；
+- 简单任务未扩展案例。
+
+### Phase 6：评测、观测与简历交付
+
+**目标：把系统整理为可复现、可对照和可写入简历的项目。**
+
+工作内容：
+
+- 固定至少 10 个 QuixBugs 任务；
+- 运行三个主系统；
+- 统一模型、工具、任务、随机种子集合和预算；
+- 汇总任务、成本、时延和协作指标；
+- 运行关键消融；
+- 编写 README、架构图和限制说明；
+- 整理演示 Trace 和面试讲解；
+- 只根据真实结果撰写简历描述。
+
+验收标准：
+
+- 一条命令运行单任务；
+- 一条命令运行批量评测；
+- 至少 10 个任务都有结构化结果；
+- 所有表格数字可以追溯到 Trace；
+- 三个系统遵守相同最大预算；
+- README 明确失败任务、当前限制和环境要求；
+- 简历不声称未完成的数据集或虚构提升。
+
+---
+
+## 15. 评测方案
+
+### 15.1 三个主系统
+
+| 系统 | 说明 |
+| --- | --- |
+| Baseline A：Single-Agent ReAct | 单 Agent、相同工具和最大预算 |
+| Baseline B：Fixed Multi-Agent Pipeline | 固定调查、诊断、审查、Patch 顺序，不动态扩展和重规划 |
+| Proposed：Dynamic Supervisor MAS | Supervisor + Engine + 按需 Worker + 动态图 + 对抗审查 |
+
+固定 Pipeline 必须使用与 Proposed 相同的基础模型、工具和候选上限，不能故意削弱基线。
+
+### 15.2 主要结果指标
+
+| 指标 | 含义 |
+| --- | --- |
+| Task Resolution Rate | 全部验收测试通过的任务比例 |
+| Target Test Pass Rate | 原失败测试修复比例 |
+| Regression Pass Rate | 原有测试保持通过比例 |
+| Patch Apply Rate | Patch 成功应用比例 |
+| Protected Path Violations | 修改受保护路径的次数 |
+| Syntax Valid Rate | Patch 无语法错误比例 |
+| End-to-End Latency | 单任务总耗时 |
+| Agent / Tool Calls | 模型和工具调用成本 |
+| Token Usage | 输入与输出 Token |
+| Cost per Solved Task | 每个成功任务的平均成本 |
+
+### 15.3 机制指标
+
+| 指标 | 含义 |
+| --- | --- |
+| Valid Challenge Rate | 满足结构化有效性要求的质疑比例 |
+| Critique-Induced Correction | 质疑导致 Hypothesis/Patch 修订次数 |
+| Replan Recovery Rate | 首轮失败后定向重规划成功比例 |
+| Unnecessary Expansion Rate | 简单任务被无必要扩展的比例 |
+| Route Distribution | fast/standard/deep 的实际任务分布 |
+| Parallel Overlap | 并行 Worker 的真实时间重叠 |
+| Invalid Decision Rate | 被 Engine 拒绝的 Supervisor 决策比例 |
+| Evidence Request Utility | 补充证据后产生有效进展的比例 |
+
+Conflict Resolution Accuracy 只在具有人工或参考根因标注的案例上计算，不用“最终测试通过”冒充根因选择正确。
+
+### 15.4 关键消融
+
+按优先级执行：
+
+1. 固定全流程替代动态门控；
+2. 去掉第二个 Diagnostician；
+3. 去掉 Challenge/Rebuttal；
+4. 去掉双 Patch；
+5. 规则路由替代 SupervisorAgent；
+6. 去掉 Reviewer；
+7. 完整聊天历史替代结构化 Blackboard。
+
+MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
+
+### 15.5 公平性
+
+- 相同基础模型和模型版本；
+- 相同任务输入和隐藏信息边界；
+- 相同工具权限；
+- 相同测试环境；
+- 相同最大 Agent、工具、Token 和时间预算；
+- 相同随机种子集合；
+- 相同评测脚本；
+- 失败和超时均计入结果，不静默删除。
+
+---
+
+## 16. Trace、检查点与可观测性
+
+每个事件至少记录：
+
+```json
+{
+  "event_id": "EVT_001",
+  "task_id": "quixbugs_binary_search",
+  "state_version": 7,
+  "workflow_stage": "diagnosis",
+  "node_id": "N6",
+  "actor": "diagnostician_b",
+  "event_type": "CHALLENGE",
+  "input_refs": ["H1", "E3", "E8"],
+  "output_ref": "C2",
+  "start_time": "...",
+  "end_time": "...",
+  "model_calls": 1,
+  "tool_calls": 0,
+  "token_usage": {"input": 1234, "output": 356},
+  "status": "success"
+}
+```
+
+一条完整演示 Trace 至少展示：
+
+1. 初始最小任务图；
+2. 并行 Investigation 起止时间；
+3. 证据审查或补充请求；
+4. H1、H2 的独立产生；
+5. 双向 Challenge；
+6. Rebuttal 和至少一次修订；
+7. Reviewer 建议与 Supervisor 决策；
+8. 一个或两个 Patch；
+9. 独立 ValidationResult；
+10. 错误候选淘汰；
+11. Finalize 或定向重规划；
+12. 最终任务图和预算汇总。
+
+日志应区分：
+
+- Agent 原始响应引用；
+- 解析后的 Artifact；
+- 确定性工具日志；
+- Engine 状态事件；
+- 评测汇总。
 
 ---
 
 ## 17. 关键工程风险与应对
 
-## 16.1 Agent 输出无法解析
+### 17.1 Agent 输出无法解析
 
-应对：
+- JSON Schema 校验；
+- 最多一次格式修复；
+- 保留原始响应引用；
+- 修复仍失败则节点 FAILED，不把自然语言猜测成合法 Artifact。
 
-- 使用 JSON Schema；
-- 增加一次格式修复；
-- 修复失败时记录原始输出并降级；
-- 不因为单次解析失败导致整个任务崩溃。
+### 17.2 Supervisor 成为单点幻觉来源
 
-## 16.2 两个根因 Agent 输出完全相同
+- Engine 执行硬约束；
+- 决策必须引用 Artifact；
+- 成功必须绑定 ValidationResult；
+- 使用 Scripted Supervisor 测试所有关键路由；
+- 统计 Invalid Decision Rate。
 
-应对：
+### 17.3 多 Agent 结论高度同质
 
-- 使用不同 System Prompt；
-- 为 A 强调运行轨迹；
-- 为 B 强调调用链和接口契约；
-- 第一轮提供不同证据子集；
-- 禁止复制对方结论；
-- 相同假设仍要求相互寻找反例。
+- 独立首轮上下文；
+- 不同分析目标和证据子集；
+- 先独立输出再互相可见；
+- 相同结论时要求列出反例，但不强制制造虚假冲突。
 
-## 16.3 Critic 只做表面评价
+### 17.4 Reviewer 角色复用导致上下文污染
 
-应对：
+- 不同 mode 新建上下文；
+- mode-specific Prompt 和 Schema；
+- Reviewer 不拥有最终决定权；
+- Review 输入仅包含目标 Artifact 和直接证据。
 
-- 强制引用目标 Claim 和证据；
-- 强制给出 required evidence 或 counterexample；
-- 没有具体 objection 的质疑标记为 invalid；
-- 在指标中统计 Valid Challenge Rate。
+### 17.5 Critique 流于表面
 
-## 16.4 Agent 无限争论
+- 强制引用具体 Claim；
+- 强制 counterexample 或 required evidence；
+- 无具体 objection 标记为 invalid；
+- 统计 Valid Challenge Rate 和实际修订次数。
 
-应对：
+### 17.6 无限争论或循环重规划
 
-- 只允许一轮 Challenge 和 Rebuttal；
-- Arbiter 必须做决定；
-- 最大补充证据次数为 1；
-- 最大重规划次数为 1；
-- 预算耗尽立即终止。
+- 一轮 Challenge/Rebuttal；
+- 一次补充证据；
+- 一次重规划；
+- 重复节点指纹检测；
+- 连续无新 Artifact 时终止。
 
-## 16.5 Patch Agent 修改测试
+### 17.7 Agent 修改测试或伪造测试通过
 
-应对：
+- protected paths；
+- 任务测试命令由 Engine 持有；
+- Patch 应用前后检查 Diff；
+- Agent 自报测试结论不进入 ValidationResult；
+- GeneratedTestArtifact 与官方测试分离。
 
-- 将测试目录设置为受保护路径；
-- 应用补丁前检查 Diff；
-- 发现修改测试直接淘汰候选补丁。
+### 17.8 补丁或 baseline 相互污染
 
-## 16.6 补丁相互污染
+- 每个候选独立工作区；
+- 恢复源与候选写入区域分离；
+- 受管工作区身份和 symlink 检查；
+- 测试结束销毁候选；
+- 原始仓库不直接修改。
 
-应对：
+### 17.9 并行没有带来收益
 
-- 每个候选补丁使用独立临时目录或 Git worktree；
-- 测试结束后销毁工作区；
-- 不在主仓库直接修改。
+- 区分逻辑并发、请求并发和 GPU 物理并行；
+- 记录真实时间重叠；
+- 不夸大速度提升；
+- 同时评估探索多样性、成功率和 Token 成本。
 
-## 16.7 并行没有降低时延
+### 17.10 动态路径退化成固定分支
 
-应对：
-
-- 区分逻辑并发、请求并发和物理并行；
-- 记录每个 Agent 的起止时间；
-- 单 GPU 下使用异步请求和推理批处理；
-- 不夸大并行加速，重点强调探索多样性和质量提升。
-
-## 16.8 5 天内 SWE-Gym 环境无法运行
-
-应对：
-
-- QuixBugs 作为主评测；
-- SWE-Gym 只做可选扩展；
-- 简历中只写实际完成的数据集；
-- README 中写明下一阶段计划。
+- 只实现一个 TaskGraph；
+- 从最小种子图逐节点扩展；
+- fast/standard/deep 后验计算；
+- 记录每次扩展触发 Artifact；
+- 用 Fixed Pipeline 作为独立基线而不是混入 Proposed。
 
 ---
 
-## 18. 最终交付物清单
+## 18. 最终交付物
 
-### 代码
+### 18.1 代码
 
-- [ ] Single-Agent 基线；
-- [ ] Supervisor；
-- [ ] 3 个 Evidence Agent；
-- [ ] Evidence Critic；
-- [ ] 2 个 RootCause Agent；
+- [ ] Single-Agent baseline；
+- [ ] ModelAdapter 与 FakeModelAdapter；
+- [ ] SupervisorAgent；
+- [ ] OrchestrationEngine；
+- [ ] TaskGraph 与状态机；
+- [ ] Blackboard、Artifact 和检查点；
+- [ ] 四类 Worker Agent；
 - [ ] Challenge/Rebuttal；
-- [ ] Arbiter；
-- [ ] 2 个 Patch Agent；
-- [ ] Patch Cross Review；
-- [ ] Test Runner；
-- [ ] Validator；
-- [ ] 一次重规划；
-- [ ] Trace 和 Metrics。
+- [ ] 一个或双 Patch 及 Review；
+- [ ] Validation 与一次重规划；
+- [ ] Trace 和 Metrics；
+- [ ] 单任务和批量评测入口。
 
-### 数据与实验
+### 18.2 数据与实验
 
-- [ ] 10–15 个 QuixBugs 任务；
-- [ ] 统一任务 JSON；
-- [ ] 四种版本对照；
-- [ ] 真实任务结果表；
-- [ ] Token 和时延统计；
-- [ ] Critic 纠错统计；
-- [ ] 重规划恢复统计。
+- [ ] 10～15 个 QuixBugs TaskSpec；
+- [ ] 两个独立机制案例；
+- [ ] 三个主系统对照；
+- [ ] 至少两个关键消融；
+- [ ] 真实结果表；
+- [ ] Token、调用数和时延；
+- [ ] Critique 修订和重规划统计；
+- [ ] 动态路径分布和不必要扩展统计。
 
-### 展示材料
+### 18.3 展示材料
 
-- [ ] README；
+- [ ] README 与快速开始；
 - [ ] 架构图；
 - [ ] 一条成功修复 Trace；
-- [ ] 一条根因被质疑后修正的 Trace；
-- [ ] 一条测试推翻错误补丁的 Trace；
+- [ ] 一条质疑后修正根因 Trace；
+- [ ] 一条测试淘汰 Patch Trace；
 - [ ] 一条重规划 Trace；
-- [ ] 运行命令；
-- [ ] 简历描述；
-- [ ] 2 分钟面试讲解稿。
+- [ ] 一条简单任务未扩展 Trace；
+- [ ] 结果表和消融图；
+- [ ] 2 分钟面试讲解；
+- [ ] 基于真实指标的简历描述。
 
 ---
 
-## 19. README 推荐结构
+## 19. README 与简历叙事
+
+README 推荐结构：
 
 ```text
-1. 项目背景
-2. 为什么需要多 Agent
-3. 系统架构
-4. Agent 划分
-5. Challenge–Rebuttal–Arbitration 协议
-6. 共享黑板
-7. 工具与沙箱
+1. 项目问题与目标
+2. 为什么不是 Single-Agent 或固定 Multi-Agent
+3. Supervisor / Engine 分层架构
+4. 四类 Worker 与动态实例
+5. 动态任务图和门控
+6. Challenge–Rebuttal 与 Patch 竞争
+7. 确定性工具和隔离边界
 8. 快速开始
-9. 运行示例
-10. 实验设置
-11. 结果
-12. 典型 Trace
-13. 消融实验
-14. 当前限制
-15. 后续计划
+9. 数据集与实验设置
+10. 对照结果和消融
+11. 典型 Trace
+12. 当前限制
+13. 后续计划
 ```
 
----
+面试讲解主线：
 
-## 20. 简历描述草案
+1. Single-Agent 容易沿单一路径形成错误归因；
+2. 固定多角色流水线又会在简单任务上浪费成本；
+3. 因此由 Supervisor 做语义决策、Engine 执行硬约束；
+4. 系统从最小图开始，只在证据不足和风险上升时增加 Agent；
+5. Worker 通过结构化 Artifact 协作，首轮根因上下文隔离；
+6. 实质冲突触发 Challenge/Rebuttal，不为展示而强制辩论；
+7. Patch 在独立工作区中由真实测试裁决；
+8. 失败只回退相关节点；
+9. 使用 Single-Agent 和固定 Pipeline 在统一预算下验证收益与成本。
 
-### 项目名称
-
-**RepoPilot-MAS：基于动态任务图与对抗审查的多智能体代码修复系统**
-
-### 项目描述
-
-- 面向程序缺陷修复任务构建 Supervisor 驱动的动态任务图，通过节点依赖、条件边、Fork–Join、状态机和检查点机制，动态创建、暂停、恢复、取消与重试代码检索、错误复现、依赖分析、根因推理和补丁验证任务。
-- 设计结构化共享黑板与版本化状态管理，记录 Evidence、Hypothesis、Critique、Rebuttal、Patch、测试结果及其依赖关系，实现 Agent 独立上下文、状态同步、执行追踪和失败后的局部恢复。
-- 构建 Evidence Critic 证据审计与双 RootCause Agent 交叉质疑机制，通过 Challenge–Rebuttal–Arbitration 协议完成根因假设的相互反驳、证据补充和冲突仲裁，降低单一路径推理导致的错误归因。
-- 实现 Minimal/Robust 候选补丁竞争与相互审查，并在隔离工作区中执行目标测试和回归测试；Supervisor 根据失败类型动态修改任务图，定向回退至证据、根因或补丁节点，形成测试驱动的重规划闭环。
-- 在 QuixBugs Python 子集上对比 Single-Agent、固定串行 Multi-Agent、并行 Multi-Agent、动态任务图及完整对抗审查系统，统计任务解决率、Critic 纠错率、重规划恢复率、Token 消耗和端到端时延；实际提升为 **[实验完成后填写]**。
-
-### 注意
-
-最后一条只能填写真实实验结果，不能提前虚构数字。
+简历描述只能在 Phase 6 根据真实结果填写。可以描述已实现机制，但不得提前写入成功率提升、SWE-Gym 结果或训练成果。
 
 ---
 
-## 21. 面试讲解主线
+## 20. 后续扩展
 
-面试时可以按以下顺序讲：
+### 20.1 真实仓库任务
 
-1. 单 Agent 在仓库级修复中容易沿单一路径形成错误根因；
-2. 单纯将流程拆成多个串行角色并不能体现多 Agent 价值；
-3. 因此使用动态任务图管理节点依赖、状态流转、条件分支、局部回退和预算；
-4. 并行探索只是任务图中的 Fork–Join 执行模式，系统还会根据证据和测试结果动态创建或取消节点；
-5. 在 Evidence、RootCause 和 Patch 三个阶段引入并行与交叉审查；
-6. RootCause A/B 第一轮独立分析，避免过早趋同；
-7. 双方通过 Challenge 和 Rebuttal 检查证据与因果链；
-8. Arbiter 不做简单投票，而是依据真实证据和质疑结果仲裁；
-9. Minimal 与 Robust Patch 互相检查表面修复和过度修改；
-10. 最终由真实测试而不是模型自评决定补丁是否成立；
-11. 测试失败后只回退相关阶段，避免整个流程重跑；
-12. 通过统一预算下的 Single-Agent 对照验证收益与成本。
+- SWE-Gym Lite；
+- 多文件依赖分析；
+- Git History 工具；
+- Docker/网络隔离；
+- 真实 Issue 环境复现。
 
----
+### 20.2 模型与 Verifier
 
-## 22. 后续扩展计划
+- 使用成功和失败 Trace 构造数据；
+- 微调 Reviewer/Verifier；
+- 训练根因或 Patch 排序；
+- 在有充分数据后再研究 DPO 或强化学习。
 
-MVP 完成后可逐步扩展：
+### 20.3 更完整评测
 
-### 阶段 A：真实仓库任务
+- 更大 SWE-Gym 子集；
+- SWE-bench Verified 子集；
+- 仓库和时间隔离；
+- 更多随机种子；
+- 完整消融与显著性分析。
 
-- 增加 SWE-Gym Lite；
-- 增加 Git History Agent；
-- 增加多文件依赖分析；
-- 使用 Docker 复现真实 Issue。
+### 20.4 生产能力
 
-### 阶段 B：模型训练
-
-- 使用 SWE-Gym 成功和失败轨迹；
-- 微调 Critic 或 Verifier；
-- 构造错误根因和错误补丁数据；
-- 训练 Arbiter 对多个候选方案排序。
-
-### 阶段 C：完整评测
-
-- 运行更大规模 SWE-Gym 子集；
-- 运行 SWE-bench Verified 子集；
-- 增加仓库隔离和时间隔离；
-- 进行完整消融实验。
-
-### 阶段 D：生产能力
-
-- 状态持久化；
-- 多用户任务队列；
-- 风险操作人工确认；
-- 预算和配额控制；
+- 持久化状态服务；
+- 多用户队列；
+- 人工审批高风险操作；
+- 预算和配额；
 - 可视化 Trace；
-- 断点续跑；
-- 监控和告警。
+- 断点续跑、监控和告警。
 
 ---
 
-## 23. 最终成功标准
+## 21. 最终成功标准
 
-5 天结束时，项目只有同时满足以下条件，才适合写进简历：
+项目只有同时满足以下条件，才可以作为完整 RepoPilot-MAS 简历项目：
 
-1. 一条命令可以运行单个任务；
-2. 至少 10 个任务有真实结果；
-3. Single-Agent 和完整 Multi-Agent 使用统一预算；
-4. Evidence Agent 确实并行执行；
-5. RootCause A/B 确实独立生成第一轮结论；
-6. 至少有一个有效的双向质疑案例；
-7. 至少有一个 Agent 因质疑修改了结论；
-8. 至少有一个错误补丁被 Critic 或真实测试淘汰；
-9. 至少有一次定向重规划；
-10. 所有指标均来自 Trace；
-11. README 明确当前限制；
-12. 简历不声称尚未完成的训练或评测。
+1. 一条命令运行单个任务；
+2. 至少 10 个标准任务有真实结果；
+3. Single-Agent、固定 Pipeline 和动态系统使用统一预算；
+4. 至少一次真实并行 Investigation；
+5. Diagnostician A/B 第一轮上下文隔离；
+6. 至少一次有效双向 Challenge/Rebuttal；
+7. 至少一次 Critique 导致 Artifact 修订；
+8. 至少一个错误 Patch 被 Reviewer 或真实测试淘汰；
+9. 至少一次定向重规划；
+10. 简单任务不会默认运行完整深度流程；
+11. Supervisor 的非法决定会被 Engine 拒绝；
+12. 最终成功绑定真实 ValidationResult；
+13. 所有指标均可追溯到 Trace；
+14. README 明确安全边界、失败案例和当前限制；
+15. 简历不声称未完成的训练、数据集或虚构指标。
 
-项目的最终卖点应当是：
+最终项目卖点：
 
-> 在统一模型和工具预算下，通过动态任务图、版本化状态管理、Agent 交叉质疑、证据仲裁、候选补丁竞争和测试反馈，使系统能够根据执行状态动态调整协作路径，并让多个 Agent 发现和修正彼此的错误，而不是简单地将单 Agent 流程拆成多个串行角色。
+> RepoPilot-MAS 不是十几个角色串行调用的 Prompt 流水线，也不是一个万能 Single-Agent。它是由 SupervisorAgent 统一决策、OrchestrationEngine 负责约束执行、专业 Worker 按不确定性动态协作，并由真实工具和测试结果完成闭环验证的层级式多智能体代码修复系统。

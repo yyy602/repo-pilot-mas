@@ -112,7 +112,8 @@ def _find_symbol(tree: ast.AST, symbol: str) -> ast.AST | None:
     target = symbol.rsplit(".", 1)[-1]
     candidates: list[ast.AST] = []
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            if node.name == target:
-                candidates.append(node)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and (
+            node.name == target
+        ):
+            candidates.append(node)
     return min(candidates, key=lambda item: getattr(item, "lineno", 0)) if candidates else None

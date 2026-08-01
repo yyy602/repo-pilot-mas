@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from repo_pilot_mas.runtime.command_runner import CommandPolicyError, CommandRunner
 from repo_pilot_mas.runtime.path_guard import PathSecurityError
@@ -23,9 +23,9 @@ def run_tests(
     """Run pytest or unittest without shell interpolation."""
 
     context = ToolContext.start("run_tests")
-    normalized = tuple(command or (sys.executable, "-m", "pytest", "-q"))
+    requested = tuple(command or (sys.executable, "-m", "pytest", "-q"))
     try:
-        _validate_test_command(normalized)
+        normalized = _normalize_test_command(requested)
         runner = CommandRunner(root)
         execution = runner.run(
             normalized,
@@ -72,18 +72,42 @@ def run_tests(
         return context.failure(
             code="RUN_TESTS_ERROR",
             message=str(exc),
-            command=normalized,
+            command=requested,
         )
 
 
-def _validate_test_command(command: tuple[str, ...]) -> None:
+def _normalize_test_command(command: tuple[str, ...]) -> tuple[str, ...]:
     if not command:
         raise ValueError("command must not be empty")
-    executable = Path(command[0]).name
+    raw_executable = command[0]
+    executable = Path(raw_executable).name
+    if _contains_path_component(raw_executable):
+        _validate_python_executable(raw_executable)
+        executable = "python"
     if executable in {"python", "python3"}:
         if len(command) < 3 or command[1] != "-m" or command[2] not in {"pytest", "unittest"}:
             raise CommandPolicyError("Python test commands must use '-m pytest' or '-m unittest'")
         if "-c" in command:
             raise CommandPolicyError("python -c is not allowed")
-    elif executable not in {"pytest", "py.test"}:
-        raise CommandPolicyError("only pytest and unittest commands are allowed")
+        return (sys.executable, *command[1:])
+    if executable in {"pytest", "py.test"}:
+        if _contains_path_component(raw_executable):
+            raise CommandPolicyError("pytest executable paths are not allowed")
+        return (sys.executable, "-m", "pytest", *command[1:])
+    raise CommandPolicyError("only pytest and unittest commands are allowed")
+
+
+def _validate_python_executable(value: str) -> None:
+    if not _contains_path_component(value):
+        return
+    try:
+        requested = Path(value).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise CommandPolicyError(f"Python executable does not exist: {value}") from exc
+    trusted = Path(sys.executable).resolve(strict=True)
+    if requested != trusted:
+        raise CommandPolicyError(f"Python executable is not trusted: {value}")
+
+
+def _contains_path_component(value: str) -> bool:
+    return Path(value).is_absolute() or "/" in value or "\\" in value

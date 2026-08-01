@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +18,10 @@ class TaskSpec:
     issue: str
     failing_tests: tuple[str, ...] = ()
     acceptance_criteria: tuple[str, ...] = ()
+    target_files: tuple[str, ...] = ()
+    protected_paths: tuple[str, ...] = ("tests",)
     test_command: tuple[str, ...] = ("python", "-m", "pytest", "-q")
+    max_runtime_seconds: float = 60.0
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -28,15 +33,28 @@ class TaskSpec:
             raise ValueError("task_id must not contain path separators or '..'")
         if not issue:
             raise ValueError("issue must not be empty")
-        if not self.test_command:
+        failing_tests = _validated_relative_paths(self.failing_tests, "failing_tests")
+        target_files = _validated_relative_paths(self.target_files, "target_files")
+        protected_paths = _validated_relative_paths(self.protected_paths, "protected_paths")
+        acceptance_criteria = tuple(_as_strings(self.acceptance_criteria))
+        test_command = tuple(_as_strings(self.test_command))
+        if not test_command:
             raise ValueError("test_command must not be empty")
+        if isinstance(self.max_runtime_seconds, bool):
+            raise TypeError("max_runtime_seconds must be a positive number")
+        max_runtime_seconds = float(self.max_runtime_seconds)
+        if not math.isfinite(max_runtime_seconds) or max_runtime_seconds <= 0:
+            raise ValueError("max_runtime_seconds must be positive")
 
         object.__setattr__(self, "task_id", task_id)
         object.__setattr__(self, "issue", issue)
         object.__setattr__(self, "repository_path", Path(self.repository_path).expanduser())
-        object.__setattr__(self, "failing_tests", tuple(self.failing_tests))
-        object.__setattr__(self, "acceptance_criteria", tuple(self.acceptance_criteria))
-        object.__setattr__(self, "test_command", tuple(self.test_command))
+        object.__setattr__(self, "failing_tests", failing_tests)
+        object.__setattr__(self, "acceptance_criteria", acceptance_criteria)
+        object.__setattr__(self, "target_files", target_files)
+        object.__setattr__(self, "protected_paths", protected_paths)
+        object.__setattr__(self, "test_command", test_command)
+        object.__setattr__(self, "max_runtime_seconds", max_runtime_seconds)
         object.__setattr__(self, "metadata", dict(self.metadata))
 
     @classmethod
@@ -47,9 +65,12 @@ class TaskSpec:
             issue=str(value["issue"]),
             failing_tests=tuple(_as_strings(value.get("failing_tests", ()))),
             acceptance_criteria=tuple(_as_strings(value.get("acceptance_criteria", ()))),
+            target_files=tuple(_as_strings(value.get("target_files", ()))),
+            protected_paths=tuple(_as_strings(value.get("protected_paths", ("tests",)))),
             test_command=tuple(
                 _as_strings(value.get("test_command", ("python", "-m", "pytest", "-q")))
             ),
+            max_runtime_seconds=value.get("max_runtime_seconds", 60.0),
             metadata=dict(value.get("metadata", {})),
         )
 
@@ -60,12 +81,32 @@ class TaskSpec:
             "issue": self.issue,
             "failing_tests": list(self.failing_tests),
             "acceptance_criteria": list(self.acceptance_criteria),
+            "target_files": list(self.target_files),
+            "protected_paths": list(self.protected_paths),
             "test_command": list(self.test_command),
+            "max_runtime_seconds": self.max_runtime_seconds,
             "metadata": dict(self.metadata),
         }
 
 
 def _as_strings(value: Sequence[Any]) -> list[str]:
     if isinstance(value, (str, bytes)):
-        raise ValueError("expected a sequence of strings, not one string")
+        raise TypeError("expected a sequence of strings, not one string")
     return [str(item) for item in value]
+
+
+def _validated_relative_paths(value: Sequence[Any], label: str) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for raw_value in _as_strings(value):
+        raw_path = raw_value.strip().replace("\\", "/")
+        path = Path(raw_path)
+        if (
+            not raw_path
+            or "\x00" in raw_path
+            or path.is_absolute()
+            or raw_path == "."
+            or any(part in {"..", ".git"} for part in path.parts)
+        ):
+            raise ValueError(f"{label} contains an unsafe repository path: {raw_value!r}")
+        normalized.append(path.as_posix())
+    return tuple(normalized)

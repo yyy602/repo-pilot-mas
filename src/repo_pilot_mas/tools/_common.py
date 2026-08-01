@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import fnmatch
 import time
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Iterable, Iterator
+from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 from repo_pilot_mas.schemas.tool_result import ToolResult, utc_now_iso
@@ -62,7 +62,8 @@ class ToolContext:
 
 def is_binary_file(path: Path, *, sample_size: int = 8192) -> bool:
     try:
-        sample = path.read_bytes()[:sample_size]
+        with path.open("rb") as stream:
+            sample = stream.read(sample_size)
     except OSError:
         return True
     if b"\x00" in sample:
@@ -115,3 +116,72 @@ def truncate_text(value: str, limit: int) -> tuple[str, bool]:
     head = int(remaining * 0.65)
     tail = remaining - head
     return value[:head] + marker + value[-tail:], True
+
+
+@dataclass(slots=True)
+class BoundedTextBuffer:
+    """Accumulate display text without retaining content beyond the configured limit."""
+
+    limit: int
+    _value: str = ""
+    _prefix: str = ""
+    _suffix: str = ""
+    truncated: bool = False
+
+    def append(self, value: str) -> None:
+        if not value:
+            return
+        marker = "\n... <truncated> ...\n"
+        payload_limit = max(self.limit - len(marker), 2)
+        head_limit = int(payload_limit * 0.65)
+        tail_limit = payload_limit - head_limit
+        if self.truncated:
+            self._suffix = (self._suffix + value)[-tail_limit:]
+            return
+
+        combined = self._value + value
+        if len(combined) <= self.limit:
+            self._value = combined
+            return
+        self.truncated = True
+        self._prefix = combined[:head_limit]
+        self._suffix = combined[-tail_limit:]
+        self._value = ""
+
+    def render(self) -> str:
+        if not self.truncated:
+            return self._value
+        return self._prefix + "\n... <truncated> ...\n" + self._suffix
+
+
+def protected_path_violations(
+    changed_paths: Iterable[str],
+    protected_paths: Sequence[str],
+) -> list[str]:
+    """Return changed paths equal to or nested below a protected repository path."""
+
+    normalized_protected = tuple(_normalize_relative_path(path) for path in protected_paths)
+    violations: list[str] = []
+    for changed_path in changed_paths:
+        normalized_changed = _normalize_relative_path(changed_path)
+        if any(
+            normalized_changed == protected
+            or protected in normalized_changed.parents
+            for protected in normalized_protected
+        ):
+            violations.append(normalized_changed.as_posix())
+    return sorted(set(violations))
+
+
+def _normalize_relative_path(value: str) -> PurePosixPath:
+    raw_path = str(value).strip().replace("\\", "/")
+    path = PurePosixPath(raw_path)
+    if (
+        not raw_path
+        or "\x00" in raw_path
+        or path.is_absolute()
+        or raw_path == "."
+        or any(part in {"..", ".git"} for part in path.parts)
+    ):
+        raise ValueError(f"unsafe repository path: {value!r}")
+    return path

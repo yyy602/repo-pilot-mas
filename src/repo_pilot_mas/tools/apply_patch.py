@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from repo_pilot_mas.runtime.command_runner import CommandPolicyError, CommandRunner
 from repo_pilot_mas.runtime.path_guard import PathGuard, PathSecurityError
 from repo_pilot_mas.schemas.tool_result import ToolResult
-from repo_pilot_mas.tools._common import ToolContext
+from repo_pilot_mas.tools._common import ToolContext, protected_path_violations
 
 _HEADER_PREFIXES = ("--- ", "+++ ", "rename from ", "rename to ", "copy from ", "copy to ")
 
@@ -19,6 +20,7 @@ def apply_patch(
     timeout_seconds: float = 30.0,
     max_patch_chars: int = 500_000,
     max_output_chars: int = 20_000,
+    protected_paths: Sequence[str] = (),
 ) -> ToolResult:
     """Validate and atomically apply a textual unified diff with ``git apply``."""
 
@@ -32,11 +34,24 @@ def apply_patch(
             )
         if "GIT binary patch" in patch_text or "Binary files " in patch_text:
             raise ValueError("binary patches are not supported")
+        if _contains_symlink_mode(patch_text):
+            raise ValueError("symbolic-link patches are not supported")
 
         guard = PathGuard(root)
         changed_paths = _validate_patch_paths(guard, patch_text)
         if not changed_paths:
             raise ValueError("patch does not contain any supported file headers")
+        protected_violations = protected_path_violations(changed_paths, protected_paths)
+        if protected_violations:
+            return context.failure(
+                code="PROTECTED_PATH_VIOLATION",
+                message="patch modifies one or more protected paths",
+                data={
+                    "changed_paths": changed_paths,
+                    "protected_path_violations": protected_violations,
+                    "stage": "policy",
+                },
+            )
 
         runner = CommandRunner(root)
         check_execution = runner.run(
@@ -133,3 +148,14 @@ def _validate_patch_paths(guard: PathGuard, patch_text: str) -> list[str]:
         guard.resolve(raw_path, must_exist=False, allow_root=False)
         paths.add(Path(raw_path).as_posix())
     return sorted(paths)
+
+
+def _contains_symlink_mode(patch_text: str) -> bool:
+    for line in patch_text.splitlines():
+        if line.startswith(
+            ("new file mode ", "old mode ", "new mode ", "deleted file mode ")
+        ) and line.endswith("120000"):
+            return True
+        if line.startswith("index ") and line.endswith(" 120000"):
+            return True
+    return False

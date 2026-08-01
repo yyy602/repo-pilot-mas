@@ -1,5 +1,8 @@
 # Phase 1：确定性代码工具层
 
+> 文档性质：Phase 1 从属设计说明。整体架构、阶段状态和验收要求以 `docs/RepoPilot-MAS_完整计划.md` 唯一计划基线为准。
+> 阶段状态：已于 2026-08-01 完成验收；证据见 `docs/Phase1_验收报告.md`。
+
 ## 1. 阶段目标
 
 Phase 1 不接入大模型，也不实现 Supervisor 或动态任务图。本阶段只构建后续 Agent 可以可靠调用的确定性执行层，确保相同输入能够得到可解释、可测试和可追踪的结果。
@@ -64,11 +67,11 @@ src/repo_pilot_mas/
 ```text
 <workspace_root>/<task_id>/<workspace_id>/
 ├── workspace.json
-├── baseline/     # 初始只读语义基线
+├── baseline/     # 去除写权限并带内容摘要的恢复基线
 └── worktree/     # Patch 和测试只允许作用于此处
 ```
 
-`collect_diff` 始终比较 `baseline` 与 `worktree`。`rollback_workspace` 删除当前 `worktree` 后重新从 `baseline` 创建，因此不会修改原始仓库。
+`collect_diff` 始终比较 `baseline` 与 `worktree`。回滚和删除前均验证受管目录布局、元数据身份、符号链接状态和基线摘要；只有验证通过后才会从 `baseline` 恢复，因此不会把被篡改的基线当作恢复源。
 
 ## 5. 工具说明
 
@@ -102,6 +105,7 @@ src/repo_pilot_mas/
 ### 5.5 `run_tests`
 
 - 仅允许 pytest 和 unittest 形式；
+- 将解释器和可执行文件解析为受信绝对路径，拒绝同名程序伪造；
 - 禁止 `python -c`；
 - 不通过 Shell 执行；
 - 支持超时、进程组终止和输出截断；
@@ -112,6 +116,7 @@ src/repo_pilot_mas/
 - 只接受文本 Unified Diff；
 - 拒绝二进制 Patch；
 - 解析并校验所有文件路径；
+- 应用前拒绝对 `protected_paths` 的修改；
 - 先执行 `git apply --check`，通过后再实际应用；
 - 校验失败时不修改工作区。
 
@@ -120,11 +125,13 @@ src/repo_pilot_mas/
 - 比较 `baseline` 和 `worktree`；
 - 识别新增、删除、修改和二进制变化；
 - 返回 Unified Diff 与每个文件的大小变化；
-- 对过长 Diff 进行有标记截断。
+- 流式比较文件并用有界缓冲区生成 Diff；
+- 收集后再次检查 `protected_paths`，捕获绕过 Patch API 的直接修改。
 
 ### 5.8 `rollback_workspace`
 
 - 校验工作区必须符合受管目录结构；
+- 拒绝被符号链接替换的工作树和摘要不一致的基线；
 - 只删除候选 `worktree`；
 - 从 `baseline` 完整恢复；
 - 不修改原始仓库。
@@ -144,11 +151,13 @@ src/repo_pilot_mas/
 - 禁止访问 `.git`；
 - 子进程全部使用参数数组，禁止 `shell=True`；
 - 外部命令采用白名单；
+- 受信命令绑定到 Engine 环境解析出的绝对可执行路径；
 - 清除代理环境变量，不提供 curl、wget、pip 等网络工具入口；
 - 每个命令必须设置超时；
 - 超时后终止整个进程组；
-- 标准输出和标准错误都有长度上限；
+- 标准输出、标准错误和 Diff 在读取或生成过程中即受有界缓冲区限制；
 - 每个候选 Patch 使用独立工作区；
+- `protected_paths` 在 Patch 应用前和 Diff 收集后均检查；
 - 原始仓库永远不作为 Patch 写入目标。
 
 应用层白名单不能替代操作系统级沙箱。生产部署仍应在容器或网络命名空间中运行工具，并配置只读挂载、CPU/内存限制以及 `--network none`。
@@ -166,3 +175,5 @@ Phase 1 至少应验证：
 - 回滚后工作区重新变为 clean；
 - Python 语法错误可以被 `static_check` 发现；
 - 所有返回结果都包含 Trace ID 和结构化错误信息。
+
+以上项目及唯一计划基线第 10.4 节的负向分支均已通过，最终命令、环境版本和逐项证据见 `docs/Phase1_验收报告.md`。

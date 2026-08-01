@@ -1,6 +1,19 @@
+import json
+from dataclasses import replace
 from pathlib import Path
 
-from repo_pilot_mas.tools import find_references, inspect_code, list_files, search_code
+from repo_pilot_mas.runtime import WorkspaceManager
+from repo_pilot_mas.tools import (
+    apply_patch,
+    collect_diff,
+    find_references,
+    inspect_code,
+    list_files,
+    rollback_workspace,
+    run_tests,
+    search_code,
+    static_check,
+)
 
 
 def test_list_files_is_deterministic_and_hides_git(sample_repo: Path) -> None:
@@ -66,3 +79,40 @@ def test_find_references_classifies_definition_and_calls(sample_repo: Path) -> N
     assert "function_definition" in kinds
     assert "reference" in kinds
     assert "tests/test_math.py" in paths
+
+
+def test_all_nine_tools_return_traceable_structured_errors(
+    sample_repo: Path,
+    tmp_path: Path,
+) -> None:
+    workspace = WorkspaceManager(sample_repo, tmp_path / "workspaces").create("trace-errors")
+    invalid_workspace = replace(workspace, root=tmp_path / "outside")
+    results = [
+        list_files(sample_repo, path="../"),
+        search_code(sample_repo, "[", regex=True),
+        inspect_code(sample_repo, "/etc/passwd"),
+        find_references(sample_repo, "not a symbol"),
+        run_tests(sample_repo, command=("git", "status")),
+        apply_patch(workspace.root, ""),
+        collect_diff(workspace, max_diff_chars=1),
+        rollback_workspace(invalid_workspace),
+        static_check(sample_repo, path="../", run_ruff=False),
+    ]
+
+    assert {result.tool for result in results} == {
+        "list_files",
+        "search_code",
+        "inspect_code",
+        "find_references",
+        "run_tests",
+        "apply_patch",
+        "collect_diff",
+        "rollback_workspace",
+        "static_check",
+    }
+    for result in results:
+        assert not result.ok
+        assert result.trace_id
+        assert result.error is not None
+        assert result.error.code
+        json.dumps(result.to_dict())
