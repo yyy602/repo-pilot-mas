@@ -2,6 +2,10 @@
 
 from repo_pilot_mas.schemas.artifact import Artifact, ArtifactType
 from repo_pilot_mas.schemas.final_report import FinalReport
+from repo_pilot_mas.schemas.hypothesis_resolution import (
+    HypothesisResolution,
+    HypothesisResolutionStatus,
+)
 from repo_pilot_mas.schemas.supervisor_decision import (
     CreateTaskRequest,
     DecisionAction,
@@ -32,6 +36,8 @@ __all__ = [
     "DecisionAction",
     "FinalReport",
     "GateRecord",
+    "HypothesisResolution",
+    "HypothesisResolutionStatus",
     "SupervisorDecision",
     "TaskSpec",
     "ToolError",
