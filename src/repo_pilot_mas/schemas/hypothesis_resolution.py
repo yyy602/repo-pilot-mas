@@ -44,14 +44,27 @@ class HypothesisResolution:
         if self.primary_ref is not None and self.primary_ref not in self.accepted_refs:
             raise ValueError("primary_ref must belong to accepted_refs")
         if self.status is HypothesisResolutionStatus.ACCEPTED:
-            if not self.accepted_refs or self.primary_ref is None or not self.review_refs:
-                raise ValueError("accepted resolution requires hypotheses, primary_ref, and reviews")
+            legacy = self.metadata.get("legacy_migrated") is True
+            if not self.accepted_refs or self.primary_ref is None:
+                raise ValueError("accepted resolution requires hypotheses and primary_ref")
+            if not self.review_refs and not legacy:
+                raise ValueError("accepted resolution requires reviews")
         elif self.accepted_refs or self.primary_ref is not None:
             raise ValueError("only accepted resolution may contain accepted hypotheses")
 
     @classmethod
     def unresolved(cls, candidate_refs: Sequence[str] = ()) -> HypothesisResolution:
         return cls(candidate_refs=_unique_strings(candidate_refs))
+
+    @classmethod
+    def legacy_accepted(cls, ref: str) -> HypothesisResolution:
+        return cls(
+            status=HypothesisResolutionStatus.ACCEPTED,
+            candidate_refs=(ref,),
+            accepted_refs=(ref,),
+            primary_ref=ref,
+            metadata={"legacy_migrated": True},
+        )
 
     def observe_candidates(self, refs: Sequence[str]) -> None:
         combined = _unique_strings((*self.candidate_refs, *refs))
@@ -91,6 +104,7 @@ class HypothesisResolution:
         self.accepted_by_decision_id = None
         self.accepted_at_state_version = None
         self.invalidation_reason = None
+        self.metadata.pop("legacy_migrated", None)
 
     def accept(
         self,
@@ -117,6 +131,7 @@ class HypothesisResolution:
         self.accepted_at_state_version = int(state_version)
         self.invalidation_reason = None
         self.status = HypothesisResolutionStatus.ACCEPTED
+        self.metadata.pop("legacy_migrated", None)
 
     def invalidate(self, reason: str) -> None:
         if not reason.strip():
@@ -127,6 +142,7 @@ class HypothesisResolution:
         self.accepted_by_decision_id = None
         self.accepted_at_state_version = None
         self.invalidation_reason = reason
+        self.metadata.pop("legacy_migrated", None)
 
     def to_dict(self) -> dict[str, Any]:
         return {
