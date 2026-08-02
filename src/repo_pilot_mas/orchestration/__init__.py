@@ -15,6 +15,13 @@ from repo_pilot_mas.orchestration.langgraph_runtime import (
     WorkerOutcome,
     restore_engine_from_runtime_state,
 )
+from repo_pilot_mas.orchestration.phase5_policy import (
+    ExecutionPath,
+    FailureClass,
+    classify_execution_path,
+    hypotheses_materially_different,
+    required_replan_stage,
+)
 from repo_pilot_mas.orchestration.react_loop import ReactBudget, ReactLoop, ReactResult
 from repo_pilot_mas.orchestration.task_graph import (
     DependencyPolicy,
@@ -30,6 +37,8 @@ __all__ = [
     "DependencyPolicy",
     "EngineBudget",
     "EngineStatus",
+    "ExecutionPath",
+    "FailureClass",
     "FakeWorkerExecutor",
     "LangGraphRuntime",
     "NodeStatus",
@@ -43,5 +52,8 @@ __all__ = [
     "WorkerExecutor",
     "WorkerOutcome",
     "WorkflowStage",
+    "classify_execution_path",
+    "hypotheses_materially_different",
+    "required_replan_stage",
     "restore_engine_from_runtime_state",
 ]

@@ -5,7 +5,7 @@
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
 > 计划版本：v2.4
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0、Phase 1、Phase 2、Phase 3、Phase 4 已完成；当前下一阶段为 Phase 5，尚未开始
+> 当前进度：Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成；当前下一阶段为 Phase 6，尚未开始
 
 ---
 
@@ -1458,7 +1458,7 @@ LangGraph 运行时验收：
 
 ### Phase 5：动态门控与对抗协作
 
-**状态：未开始，当前下一阶段。**
+**状态：已完成。**
 
 **目标：完成项目最有辨识度的动态与对抗闭环。**
 
@@ -1493,7 +1493,25 @@ LangGraph 运行时验收：
 - 重规划 Trace；
 - 简单任务未扩展案例。
 
+完成证据：
+
+- [x] 动态扩展必须携带 `GateRecord`，Engine 校验触发 Artifact、理由、新增节点数和预算影响；
+- [x] Diagnostician 已接通 `challenge` 与 `rebuttal` mode，接受或部分接受质询时生成版本化 Hypothesis；
+- [x] 深路径产生两个实质不同 Hypothesis、两份双向 blocking Challenge、两份 Rebuttal 和两次结论修订；
+- [x] Reviewer 输出 RootCauseRecommendation，Supervisor 接受根因时同时引用 Evidence、Challenge、Rebuttal 和 Review；
+- [x] Minimal/Robust Patch 使用不同 Diff 和工作区，双方 PatchAgent 交叉审查后由 Reviewer 汇总，再分别进入确定性 ValidationExecutor；
+- [x] Minimal Patch 目标测试退出码为 0、完整回归退出码为 1，被标记为 `regression_failure`；Robust Patch 全部门通过并被选择；
+- [x] `both_patches_fail_target` 定向返回 Diagnosis；错误阶段映射被拒绝，第二次重规划超过预算后确定性终止；
+- [x] 相同决策连续两次无进展后确定性终止；
+- [x] Engine 限制一轮 Challenge/Rebuttal 和每个 PatchCandidate 最多一次修订；
+- [x] 简单任务只创建 4 个必要节点并后验标记为 `fast`，对抗任务按实际 16 个节点后验标记为 `deep`；
+- [x] 最终确定性机制运行 15 项门禁全部通过，所有 Artifact Schema 合法，原始机制仓库未被修改。
+
+最终机制运行 ID 为 `20260802T033236637083Z`。设计、验收和机器可读证据分别见 `docs/Phase5_动态门控与对抗协作.md`、`docs/Phase5_验收报告.md`、`reports/phase5/acceptance/latest_summary.json`。该运行固定认知输出以验证机制，不计入 Phase 6 的真实模型效果评测。
+
 ### Phase 6：评测、观测与简历交付
+
+**状态：未开始，当前下一阶段。**
 
 **目标：把系统整理为可复现、可对照和可写入简历的项目。**
 
@@ -1737,10 +1755,10 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
 - [x] TaskGraph 与状态机；
 - [x] Blackboard、Artifact 和检查点；
 - [x] LangGraph 持久化执行闭环；
-- [ ] 四类 Worker Agent；
-- [ ] Challenge/Rebuttal；
-- [ ] 一个或双 Patch 及 Review；
-- [ ] Validation 与一次重规划；
+- [x] 四类 Worker Agent；
+- [x] Challenge/Rebuttal；
+- [x] 一个或双 Patch 及 Review；
+- [x] Validation 与一次重规划；
 - [ ] Trace 和 Metrics；
 - [ ] 单任务和批量评测入口。
 

@@ -111,7 +111,7 @@ class TaskNode:
         self.timeout_seconds = float(self.timeout_seconds)
 
     @property
-    def
+    def terminal(self) -> bool:
         return self.status in TERMINAL_STATUSES
 
     def transition(self, target: NodeStatus, *, reason: str | None = None) -> None:

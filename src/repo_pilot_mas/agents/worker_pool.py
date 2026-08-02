@@ -1,4 +1,4 @@
-"""Phase 4 Worker pool with GPU-slot locking and isolated workspaces."""
+"""Worker pool with GPU-slot locking, isolation, and deterministic validation."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from repo_pilot_mas.models import GenerationConfig, ModelAdapter
 from repo_pilot_mas.orchestration.langgraph_runtime import WorkerOutcome
 from repo_pilot_mas.orchestration.react_loop import ReactBudget
 from repo_pilot_mas.orchestration.task_graph import NodeStatus, NodeType, TaskNode
+from repo_pilot_mas.orchestration.validation import ValidationExecutor
 from repo_pilot_mas.runtime import TraceWriter, Workspace, WorkspaceManager
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec, validate_worker_artifact
 from repo_pilot_mas.schemas.tool_result import utc_now_iso
@@ -27,14 +28,20 @@ from repo_pilot_mas.tools import build_workspace_tool_registry
 _EXPECTED_AGENTS = {
     NodeType.INVESTIGATION_TASK: "InvestigatorAgent",
     NodeType.DIAGNOSIS_TASK: "DiagnosticianAgent",
+    NodeType.CHALLENGE_TASK: "DiagnosticianAgent",
+    NodeType.REBUTTAL_TASK: "DiagnosticianAgent",
     NodeType.REVIEW_TASK: "ReviewerAgent",
     NodeType.PATCH_TASK: "PatchAgent",
+    NodeType.VALIDATION_TASK: "ValidationExecutor",
 }
 _EXPECTED_ARTIFACTS = {
     NodeType.INVESTIGATION_TASK: ArtifactType.EVIDENCE,
     NodeType.DIAGNOSIS_TASK: ArtifactType.HYPOTHESIS,
+    NodeType.CHALLENGE_TASK: ArtifactType.CHALLENGE,
+    NodeType.REBUTTAL_TASK: ArtifactType.REBUTTAL,
     NodeType.REVIEW_TASK: ArtifactType.REVIEW,
     NodeType.PATCH_TASK: ArtifactType.PATCH_CANDIDATE,
+    NodeType.VALIDATION_TASK: ArtifactType.VALIDATION_RESULT,
 }
 _TRAILING_NUMBER = re.compile(r"(\d+)$")
 
@@ -95,7 +102,7 @@ class WorkerPool:
         task_spec = TaskSpec.from_dict(task)
         task_node = TaskNode.from_dict(node)
         input_artifacts = tuple(Artifact.from_dict(item) for item in artifacts)
-        expected_agent = _EXPECTED_AGENTS.get(task_node.node_type)
+        expected_agent = _expected_agent(task_node)
         if expected_agent is None:
             return WorkerOutcome(
                 task_node.node_id,
@@ -109,7 +116,6 @@ class WorkerPool:
                 reason=f"AGENT_TYPE_MISMATCH:expected={expected_agent}",
             )
 
-        slot = self._slot_for(task_node.node_id)
         manager: WorkspaceManager | None = None
         workspace: Workspace | None = None
         keep_workspace = task_node.node_type is NodeType.PATCH_TASK
@@ -129,48 +135,66 @@ class WorkerPool:
                         "baseline_digest": workspace.baseline_digest,
                     },
                 )
-            with self._model_locks[slot]:
-                model_started = time.perf_counter()
-                self._trace(
-                    "worker_model_slot_acquired",
-                    {
-                        "node_id": task_node.node_id,
-                        "slot": slot,
-                        "model_id": self.models[slot].model_id,
-                        "device": getattr(self.models[slot], "device", None),
-                        "started_at": utc_now_iso(),
-                    },
+            if task_node.node_type is NodeType.VALIDATION_TASK:
+                outputs = (
+                    ValidationExecutor(
+                        str(self.workspace_root), trace_writer=self.trace_writer
+                    ).run(task_spec, task_node.node_id, input_artifacts),
                 )
-                try:
-                    artifact = self._run_agent(
-                        self.models[slot],
-                        task_spec,
-                        task_node,
-                        input_artifacts,
-                        workspace,
-                    )
-                finally:
+            else:
+                slot = self._slot_for(task_node.node_id)
+                with self._model_locks[slot]:
+                    model_started = time.perf_counter()
                     self._trace(
-                        "worker_model_slot_released",
+                        "worker_model_slot_acquired",
                         {
                             "node_id": task_node.node_id,
                             "slot": slot,
                             "model_id": self.models[slot].model_id,
                             "device": getattr(self.models[slot], "device", None),
-                            "finished_at": utc_now_iso(),
-                            "duration_ms": int((time.perf_counter() - model_started) * 1000),
+                            "started_at": utc_now_iso(),
                         },
                     )
+                    try:
+                        outputs = self._run_agent(
+                            self.models[slot],
+                            task_spec,
+                            task_node,
+                            input_artifacts,
+                            workspace,
+                        )
+                    finally:
+                        self._trace(
+                            "worker_model_slot_released",
+                            {
+                                "node_id": task_node.node_id,
+                                "slot": slot,
+                                "model_id": self.models[slot].model_id,
+                                "device": getattr(self.models[slot], "device", None),
+                                "finished_at": utc_now_iso(),
+                                "duration_ms": int((time.perf_counter() - model_started) * 1000),
+                            },
+                        )
             expected_type = _EXPECTED_ARTIFACTS[task_node.node_type]
-            refs = tuple(item.ref for item in input_artifacts)
-            validate_worker_artifact(
-                artifact,
-                expected_type=expected_type,
-                allowed_input_refs=refs,
-            )
-            if artifact.created_by != task_node.node_id:
-                raise ValueError("Worker Artifact created_by 与节点不一致")
-            return WorkerOutcome(task_node.node_id, NodeStatus.SUCCEEDED, (artifact,))
+            available_refs = [item.ref for item in input_artifacts]
+            if task_node.node_type is NodeType.REBUTTAL_TASK:
+                types = [item.artifact_type for item in outputs]
+                if types.count(ArtifactType.REBUTTAL) != 1 or any(
+                    item not in {ArtifactType.HYPOTHESIS, ArtifactType.REBUTTAL} for item in types
+                ):
+                    raise ValueError("RebuttalTask 必须返回 Rebuttal 和至多一个修订 Hypothesis")
+            elif len(outputs) != 1 or outputs[0].artifact_type is not expected_type:
+                raise ValueError(f"Worker 必须返回一个 {expected_type.value} Artifact")
+            for artifact in outputs:
+                validate_worker_artifact(
+                    artifact,
+                    expected_type=(None if task_node.node_type is NodeType.REBUTTAL_TASK else expected_type),
+                    allowed_input_refs=tuple(available_refs),
+                )
+                if artifact.created_by != task_node.node_id:
+                    raise ValueError("Worker Artifact created_by 与节点不一致")
+                available_refs.append(artifact.ref)
+            return WorkerOutcome(task_node.node_id, NodeStatus.SUCCEEDED, outputs)
         except Exception as exc:  # noqa: BLE001 - Worker isolation boundary
             self._trace(
                 "worker_agent_failed",
@@ -214,7 +238,7 @@ class WorkerPool:
         node: TaskNode,
         artifacts: Sequence[Artifact],
         workspace: Workspace | None,
-    ) -> Artifact:
+    ) -> tuple[Artifact, ...]:
         if node.node_type is NodeType.INVESTIGATION_TASK:
             assert workspace is not None
             agent = InvestigatorAgent(
@@ -224,28 +248,57 @@ class WorkerPool:
                 budget=self.react_budget,
                 generation_config=self.generation_config,
             )
-            return agent.run(task, node.node_id, node.mode, node.objective)
+            return (agent.run(task, node.node_id, node.mode, node.objective),)
         if node.node_type is NodeType.DIAGNOSIS_TASK:
+            return (DiagnosticianAgent(
+                model,
+                trace_writer=self.trace_writer,
+                generation_config=self.generation_config,
+            ).run(task, node.node_id, node.mode, node.objective, artifacts),)
+        if node.node_type is NodeType.CHALLENGE_TASK:
+            return (
+                DiagnosticianAgent(
+                    model,
+                    trace_writer=self.trace_writer,
+                    generation_config=self.generation_config,
+                ).challenge(task, node.node_id, node.objective, artifacts),
+            )
+        if node.node_type is NodeType.REBUTTAL_TASK:
             return DiagnosticianAgent(
                 model,
                 trace_writer=self.trace_writer,
                 generation_config=self.generation_config,
-            ).run(task, node.node_id, node.mode, node.objective, artifacts)
+            ).rebuttal(task, node.node_id, node.objective, artifacts)
         if node.node_type is NodeType.REVIEW_TASK:
-            return ReviewerAgent(
-                model,
-                trace_writer=self.trace_writer,
-                generation_config=self.generation_config,
-            ).run(task, node.node_id, node.mode, node.objective, artifacts)
+            if node.agent_type == "PatchAgent":
+                return (
+                    PatchAgent.review_peer(
+                        model,
+                        task,
+                        node.node_id,
+                        node.mode,
+                        node.objective,
+                        artifacts,
+                        trace_writer=self.trace_writer,
+                        generation_config=self.generation_config,
+                    ),
+                )
+            return (
+                ReviewerAgent(
+                    model,
+                    trace_writer=self.trace_writer,
+                    generation_config=self.generation_config,
+                ).run(task, node.node_id, node.mode, node.objective, artifacts),
+            )
         assert node.node_type is NodeType.PATCH_TASK and workspace is not None
-        return PatchAgent(
+        return (PatchAgent(
             model,
             build_workspace_tool_registry(task, workspace),
             workspace,
             trace_writer=self.trace_writer,
             budget=self.react_budget,
             generation_config=self.generation_config,
-        ).run(task, node.node_id, node.mode, node.objective, artifacts)
+        ).run(task, node.node_id, node.mode, node.objective, artifacts),)
 
     def _slot_for(self, node_id: str) -> int:
         match = _TRAILING_NUMBER.search(node_id)
@@ -263,3 +316,12 @@ def _workspace_id(node_id: str, created_at: str) -> str:
     digest = hashlib.sha256(f"{node_id}:{created_at}".encode()).hexdigest()[:10]
     normalized = re.sub(r"[^A-Za-z0-9_.-]", "-", node_id).strip("-.") or "worker"
     return f"{normalized[:32]}-{digest}"
+
+
+def _expected_agent(node: TaskNode) -> str | None:
+    if node.node_type is NodeType.REVIEW_TASK and node.mode in {
+        "minimal_critiques_robust",
+        "robust_critiques_minimal",
+    }:
+        return "PatchAgent"
+    return _EXPECTED_AGENTS.get(node.node_type)

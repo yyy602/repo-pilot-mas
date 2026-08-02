@@ -1,0 +1,23 @@
+{
+  "gates": {
+    "artifacts_are_schema_valid": true,
+    "bidirectional_effective_challenge": true,
+    "deep_and_simple_tasks_succeeded": true,
+    "diagnostician_revised_after_challenge": true,
+    "dual_patches_are_materially_different": true,
+    "dynamic_gate_records_are_auditable": true,
+    "patch_review_is_crossed_and_consolidated": true,
+    "path_class_uses_actual_nodes": true,
+    "real_tests_overturn_wrong_patch": true,
+    "simple_task_not_unconditionally_expanded": true,
+    "source_repository_unchanged": true,
+    "supervisor_cites_full_adversarial_chain": true,
+    "targeted_replan_returns_to_diagnosis": true,
+    "termination_is_deterministic": true,
+    "two_materially_different_hypotheses": true
+  },
+  "passed": true,
+  "phase": 5,
+  "report_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase5/acceptance/20260802T033236637083Z/acceptance.json",
+  "run_id": "20260802T033236637083Z"
+}

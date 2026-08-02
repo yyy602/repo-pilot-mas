@@ -7,12 +7,20 @@ import hashlib
 import json
 from collections.abc import Sequence
 
-from repo_pilot_mas.agents.worker_common import WorkerAgentError, worker_task_view
+from repo_pilot_mas.agents.worker_common import (
+    WorkerAgentError,
+    generate_artifact,
+    worker_task_view,
+)
 from repo_pilot_mas.models import GenerationConfig, Message, ModelAdapter
 from repo_pilot_mas.orchestration.react_loop import ReactBudget, ReactLoop
 from repo_pilot_mas.runtime import TraceWriter, Workspace
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec
-from repo_pilot_mas.schemas.worker_artifact import PATCH_STRATEGIES, validate_worker_artifact
+from repo_pilot_mas.schemas.worker_artifact import (
+    PATCH_STRATEGIES,
+    REVIEW_CONTENT_SCHEMA,
+    validate_worker_artifact,
+)
 from repo_pilot_mas.tools import collect_diff
 from repo_pilot_mas.tools.registry import ToolRegistry
 
@@ -200,6 +208,67 @@ class PatchAgent:
         if self.trace_writer is not None:
             self.trace_writer.write("worker_artifact_created", {"artifact": artifact.to_dict()})
         return artifact
+
+    @staticmethod
+    def review_peer(
+        model: ModelAdapter,
+        task: TaskSpec,
+        node_id: str,
+        mode: str,
+        objective: str,
+        artifacts: Sequence[Artifact],
+        *,
+        trace_writer: TraceWriter | None = None,
+        generation_config: GenerationConfig | None = None,
+    ) -> Artifact:
+        side_by_mode = {
+            "minimal_critiques_robust": ("minimal", "robust"),
+            "robust_critiques_minimal": ("robust", "minimal"),
+        }
+        try:
+            own_strategy, target_strategy = side_by_mode[mode]
+        except KeyError as exc:
+            raise WorkerAgentError(f"不支持的 Patch critique mode: {mode}") from exc
+        patches = [
+            item for item in artifacts if item.artifact_type is ArtifactType.PATCH_CANDIDATE
+        ]
+        evidence = [item for item in artifacts if item.artifact_type is ArtifactType.EVIDENCE]
+        if len(patches) != 2 or not evidence:
+            raise WorkerAgentError("Patch 交叉审查需要两个 PatchCandidate 和直接 Evidence")
+        own = next(
+            (item for item in patches if item.content["strategy"] == own_strategy), None
+        )
+        target = next(
+            (item for item in patches if item.content["strategy"] == target_strategy), None
+        )
+        if own is None or target is None:
+            raise WorkerAgentError("Patch 交叉审查缺少 Minimal 或 Robust 候选")
+        review = generate_artifact(
+            model,
+            task=task,
+            node_id=node_id,
+            mode=mode,
+            objective=objective,
+            artifacts=artifacts,
+            artifact_type=ArtifactType.REVIEW,
+            content_schema=REVIEW_CONTENT_SCHEMA,
+            system_prompt=(
+                f"你是 {own_strategy} 策略 PatchAgent 的全新审查实例，只审查对方的"
+                f" {target_strategy} Patch。mode 必须输出 patch_review，"
+                f"target_artifact_ref 必须为 {target.ref}。"
+                + (
+                    "重点指出 Robust 是否过度修改、改变公开契约或引入无证据复杂度。"
+                    if own_strategy == "minimal"
+                    else "重点指出 Minimal 是否硬编码目标用例、只修表面症状或遗漏相邻边界。"
+                )
+                + "evidence_refs 只能引用输入 Evidence；你只给审查意见，不选择 Patch。"
+            ),
+            generation_config=generation_config or GenerationConfig(max_output_tokens=1024),
+            trace_writer=trace_writer,
+        )
+        if review.content["target_artifact_ref"] != target.ref:
+            raise WorkerAgentError("Patch 交叉审查必须指向对方候选")
+        return review
 
 
 def _successful_tools(messages: Sequence[Message]) -> set[str]:

@@ -1,0 +1,1272 @@
+{
+  "case_type": "deterministic_mechanism_acceptance",
+  "deep": {
+    "artifacts": [
+      {
+        "artifact_id": "N1.evidence",
+        "artifact_type": "evidence",
+        "content": {
+          "claim": "safe_divide 对所有输入直接执行 a / b",
+          "confidence": 1.0,
+          "content": "函数没有 b == 0 的控制流分支。",
+          "missing_evidence": [],
+          "mode": "code_retrieval",
+          "observation_type": "direct",
+          "source": {
+            "line_end": 2,
+            "line_start": 1,
+            "path": "calculator.py"
+          },
+          "status": "verified",
+          "tool_trace_ids": [
+            "N1-tool-trace"
+          ]
+        },
+        "created_at": "2026-08-02T03:32:36.701807+00:00",
+        "created_by": "N1",
+        "input_refs": [],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "35883c4619af40a0a4e87ae2b9f4f8a4",
+        "version": 1
+      },
+      {
+        "artifact_id": "N2.evidence",
+        "artifact_type": "evidence",
+        "content": {
+          "claim": "零除数目标测试稳定触发 ZeroDivisionError",
+          "confidence": 1.0,
+          "content": "pytest 目标用例退出码非零，异常来自 calculator.safe_divide。",
+          "missing_evidence": [],
+          "mode": "failure_reproduction",
+          "observation_type": "direct",
+          "source": {
+            "line_end": 5,
+            "line_start": 1,
+            "path": "tests/test_target.py"
+          },
+          "status": "verified",
+          "tool_trace_ids": [
+            "N2-tool-trace"
+          ]
+        },
+        "created_at": "2026-08-02T03:32:36.728827+00:00",
+        "created_by": "N2",
+        "input_refs": [],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "05a165dc2e214a90a99c85f7f8330a8a",
+        "version": 1
+      },
+      {
+        "artifact_id": "N3.hypothesis",
+        "artifact_type": "hypothesis",
+        "content": {
+          "affected_symbols": [
+            "safe_divide"
+          ],
+          "confidence": 0.86,
+          "counter_evidence": [
+            "非零输入必须继续执行真实除法"
+          ],
+          "direct_cause": "b == 0 时仍进入除法表达式",
+          "missing_evidence": [],
+          "perspective": "control_flow",
+          "root_cause": "控制流缺少仅处理零除数的窄化分支",
+          "supporting_evidence": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "verification_plan": [
+            "同时运行零除数目标测试和正常除法回归"
+          ]
+        },
+        "created_at": "2026-08-02T03:32:36.756275+00:00",
+        "created_by": "N3",
+        "input_refs": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "ae206315416e4d84855e5357cfdaa918",
+        "version": 1
+      },
+      {
+        "artifact_id": "N4.hypothesis",
+        "artifact_type": "hypothesis",
+        "content": {
+          "affected_symbols": [
+            "safe_divide.contract"
+          ],
+          "confidence": 0.78,
+          "counter_evidence": [
+            "非零输入必须继续执行真实除法"
+          ],
+          "direct_cause": "异常值没有在除法前转换为领域返回值",
+          "missing_evidence": [],
+          "perspective": "data_flow",
+          "root_cause": "接口契约没有把零除数建模为可恢复结果",
+          "supporting_evidence": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "verification_plan": [
+            "同时运行零除数目标测试和正常除法回归"
+          ]
+        },
+        "created_at": "2026-08-02T03:32:36.789838+00:00",
+        "created_by": "N4",
+        "input_refs": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "b4194ed048d843eb80769e57aff3c6eb",
+        "version": 1
+      },
+      {
+        "artifact_id": "N5.challenge",
+        "artifact_type": "challenge",
+        "content": {
+          "alternative_causal_chain": "真正风险来自补丁作用域过宽，而不只是异常未捕获",
+          "challenged_claim": "接口契约没有把零除数建模为可恢复结果",
+          "challenged_hypothesis_ref": "N4.hypothesis@v1",
+          "counterexample": "无条件返回零可通过目标测试，却会令 safe_divide(6, 2) 失败",
+          "insufficiency_reason": "当前因果链没有证明修复范围不会覆盖正常除法路径",
+          "required_evidence": [
+            "正常除法完整回归结果",
+            "Patch changed-lines 证据"
+          ],
+          "severity": "blocking"
+        },
+        "created_at": "2026-08-02T03:32:36.821945+00:00",
+        "created_by": "N5",
+        "input_refs": [
+          "N4.hypothesis@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "980a59d2962a4324b5d3f5203de5a711",
+        "version": 1
+      },
+      {
+        "artifact_id": "N6.challenge",
+        "artifact_type": "challenge",
+        "content": {
+          "alternative_causal_chain": "真正风险来自补丁作用域过宽，而不只是异常未捕获",
+          "challenged_claim": "控制流缺少仅处理零除数的窄化分支",
+          "challenged_hypothesis_ref": "N3.hypothesis@v1",
+          "counterexample": "无条件返回零可通过目标测试，却会令 safe_divide(6, 2) 失败",
+          "insufficiency_reason": "当前因果链没有证明修复范围不会覆盖正常除法路径",
+          "required_evidence": [
+            "正常除法完整回归结果",
+            "Patch changed-lines 证据"
+          ],
+          "severity": "blocking"
+        },
+        "created_at": "2026-08-02T03:32:36.822976+00:00",
+        "created_by": "N6",
+        "input_refs": [
+          "N3.hypothesis@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "0c3761337f70476d9591242965d3afdd",
+        "version": 1
+      },
+      {
+        "artifact_id": "N3.hypothesis",
+        "artifact_type": "hypothesis",
+        "content": {
+          "affected_symbols": [
+            "safe_divide"
+          ],
+          "confidence": 0.92,
+          "counter_evidence": [
+            "非零输入必须继续执行真实除法"
+          ],
+          "direct_cause": "b == 0 时仍进入除法表达式",
+          "missing_evidence": [],
+          "perspective": "control_flow",
+          "root_cause": "控制流缺少仅处理零除数的窄化分支，且修复必须保持非零路径语义",
+          "supporting_evidence": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "verification_plan": [
+            "运行零除数目标测试",
+            "运行包含正常除法的完整回归",
+            "核对补丁只增加 b == 0 分支"
+          ]
+        },
+        "created_at": "2026-08-02T03:32:36.860095+00:00",
+        "created_by": "N7",
+        "input_refs": [
+          "N3.hypothesis@v1",
+          "N6.challenge@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": "N3.hypothesis@v1",
+        "trace_id": "34665f84f99242928cf01a476262c43d",
+        "version": 2
+      },
+      {
+        "artifact_id": "N7.rebuttal",
+        "artifact_type": "rebuttal",
+        "content": {
+          "counterexample_explanation": "反例成立，目标测试不能替代正常路径回归",
+          "decision": "partial_accept",
+          "defended_hypothesis_ref": "N3.hypothesis@v1",
+          "new_evidence_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "response_to": "N6.challenge@v1",
+          "resulting_hypothesis_ref": "N3.hypothesis@v2",
+          "revision_summary": "接受作用域质疑并增加非零路径不变量"
+        },
+        "created_at": "2026-08-02T03:32:36.860199+00:00",
+        "created_by": "N7",
+        "input_refs": [
+          "N3.hypothesis@v1",
+          "N6.challenge@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1",
+          "N3.hypothesis@v2"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "37d34b69be3d4e2298c7be84ab41d9f7",
+        "version": 1
+      },
+      {
+        "artifact_id": "N4.hypothesis",
+        "artifact_type": "hypothesis",
+        "content": {
+          "affected_symbols": [
+            "safe_divide.contract"
+          ],
+          "confidence": 0.92,
+          "counter_evidence": [
+            "非零输入必须继续执行真实除法"
+          ],
+          "direct_cause": "异常值没有在除法前转换为领域返回值",
+          "missing_evidence": [],
+          "perspective": "data_flow",
+          "root_cause": "接口契约没有把零除数建模为可恢复结果，且修复必须保持非零路径语义",
+          "supporting_evidence": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "verification_plan": [
+            "运行零除数目标测试",
+            "运行包含正常除法的完整回归",
+            "核对补丁只增加 b == 0 分支"
+          ]
+        },
+        "created_at": "2026-08-02T03:32:36.861342+00:00",
+        "created_by": "N8",
+        "input_refs": [
+          "N4.hypothesis@v1",
+          "N5.challenge@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": "N4.hypothesis@v1",
+        "trace_id": "297f838590c04dee8f652dcc1615d87a",
+        "version": 2
+      },
+      {
+        "artifact_id": "N8.rebuttal",
+        "artifact_type": "rebuttal",
+        "content": {
+          "counterexample_explanation": "反例成立，目标测试不能替代正常路径回归",
+          "decision": "partial_accept",
+          "defended_hypothesis_ref": "N4.hypothesis@v1",
+          "new_evidence_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "response_to": "N5.challenge@v1",
+          "resulting_hypothesis_ref": "N4.hypothesis@v2",
+          "revision_summary": "接受作用域质疑并增加非零路径不变量"
+        },
+        "created_at": "2026-08-02T03:32:36.861442+00:00",
+        "created_by": "N8",
+        "input_refs": [
+          "N4.hypothesis@v1",
+          "N5.challenge@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1",
+          "N4.hypothesis@v2"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "38f9907ee020433488480e023b834230",
+        "version": 1
+      },
+      {
+        "artifact_id": "N9.review",
+        "artifact_type": "review",
+        "content": {
+          "evidence_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "findings": [
+            "修订根因回应了双方 Challenge，并与直接 Evidence 一致"
+          ],
+          "mode": "root_cause_recommendation",
+          "recommendation": "建议 Supervisor 接受修订后的控制流 Hypothesis",
+          "risk_notes": [
+            "仍需完整回归排除补丁作用域过宽"
+          ],
+          "target_artifact_ref": "N3.hypothesis@v2",
+          "verdict": "supported"
+        },
+        "created_at": "2026-08-02T03:32:36.899093+00:00",
+        "created_by": "N9",
+        "input_refs": [
+          "N3.hypothesis@v2",
+          "N4.hypothesis@v2",
+          "N6.challenge@v1",
+          "N5.challenge@v1",
+          "N7.rebuttal@v1",
+          "N8.rebuttal@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "550a2b63cc114f85b87d924b0912b693",
+        "version": 1
+      },
+      {
+        "artifact_id": "N10.patch",
+        "artifact_type": "patch_candidate",
+        "content": {
+          "based_on_hypothesis": "N3.hypothesis@v2",
+          "changed_files": [
+            "calculator.py"
+          ],
+          "diff": "--- a/calculator.py\n+++ b/calculator.py\n@@ -1,2 +1,2 @@\n def safe_divide(a, b):\n-    return a / b\n+    return 0\n",
+          "diff_sha256": "a70364772277967c3315eba6a4d3ee581b69cd3639969705042a4739c671c152",
+          "protected_path_check": true,
+          "rationale": "仅满足当前零除数目标用例",
+          "risk_notes": [
+            "可能覆盖正常除法语义"
+          ],
+          "strategy": "minimal",
+          "workspace_id": "N10-minimal"
+        },
+        "created_at": "2026-08-02T03:32:36.968509+00:00",
+        "created_by": "N10",
+        "input_refs": [
+          "N3.hypothesis@v2",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "054b163ae0d248e5b282b1f86d735203",
+        "version": 1
+      },
+      {
+        "artifact_id": "N11.patch",
+        "artifact_type": "patch_candidate",
+        "content": {
+          "based_on_hypothesis": "N3.hypothesis@v2",
+          "changed_files": [
+            "calculator.py"
+          ],
+          "diff": "--- a/calculator.py\n+++ b/calculator.py\n@@ -1,2 +1,4 @@\n def safe_divide(a, b):\n+    if b == 0:\n+        return 0\n     return a / b\n",
+          "diff_sha256": "23301da3b9951a1a80fcae486eb212776c24a4b731b2e8189aace0b469d57fe2",
+          "protected_path_check": true,
+          "rationale": "增加窄化零除数分支并保留非零除法",
+          "risk_notes": [],
+          "strategy": "robust",
+          "workspace_id": "N11-robust"
+        },
+        "created_at": "2026-08-02T03:32:36.967156+00:00",
+        "created_by": "N11",
+        "input_refs": [
+          "N3.hypothesis@v2",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "04da2d08d01f4ff9995780393eed73eb",
+        "version": 1
+      },
+      {
+        "artifact_id": "N12.review",
+        "artifact_type": "review",
+        "content": {
+          "evidence_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "findings": [
+            "Minimal 侧确认 Robust 没有无证据重构或公共接口变化"
+          ],
+          "mode": "patch_review",
+          "recommendation": "允许进入 Reviewer 汇总与真实验证",
+          "risk_notes": [
+            "仍需完整回归排除补丁作用域过宽"
+          ],
+          "target_artifact_ref": "N11.patch@v1",
+          "verdict": "supported"
+        },
+        "created_at": "2026-08-02T03:32:37.007786+00:00",
+        "created_by": "N12",
+        "input_refs": [
+          "N10.patch@v1",
+          "N11.patch@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "ea28346b8a744f1ca091e0881b8f2501",
+        "version": 1
+      },
+      {
+        "artifact_id": "N13.review",
+        "artifact_type": "review",
+        "content": {
+          "evidence_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "findings": [
+            "Robust 侧指出 Minimal 可能只硬编码零除数目标并破坏正常路径"
+          ],
+          "mode": "patch_review",
+          "recommendation": "允许进入 Reviewer 汇总与真实验证",
+          "risk_notes": [
+            "仍需完整回归排除补丁作用域过宽"
+          ],
+          "target_artifact_ref": "N10.patch@v1",
+          "verdict": "supported"
+        },
+        "created_at": "2026-08-02T03:32:37.008858+00:00",
+        "created_by": "N13",
+        "input_refs": [
+          "N10.patch@v1",
+          "N11.patch@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "320c4bd6bfd74a01bc3dbb1ccadea7ce",
+        "version": 1
+      },
+      {
+        "artifact_id": "N14.review",
+        "artifact_type": "review",
+        "content": {
+          "evidence_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "findings": [
+            "Reviewer 汇总双方 Patch 交叉审查，真实测试保留最终否决权"
+          ],
+          "mode": "patch_review",
+          "recommendation": "双方意见已汇总；允许验证但不得跳过完整回归",
+          "risk_notes": [
+            "仍需完整回归排除补丁作用域过宽"
+          ],
+          "target_artifact_ref": "N10.patch@v1",
+          "verdict": "approved"
+        },
+        "created_at": "2026-08-02T03:32:37.048478+00:00",
+        "created_by": "N14",
+        "input_refs": [
+          "N10.patch@v1",
+          "N11.patch@v1",
+          "N12.review@v1",
+          "N13.review@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "15bf479698094402be632f395d3c2813",
+        "version": 1
+      },
+      {
+        "artifact_id": "N15.validation",
+        "artifact_type": "validation_result",
+        "content": {
+          "applied": true,
+          "changed_files": [
+            "calculator.py"
+          ],
+          "changed_lines": 2,
+          "failure_class": "regression_failure",
+          "passed": false,
+          "patch_ref": "N10.patch@v1",
+          "patch_sha256": "a70364772277967c3315eba6a4d3ee581b69cd3639969705042a4739c671c152",
+          "protected_path_check": true,
+          "regression_test": {
+            "command": [
+              "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+              "-m",
+              "pytest",
+              "-q"
+            ],
+            "duration_ms": 618,
+            "exit_code": 1,
+            "output_tail": "F.                                                                       [100%]\n=================================== FAILURES ===================================\n_________________________________ test_nonzero _________________________________\n\n    def test_nonzero():\n>       assert safe_divide(6, 2) == 3\nE       assert 0 == 3\nE        +  where 0 = safe_divide(6, 2)\n\ntests/test_regression.py:5: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_regression.py::test_nonzero - assert 0 == 3\n",
+            "trace_id": "6e512d1b7d73444ea5c0ffa9d26c4a0a"
+          },
+          "static_check": {
+            "command": [
+              "static_check"
+            ],
+            "duration_ms": 68,
+            "exit_code": 0,
+            "output_tail": "",
+            "trace_id": "835f2b25c34c414aae64420b5aa40868"
+          },
+          "target_test": {
+            "command": [
+              "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+              "-m",
+              "pytest",
+              "-q",
+              "tests/test_target.py"
+            ],
+            "duration_ms": 568,
+            "exit_code": 0,
+            "output_tail": ".                                                                        [100%]\n",
+            "trace_id": "7f4773fa2537404cb79d05688b625a5b"
+          },
+          "tool_trace_ids": [
+            "03e714ac2880446097163bd6ad09c653",
+            "7f4773fa2537404cb79d05688b625a5b",
+            "6e512d1b7d73444ea5c0ffa9d26c4a0a",
+            "835f2b25c34c414aae64420b5aa40868"
+          ],
+          "workspace_id": "N10-minimal"
+        },
+        "created_at": "2026-08-02T03:32:38.364123+00:00",
+        "created_by": "N15",
+        "input_refs": [
+          "N10.patch@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "cac6e112d9e84468a3bca44e3eec5324",
+        "version": 1
+      },
+      {
+        "artifact_id": "N16.validation",
+        "artifact_type": "validation_result",
+        "content": {
+          "applied": true,
+          "changed_files": [
+            "calculator.py"
+          ],
+          "changed_lines": 2,
+          "failure_class": "none",
+          "passed": true,
+          "patch_ref": "N11.patch@v1",
+          "patch_sha256": "23301da3b9951a1a80fcae486eb212776c24a4b731b2e8189aace0b469d57fe2",
+          "protected_path_check": true,
+          "regression_test": {
+            "command": [
+              "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+              "-m",
+              "pytest",
+              "-q"
+            ],
+            "duration_ms": 566,
+            "exit_code": 0,
+            "output_tail": "..                                                                       [100%]\n",
+            "trace_id": "60ae747a113a47bbb1f5dcad4b00489e"
+          },
+          "static_check": {
+            "command": [
+              "static_check"
+            ],
+            "duration_ms": 69,
+            "exit_code": 0,
+            "output_tail": "",
+            "trace_id": "de1b46506dde4461af47bb90c0c9a1c2"
+          },
+          "target_test": {
+            "command": [
+              "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+              "-m",
+              "pytest",
+              "-q",
+              "tests/test_target.py"
+            ],
+            "duration_ms": 567,
+            "exit_code": 0,
+            "output_tail": ".                                                                        [100%]\n",
+            "trace_id": "459243201492421db8cb1689aa7b3601"
+          },
+          "tool_trace_ids": [
+            "16e47c41bb3e4bc885a346faaf2dab4a",
+            "459243201492421db8cb1689aa7b3601",
+            "60ae747a113a47bbb1f5dcad4b00489e",
+            "de1b46506dde4461af47bb90c0c9a1c2"
+          ],
+          "workspace_id": "N11-robust"
+        },
+        "created_at": "2026-08-02T03:32:38.315916+00:00",
+        "created_by": "N16",
+        "input_refs": [
+          "N11.patch@v1"
+        ],
+        "status": "created",
+        "supersedes": null,
+        "trace_id": "5d715deed7334ee2b4f4a0a2fe172040",
+        "version": 1
+      }
+    ],
+    "nodes": [
+      {
+        "agent_type": "InvestigatorAgent",
+        "created_at": "2026-08-02T03:32:36.687242+00:00",
+        "created_by_decision_id": "P5-D1-investigate",
+        "critical": true,
+        "dependencies": [],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.708041+00:00",
+        "input_artifact_ids": [],
+        "mode": "code_retrieval",
+        "node_id": "N1",
+        "node_type": "INVESTIGATION_TASK",
+        "objective": "定位 safe_divide 的真实控制流",
+        "output_artifact_ids": [
+          "N1.evidence@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.694019+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "InvestigatorAgent",
+        "created_at": "2026-08-02T03:32:36.714192+00:00",
+        "created_by_decision_id": "P5-D2-expand-investigation",
+        "critical": true,
+        "dependencies": [
+          "N1"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.734686+00:00",
+        "input_artifact_ids": [],
+        "mode": "failure_reproduction",
+        "node_id": "N2",
+        "node_type": "INVESTIGATION_TASK",
+        "objective": "运行受信目标测试并记录稳定失败",
+        "output_artifact_ids": [
+          "N2.evidence@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.721340+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:36.741027+00:00",
+        "created_by_decision_id": "P5-D3-first-diagnosis",
+        "critical": true,
+        "dependencies": [
+          "N2"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.767392+00:00",
+        "input_artifact_ids": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "control_flow",
+        "node_id": "N3",
+        "node_type": "DIAGNOSIS_TASK",
+        "objective": "基于两份 Evidence 独立分析控制流根因",
+        "output_artifact_ids": [
+          "N3.hypothesis@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.748281+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:36.774216+00:00",
+        "created_by_decision_id": "P5-D4-expand-diagnosis",
+        "critical": true,
+        "dependencies": [
+          "N3"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.796277+00:00",
+        "input_artifact_ids": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "data_flow",
+        "node_id": "N4",
+        "node_type": "DIAGNOSIS_TASK",
+        "objective": "从接口契约和数据流独立形成第二根因",
+        "output_artifact_ids": [
+          "N4.hypothesis@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.781704+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:36.803000+00:00",
+        "created_by_decision_id": "P5-D5-bidirectional-challenge",
+        "critical": true,
+        "dependencies": [
+          "N4"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.831602+00:00",
+        "input_artifact_ids": [
+          "N4.hypothesis@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "challenge",
+        "node_id": "N5",
+        "node_type": "CHALLENGE_TASK",
+        "objective": "控制流诊断者质疑数据流 Hypothesis",
+        "output_artifact_ids": [
+          "N5.challenge@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.810901+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:36.803060+00:00",
+        "created_by_decision_id": "P5-D5-bidirectional-challenge",
+        "critical": true,
+        "dependencies": [
+          "N4"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.832509+00:00",
+        "input_artifact_ids": [
+          "N3.hypothesis@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "challenge",
+        "node_id": "N6",
+        "node_type": "CHALLENGE_TASK",
+        "objective": "数据流诊断者质疑控制流 Hypothesis",
+        "output_artifact_ids": [
+          "N6.challenge@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.811344+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:36.840363+00:00",
+        "created_by_decision_id": "P5-D6-one-round-rebuttal",
+        "critical": true,
+        "dependencies": [
+          "N5",
+          "N6"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.871075+00:00",
+        "input_artifact_ids": [
+          "N3.hypothesis@v1",
+          "N6.challenge@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "rebuttal",
+        "node_id": "N7",
+        "node_type": "REBUTTAL_TASK",
+        "objective": "控制流诊断者回应针对自身的 Challenge",
+        "output_artifact_ids": [
+          "N3.hypothesis@v2",
+          "N7.rebuttal@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.848833+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:36.840417+00:00",
+        "created_by_decision_id": "P5-D6-one-round-rebuttal",
+        "critical": true,
+        "dependencies": [
+          "N5",
+          "N6"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.872461+00:00",
+        "input_artifact_ids": [
+          "N4.hypothesis@v1",
+          "N5.challenge@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "rebuttal",
+        "node_id": "N8",
+        "node_type": "REBUTTAL_TASK",
+        "objective": "数据流诊断者回应针对自身的 Challenge",
+        "output_artifact_ids": [
+          "N4.hypothesis@v2",
+          "N8.rebuttal@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.849271+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "ReviewerAgent",
+        "created_at": "2026-08-02T03:32:36.880034+00:00",
+        "created_by_decision_id": "P5-D7-root-review",
+        "critical": true,
+        "dependencies": [
+          "N7",
+          "N8"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.906283+00:00",
+        "input_artifact_ids": [
+          "N3.hypothesis@v2",
+          "N4.hypothesis@v2",
+          "N6.challenge@v1",
+          "N5.challenge@v1",
+          "N7.rebuttal@v1",
+          "N8.rebuttal@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "root_cause_recommendation",
+        "node_id": "N9",
+        "node_type": "REVIEW_TASK",
+        "objective": "审查修订根因及双方质询回应",
+        "output_artifact_ids": [
+          "N9.review@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.889359+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "PatchAgent",
+        "created_at": "2026-08-02T03:32:36.923362+00:00",
+        "created_by_decision_id": "P5-D9-dual-patch",
+        "critical": true,
+        "dependencies": [
+          "N9"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.975782+00:00",
+        "input_artifact_ids": [
+          "N3.hypothesis@v2",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "minimal",
+        "node_id": "N10",
+        "node_type": "PATCH_TASK",
+        "objective": "生成只满足目标用例的最小候选以检验回归门",
+        "output_artifact_ids": [
+          "N10.patch@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.932820+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "PatchAgent",
+        "created_at": "2026-08-02T03:32:36.923410+00:00",
+        "created_by_decision_id": "P5-D9-dual-patch",
+        "critical": true,
+        "dependencies": [
+          "N9"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:36.976624+00:00",
+        "input_artifact_ids": [
+          "N3.hypothesis@v2",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "robust",
+        "node_id": "N11",
+        "node_type": "PATCH_TASK",
+        "objective": "生成保持非零路径语义的稳健候选",
+        "output_artifact_ids": [
+          "N11.patch@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.933257+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "PatchAgent",
+        "created_at": "2026-08-02T03:32:36.985266+00:00",
+        "created_by_decision_id": "P5-D10-patch-review",
+        "critical": true,
+        "dependencies": [
+          "N10",
+          "N11"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:37.017956+00:00",
+        "input_artifact_ids": [
+          "N10.patch@v1",
+          "N11.patch@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "minimal_critiques_robust",
+        "node_id": "N12",
+        "node_type": "REVIEW_TASK",
+        "objective": "Minimal 侧审查 Robust Patch 是否过度修改",
+        "output_artifact_ids": [
+          "N12.review@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.995384+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "PatchAgent",
+        "created_at": "2026-08-02T03:32:36.985321+00:00",
+        "created_by_decision_id": "P5-D10-patch-review",
+        "critical": true,
+        "dependencies": [
+          "N10",
+          "N11"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:37.018862+00:00",
+        "input_artifact_ids": [
+          "N10.patch@v1",
+          "N11.patch@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "robust_critiques_minimal",
+        "node_id": "N13",
+        "node_type": "REVIEW_TASK",
+        "objective": "Robust 侧审查 Minimal Patch 是否只修表面",
+        "output_artifact_ids": [
+          "N13.review@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:36.995837+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "ReviewerAgent",
+        "created_at": "2026-08-02T03:32:37.027370+00:00",
+        "created_by_decision_id": "P5-D11-consolidate-patch-review",
+        "critical": true,
+        "dependencies": [
+          "N12",
+          "N13"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:37.056313+00:00",
+        "input_artifact_ids": [
+          "N10.patch@v1",
+          "N11.patch@v1",
+          "N12.review@v1",
+          "N13.review@v1",
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "mode": "patch_review",
+        "node_id": "N14",
+        "node_type": "REVIEW_TASK",
+        "objective": "汇总 Minimal 与 Robust 双向审查",
+        "output_artifact_ids": [
+          "N14.review@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:37.037809+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "ValidationExecutor",
+        "created_at": "2026-08-02T03:32:37.065262+00:00",
+        "created_by_decision_id": "P5-D12-validate",
+        "critical": true,
+        "dependencies": [
+          "N14"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:38.376953+00:00",
+        "input_artifact_ids": [
+          "N10.patch@v1"
+        ],
+        "mode": "full_validation",
+        "node_id": "N15",
+        "node_type": "VALIDATION_TASK",
+        "objective": "真实验证 Minimal Patch",
+        "output_artifact_ids": [
+          "N15.validation@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:37.076199+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "ValidationExecutor",
+        "created_at": "2026-08-02T03:32:37.065313+00:00",
+        "created_by_decision_id": "P5-D12-validate",
+        "critical": true,
+        "dependencies": [
+          "N14"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:38.378043+00:00",
+        "input_artifact_ids": [
+          "N11.patch@v1"
+        ],
+        "mode": "full_validation",
+        "node_id": "N16",
+        "node_type": "VALIDATION_TASK",
+        "objective": "真实验证 Robust Patch",
+        "output_artifact_ids": [
+          "N16.validation@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:37.076639+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      }
+    ],
+    "path_class": "deep",
+    "selected_hypothesis_ref": "N3.hypothesis@v2",
+    "selected_patch_ref": "N11.patch@v1",
+    "status": "succeeded",
+    "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase5/acceptance/20260802T033236637083Z/deep_trace.jsonl",
+    "validation_ref": "N16.validation@v1"
+  },
+  "gates": {
+    "artifacts_are_schema_valid": true,
+    "bidirectional_effective_challenge": true,
+    "deep_and_simple_tasks_succeeded": true,
+    "diagnostician_revised_after_challenge": true,
+    "dual_patches_are_materially_different": true,
+    "dynamic_gate_records_are_auditable": true,
+    "patch_review_is_crossed_and_consolidated": true,
+    "path_class_uses_actual_nodes": true,
+    "real_tests_overturn_wrong_patch": true,
+    "simple_task_not_unconditionally_expanded": true,
+    "source_repository_unchanged": true,
+    "supervisor_cites_full_adversarial_chain": true,
+    "targeted_replan_returns_to_diagnosis": true,
+    "termination_is_deterministic": true,
+    "two_materially_different_hypotheses": true
+  },
+  "passed": true,
+  "phase": 5,
+  "replan": {
+    "budget_exhaustion_code": "INVALID_SUPERVISOR_DECISION",
+    "budget_exhaustion_status": "failed",
+    "no_progress_codes": [
+      "DECISION_APPLIED",
+      "NO_PROGRESS_LOOP",
+      "NO_PROGRESS_LOOP"
+    ],
+    "no_progress_status": "failed",
+    "no_progress_trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase5/acceptance/20260802T033236637083Z/no_progress_trace.jsonl",
+    "replan_path_class": "deep",
+    "replan_record": {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "P5-R1-target-diagnosis",
+        "failure_class": "both_patches_fail_target",
+        "from_stage": "validation",
+        "reason": "两个候选均未解释同一目标失败，说明根因层级错误",
+        "remaining_replans": 0,
+        "target_stage": "diagnosis",
+        "trigger_refs": [
+          "R1.evidence@v1"
+        ]
+      },
+      "created_at": "2026-08-02T03:32:39.813190+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "R1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "dc19a4e0164744c081d5f1a410120196",
+      "version": 1
+    },
+    "targeted_replan_ok": true,
+    "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase5/acceptance/20260802T033236637083Z/replan_trace.jsonl"
+  },
+  "run_id": "20260802T033236637083Z",
+  "schema_errors": [],
+  "scope_note": "用于验证 Phase 5 机制与真实测试门，不属于 Phase 6 模型效果评测。",
+  "simple": {
+    "nodes": [
+      {
+        "agent_type": "InvestigatorAgent",
+        "created_at": "2026-08-02T03:32:38.455101+00:00",
+        "created_by_decision_id": "P5-S1-investigate",
+        "critical": true,
+        "dependencies": [],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:38.473643+00:00",
+        "input_artifact_ids": [],
+        "mode": "code_retrieval",
+        "node_id": "N1",
+        "node_type": "INVESTIGATION_TASK",
+        "objective": "定位缺少的零除数分支",
+        "output_artifact_ids": [
+          "N1.evidence@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:38.460663+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "DiagnosticianAgent",
+        "created_at": "2026-08-02T03:32:38.479674+00:00",
+        "created_by_decision_id": "P5-S2-diagnose",
+        "critical": true,
+        "dependencies": [
+          "N1"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:38.500585+00:00",
+        "input_artifact_ids": [
+          "N1.evidence@v1"
+        ],
+        "mode": "control_flow",
+        "node_id": "N2",
+        "node_type": "DIAGNOSIS_TASK",
+        "objective": "形成单一控制流根因",
+        "output_artifact_ids": [
+          "N2.hypothesis@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:38.486857+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "PatchAgent",
+        "created_at": "2026-08-02T03:32:38.514426+00:00",
+        "created_by_decision_id": "P5-S4-patch",
+        "critical": true,
+        "dependencies": [
+          "N2"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:38.544098+00:00",
+        "input_artifact_ids": [
+          "N2.hypothesis@v1",
+          "N1.evidence@v1"
+        ],
+        "mode": "robust",
+        "node_id": "N3",
+        "node_type": "PATCH_TASK",
+        "objective": "增加窄化零除数分支",
+        "output_artifact_ids": [
+          "N3.patch@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:38.521663+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      },
+      {
+        "agent_type": "ValidationExecutor",
+        "created_at": "2026-08-02T03:32:38.549613+00:00",
+        "created_by_decision_id": "P5-S5-validate",
+        "critical": true,
+        "dependencies": [
+          "N3"
+        ],
+        "dependency_policy": "all_succeeded",
+        "failure_reason": null,
+        "finished_at": "2026-08-02T03:32:39.794484+00:00",
+        "input_artifact_ids": [
+          "N3.patch@v1"
+        ],
+        "mode": "full_validation",
+        "node_id": "N4",
+        "node_type": "VALIDATION_TASK",
+        "objective": "验证唯一 Patch",
+        "output_artifact_ids": [
+          "N4.validation@v1"
+        ],
+        "retry_count": 0,
+        "started_at": "2026-08-02T03:32:38.556471+00:00",
+        "status": "SUCCEEDED",
+        "timeout_seconds": 120.0
+      }
+    ],
+    "path_class": "fast",
+    "status": "succeeded",
+    "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase5/acceptance/20260802T033236637083Z/simple_trace.jsonl"
+  }
+}

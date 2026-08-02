@@ -4,13 +4,15 @@
 
 ## 当前阶段
 
-Phase 0、Phase 1、Phase 2、Phase 3、Phase 4 已完成；当前下一阶段为 Phase 5（动态门控与对抗协作），尚未开始。
+Phase 0 至 Phase 5 已完成；当前下一阶段为 Phase 6（评测、观测与简历交付），尚未开始。
 
 当前版本已经打通本地 Qwen3-8B Single-Agent 修复闭环：模型只能按结构化 Schema 选择九个确定性工具，测试命令和受保护路径由 TaskSpec 固定；系统在隔离工作区应用 Patch，并以真实目标测试、完整回归、静态检查和 Diff 决定最终结果。阶段状态与后续验收以唯一计划基线为准。
 
 Phase 3 已实现真实 SupervisorAgent 主导的 LangGraph 持久化运行循环，以及确定性的 OrchestrationEngine、动态 TaskGraph、版本化 Blackboard 和审计检查点。Supervisor 使用阿里云百炼强模型 API，LangGraph 负责恢复、流式事件和人工介入，本地 Qwen3-8B 只保留给 Phase 4 Worker；路由按 `qwen3.7-max-2026-06-08`、`qwen3.7-flash`、`qwen3.7-flash-2026-07-15` 的模型顺序，并在每个模型内按账号 1、账号 2 顺序切换。
 
 Phase 4 已实现四类专业 Worker、`AsyncSqliteSaver` 持久化异步调度和双 GPU 本地 Qwen3-8B 模型池。最终真实验收完成两路调查、两路独立诊断、引用审查和两个隔离 Patch 工作区；7 个节点全部成功、7 个 Artifact 全部通过 Schema，两个候选补丁的目标测试均通过。Supervisor 仍负责全局路由，Worker 不直接修改 TaskGraph。
+
+Phase 5 已实现基于 Artifact 的动态扩展门、双向 Challenge/一轮 Rebuttal、版本化根因修订、Reviewer 根因与 Patch 建议、双 Patch 竞争、确定性真实验证、失败分类和一次定向重规划。机制验收中，简单任务按实际节点标记为 `fast`；对抗任务标记为 `deep`，错误 Minimal Patch 虽通过目标测试但被完整回归淘汰。该结果只证明机制闭环，不是 Phase 6 的真实模型效果指标。
 
 ## 已实现工具
 
@@ -60,7 +62,14 @@ conda activate multi_agent
 python -m ruff check .
 ```
 
-当前验收环境为 Python 3.10.20、LangGraph 1.2.10、pytest 9.1.1、Ruff 0.16.1；全量 110 项测试通过、Ruff 无告警。详见 `docs/Phase4_验收报告.md`。
+当前验收环境为 Python 3.10.20、LangGraph 1.2.10、pytest 9.1.1、Ruff 0.16.1；全量 118 项测试通过，Ruff 无告警。Phase 5 设计与证据见 `docs/Phase5_动态门控与对抗协作.md`、`docs/Phase5_验收报告.md`。
+
+运行 Phase 5 可重复机制验收：
+
+```bash
+conda activate multi_agent
+python scripts/run_phase5_acceptance.py
+```
 
 ## 运行 Single-Agent 任务
 

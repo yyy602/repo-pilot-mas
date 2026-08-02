@@ -10,6 +10,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from repo_pilot_mas.orchestration.phase5_policy import (
+    classify_execution_path,
+    required_replan_stage,
+)
 from repo_pilot_mas.orchestration.task_graph import (
     DependencyPolicy,
     NodeStatus,
@@ -22,6 +26,7 @@ from repo_pilot_mas.schemas import TaskSpec
 from repo_pilot_mas.schemas.artifact import Artifact, ArtifactType
 from repo_pilot_mas.schemas.supervisor_decision import DecisionAction, SupervisorDecision
 from repo_pilot_mas.schemas.tool_result import utc_now_iso
+from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
 from repo_pilot_mas.state.blackboard import Blackboard
 
 
@@ -249,6 +254,7 @@ class OrchestrationEngine:
             },
             "engine_status": self.status.value,
             "workflow_stage": self.blackboard.workflow_stage,
+            "execution_path_class": classify_execution_path(self.graph.nodes).value,
             "state_version": self.state_version,
             "nodes": [
                 {
@@ -366,7 +372,16 @@ class OrchestrationEngine:
             self._validate_decision(decision)
             mutated = self._execute_decision(decision)
         except (KeyError, TypeError, ValueError) as exc:
-            return self._reject(decision.decision_id, "INVALID_SUPERVISOR_DECISION", str(exc))
+            terminate = (
+                decision.action is DecisionAction.REQUEST_REPLAN
+                and self.budget.replans >= self.budget.max_replans
+            )
+            return self._reject(
+                decision.decision_id,
+                "INVALID_SUPERVISOR_DECISION",
+                str(exc),
+                terminate=terminate,
+            )
 
         self._processed_decision_ids.add(decision.decision_id)
         self._decision_fingerprints.add(decision.fingerprint)
@@ -443,11 +458,17 @@ class OrchestrationEngine:
     def add_artifact(self, artifact: Artifact) -> str:
         if self.status is not EngineStatus.ACTIVE:
             raise RuntimeError("engine is not active")
+        if artifact.artifact_type is ArtifactType.PATCH_CANDIDATE and artifact.version > 2:
+            raise ValueError("each PatchCandidate may be revised at most once")
         ref = self.blackboard.add_artifact(artifact)
         invalidated: list[str] = []
         if artifact.supersedes:
             for node in self.graph.nodes:
-                if artifact.supersedes not in node.input_artifact_ids or node.terminal:
+                if (
+                    node.node_id == artifact.created_by
+                    or artifact.supersedes not in node.input_artifact_ids
+                    or node.terminal
+                ):
                     continue
                 before = self.graph.version
                 descendants = self.graph.invalidate_descendants(
@@ -546,6 +567,25 @@ class OrchestrationEngine:
             if len(self.graph.nodes) + len(decision.create_tasks) > self.budget.max_nodes:
                 raise ValueError("node budget would be exceeded")
             current_stage = WorkflowStage(self.blackboard.workflow_stage)
+            requested_types = [NodeType(request.node_type) for request in decision.create_tasks]
+            for bounded_type in (NodeType.CHALLENGE_TASK, NodeType.REBUTTAL_TASK):
+                if bounded_type in requested_types and any(
+                    node.node_type is bounded_type for node in self.graph.nodes
+                ):
+                    raise ValueError(f"MVP permits only one {bounded_type.value} round")
+            if (
+                _requires_gate_record(self.graph.nodes, decision, current_stage)
+                and decision.gate_record is None
+            ):
+                raise ValueError("dynamic graph expansion requires gate_record")
+            if decision.gate_record is not None:
+                gate = decision.gate_record
+                if gate.added_node_count != len(decision.create_tasks):
+                    raise ValueError("gate added_node_count does not match create_tasks")
+                if not set(gate.trigger_artifact_refs).issubset(set(decision.evidence_refs)):
+                    raise ValueError("gate triggers must also be included in decision evidence_refs")
+                for ref in gate.trigger_artifact_refs:
+                    self.blackboard.artifacts.get(ref)
             allowed_node_types = _STAGE_NODE_TYPES.get(current_stage, set())
             fingerprints: set[tuple[Any, ...]] = set()
             for request in decision.create_tasks:
@@ -603,6 +643,13 @@ class OrchestrationEngine:
                 WorkflowStage.PATCH,
             }:
                 raise ValueError("replan must target investigation, diagnosis, or patch")
+            if not decision.evidence_refs and self.blackboard.artifacts.latest_values():
+                raise ValueError("replan requires triggering Artifact refs")
+            required = required_replan_stage(str(decision.failure_class))
+            if target.value != required:
+                raise ValueError(
+                    f"failure class {decision.failure_class} requires replan to {required}"
+                )
         elif decision.action is DecisionAction.ACCEPT_HYPOTHESIS:
             current = WorkflowStage(self.blackboard.workflow_stage)
             if current not in {WorkflowStage.DIAGNOSIS, WorkflowStage.REVIEW}:
@@ -610,6 +657,25 @@ class OrchestrationEngine:
             artifact = self.blackboard.artifacts.get(str(decision.hypothesis_ref))
             if artifact.artifact_type is not ArtifactType.HYPOTHESIS:
                 raise ValueError("hypothesis_ref is not a hypothesis")
+            adversarial_types = {
+                item.artifact_type for item in self.blackboard.artifacts.latest_values()
+            }
+            if {ArtifactType.CHALLENGE, ArtifactType.REBUTTAL}.issubset(adversarial_types):
+                cited_types = {
+                    self.blackboard.artifacts.get(ref).artifact_type
+                    for ref in decision.evidence_refs
+                }
+                required_types = {
+                    ArtifactType.EVIDENCE,
+                    ArtifactType.CHALLENGE,
+                    ArtifactType.REBUTTAL,
+                    ArtifactType.REVIEW,
+                }
+                if not required_types.issubset(cited_types):
+                    raise ValueError(
+                        "adversarial root-cause decision must cite Evidence, Challenge, "
+                        "Rebuttal, and Review"
+                    )
         elif decision.action in {DecisionAction.SELECT_PATCH, DecisionAction.FINALIZE_TASK}:
             self._validate_patch_selection(str(decision.patch_ref), str(decision.validation_ref))
             current = WorkflowStage(self.blackboard.workflow_stage)
@@ -652,8 +718,51 @@ class OrchestrationEngine:
         elif decision.action is DecisionAction.CHANGE_WORKFLOW_STAGE:
             self._change_stage(str(decision.next_workflow_stage))
         elif decision.action is DecisionAction.REQUEST_REPLAN:
+            from_stage = self.blackboard.workflow_stage
             self.budget.replans += 1
             self.blackboard.bump()
+            record_ref: str | None = None
+            if decision.evidence_refs:
+                record = Artifact(
+                    artifact_id=f"replan.{self.budget.replans}",
+                    artifact_type=ArtifactType.REPLAN_RECORD,
+                    created_by="OrchestrationEngine",
+                    content={
+                        "decision_id": decision.decision_id,
+                        "attempt": self.budget.replans,
+                        "from_stage": from_stage,
+                        "target_stage": str(decision.next_workflow_stage),
+                        "failure_class": str(decision.failure_class),
+                        "trigger_refs": list(decision.evidence_refs),
+                        "reason": decision.reason,
+                        "remaining_replans": self.budget.max_replans - self.budget.replans,
+                    },
+                    input_refs=decision.evidence_refs,
+                )
+                validate_worker_artifact(
+                    record,
+                    expected_type=ArtifactType.REPLAN_RECORD,
+                    allowed_input_refs=decision.evidence_refs,
+                )
+                record_ref = self.add_artifact(record)
+            before = self.graph.version
+            node_id = self._next_node_id()
+            self.graph.add_node(
+                TaskNode(
+                    node_id=node_id,
+                    node_type=NodeType.REPLAN_TASK,
+                    agent_type="OrchestrationEngine",
+                    mode="targeted_replan",
+                    objective=decision.reason,
+                    input_artifact_ids=decision.evidence_refs,
+                    output_artifact_ids=((record_ref,) if record_ref else ()),
+                    status=NodeStatus.SUCCEEDED,
+                    created_by_decision_id=decision.decision_id,
+                    finished_at=utc_now_iso(),
+                )
+            )
+            self._bump_graph_delta(before)
+            mutated.append(node_id)
             self.blackboard.set_stage(WorkflowStage.REPLAN.value)
             self._change_stage(str(decision.next_workflow_stage), from_replan=True)
         elif decision.action is DecisionAction.ACCEPT_HYPOTHESIS:
@@ -744,6 +853,13 @@ class OrchestrationEngine:
         for review in self.blackboard.artifacts.latest_values():
             if (
                 review.artifact_type is ArtifactType.REVIEW
+                and review.content.get("mode") == "patch_review"
+                and review.content.get("target_artifact_ref") in {patch.ref, patch.artifact_id}
+                and review.content.get("verdict") in {"unsupported", "changes_requested"}
+            ):
+                raise ValueError(f"selected patch has unresolved blocking review: {review.ref}")
+            if (
+                review.artifact_type is ArtifactType.REVIEW
                 and review.content.get("severity") == "blocking"
                 and review.status not in {"resolved", "rejected"}
             ):
@@ -830,3 +946,26 @@ class OrchestrationEngine:
 def _next_node_sequence(nodes: Sequence[TaskNode]) -> int:
     numbers = [int(node.node_id[1:]) for node in nodes if node.node_id[1:].isdigit()]
     return max(numbers, default=0) + 1
+
+
+def _requires_gate_record(
+    nodes: Sequence[TaskNode],
+    decision: SupervisorDecision,
+    current_stage: WorkflowStage,
+) -> bool:
+    if current_stage is WorkflowStage.INITIALIZATION:
+        return False
+    new_types = [NodeType(request.node_type) for request in decision.create_tasks]
+    if any(item in {NodeType.CHALLENGE_TASK, NodeType.REBUTTAL_TASK} for item in new_types):
+        return True
+    expandable = {
+        NodeType.INVESTIGATION_TASK,
+        NodeType.DIAGNOSIS_TASK,
+        NodeType.PATCH_TASK,
+    }
+    for node_type in expandable:
+        existing = sum(node.node_type is node_type for node in nodes)
+        added = new_types.count(node_type)
+        if added and existing + added > 1:
+            return True
+    return False

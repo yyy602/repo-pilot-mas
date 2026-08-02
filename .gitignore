@@ -251,6 +251,10 @@ reports/phase4/*
 !reports/phase4/acceptance/**
 !reports/phase4/timeout_acceptance/
 !reports/phase4/timeout_acceptance/**
+!reports/phase5/
+reports/phase5/*
+!reports/phase5/acceptance/
+!reports/phase5/acceptance/**
 
 data/workspaces/
 data/cache/

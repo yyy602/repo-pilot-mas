@@ -1,4 +1,4 @@
-"""Phase 4 Worker artifact schemas and cross-reference validation."""
+"""Worker artifact schemas and cross-reference validation."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ REVIEWER_MODES = (
     "final_risk_review",
 )
 PATCH_STRATEGIES = ("minimal", "robust")
+REBUTTAL_DECISIONS = ("accept", "partial_accept", "reject")
 
 _TEXT = {"type": "string", "minLength": 1}
 _TEXTS = {"type": "array", "items": _TEXT}
@@ -111,6 +112,8 @@ REVIEW_CONTENT_SCHEMA: dict[str, Any] = {
                 "needs_more_evidence",
                 "changes_requested",
                 "approved",
+                "conflict",
+                "compatible",
             ],
         },
         "findings": _NON_EMPTY_TEXTS,
@@ -125,6 +128,138 @@ REVIEW_CONTENT_SCHEMA: dict[str, Any] = {
         "findings",
         "risk_notes",
         "recommendation",
+    ],
+    "additionalProperties": False,
+}
+
+CHALLENGE_CONTENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "challenged_hypothesis_ref": _TEXT,
+        "challenged_claim": _TEXT,
+        "insufficiency_reason": _TEXT,
+        "counterexample": _TEXT,
+        "alternative_causal_chain": _TEXT,
+        "required_evidence": _NON_EMPTY_TEXTS,
+        "severity": {"type": "string", "enum": ["blocking", "non_blocking"]},
+    },
+    "required": [
+        "challenged_hypothesis_ref",
+        "challenged_claim",
+        "insufficiency_reason",
+        "counterexample",
+        "alternative_causal_chain",
+        "required_evidence",
+        "severity",
+    ],
+    "additionalProperties": False,
+}
+
+REBUTTAL_CONTENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "response_to": _TEXT,
+        "defended_hypothesis_ref": _TEXT,
+        "decision": {"type": "string", "enum": list(REBUTTAL_DECISIONS)},
+        "new_evidence_refs": _TEXTS,
+        "resulting_hypothesis_ref": _TEXT,
+        "counterexample_explanation": _TEXT,
+        "revision_summary": _TEXT,
+    },
+    "required": [
+        "response_to",
+        "defended_hypothesis_ref",
+        "decision",
+        "new_evidence_refs",
+        "resulting_hypothesis_ref",
+        "counterexample_explanation",
+        "revision_summary",
+    ],
+    "additionalProperties": False,
+}
+
+_COMMAND_RESULT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "command": {"type": "array", "items": _TEXT, "minItems": 1},
+        "exit_code": {"type": "integer"},
+        "trace_id": _TEXT,
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "output_tail": {"type": "string"},
+    },
+    "required": ["command", "exit_code", "trace_id", "duration_ms", "output_tail"],
+    "additionalProperties": False,
+}
+
+VALIDATION_CONTENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "patch_ref": _TEXT,
+        "patch_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "workspace_id": _TEXT,
+        "applied": {"type": "boolean"},
+        "target_test": _COMMAND_RESULT_SCHEMA,
+        "regression_test": _COMMAND_RESULT_SCHEMA,
+        "static_check": _COMMAND_RESULT_SCHEMA,
+        "protected_path_check": {"type": "boolean"},
+        "changed_files": _TEXTS,
+        "changed_lines": {"type": "integer", "minimum": 0},
+        "passed": {"type": "boolean"},
+        "failure_class": {
+            "type": "string",
+            "enum": [
+                "none",
+                "patch_integrity_failure",
+                "protected_path_violation",
+                "target_test_failure",
+                "regression_failure",
+                "syntax_failure",
+            ],
+        },
+        "tool_trace_ids": {"type": "array", "items": _TEXT, "minItems": 4},
+    },
+    "required": [
+        "patch_ref",
+        "patch_sha256",
+        "workspace_id",
+        "applied",
+        "target_test",
+        "regression_test",
+        "static_check",
+        "protected_path_check",
+        "changed_files",
+        "changed_lines",
+        "passed",
+        "failure_class",
+        "tool_trace_ids",
+    ],
+    "additionalProperties": False,
+}
+
+REPLAN_CONTENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "decision_id": _TEXT,
+        "attempt": {"type": "integer", "minimum": 1},
+        "from_stage": _TEXT,
+        "target_stage": {
+            "type": "string",
+            "enum": ["investigation", "diagnosis", "patch"],
+        },
+        "failure_class": _TEXT,
+        "trigger_refs": _NON_EMPTY_TEXTS,
+        "reason": _TEXT,
+        "remaining_replans": {"type": "integer", "minimum": 0},
+    },
+    "required": [
+        "decision_id",
+        "attempt",
+        "from_stage",
+        "target_stage",
+        "failure_class",
+        "trigger_refs",
+        "reason",
+        "remaining_replans",
     ],
     "additionalProperties": False,
 }
@@ -164,6 +299,10 @@ _SCHEMAS = {
     ArtifactType.HYPOTHESIS: HYPOTHESIS_CONTENT_SCHEMA,
     ArtifactType.REVIEW: REVIEW_CONTENT_SCHEMA,
     ArtifactType.PATCH_CANDIDATE: PATCH_CONTENT_SCHEMA,
+    ArtifactType.CHALLENGE: CHALLENGE_CONTENT_SCHEMA,
+    ArtifactType.REBUTTAL: REBUTTAL_CONTENT_SCHEMA,
+    ArtifactType.VALIDATION_RESULT: VALIDATION_CONTENT_SCHEMA,
+    ArtifactType.REPLAN_RECORD: REPLAN_CONTENT_SCHEMA,
 }
 
 
@@ -182,7 +321,7 @@ def validate_worker_artifact(
     try:
         schema = _SCHEMAS[artifact.artifact_type]
     except KeyError as exc:
-        raise ValueError(f"unsupported Phase 4 artifact type: {artifact.artifact_type.value}") from exc
+        raise ValueError(f"unsupported Worker artifact type: {artifact.artifact_type.value}") from exc
     validate_json_schema(artifact.content, schema)
     if allowed_input_refs is not None:
         allowed = set(allowed_input_refs)
@@ -200,6 +339,25 @@ def _validate_content_refs(artifact: Artifact, allowed: set[str]) -> None:
         _require_refs(content["evidence_refs"], allowed, "evidence_refs")
     elif artifact.artifact_type is ArtifactType.PATCH_CANDIDATE:
         _require_refs((content["based_on_hypothesis"],), allowed, "based_on_hypothesis")
+    elif artifact.artifact_type is ArtifactType.CHALLENGE:
+        _require_refs(
+            (content["challenged_hypothesis_ref"],), allowed, "challenged_hypothesis_ref"
+        )
+    elif artifact.artifact_type is ArtifactType.REBUTTAL:
+        _require_refs(
+            (
+                content["response_to"],
+                content["defended_hypothesis_ref"],
+                content["resulting_hypothesis_ref"],
+            ),
+            allowed,
+            "rebuttal refs",
+        )
+        _require_refs(content["new_evidence_refs"], allowed, "new_evidence_refs")
+    elif artifact.artifact_type is ArtifactType.VALIDATION_RESULT:
+        _require_refs((content["patch_ref"],), allowed, "patch_ref")
+    elif artifact.artifact_type is ArtifactType.REPLAN_RECORD:
+        _require_refs(content["trigger_refs"], allowed, "trigger_refs")
 
 
 def _require_refs(values: Sequence[Any], allowed: set[str], label: str) -> None:

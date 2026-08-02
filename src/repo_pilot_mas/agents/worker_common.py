@@ -135,6 +135,10 @@ def _canonicalize_refs(
     elif artifact_type is ArtifactType.REVIEW:
         content["target_artifact_ref"] = canonical(content.get("target_artifact_ref", ""))
         content["evidence_refs"] = [canonical(item) for item in content.get("evidence_refs", ())]
+    elif artifact_type is ArtifactType.CHALLENGE:
+        content["challenged_hypothesis_ref"] = canonical(
+            content.get("challenged_hypothesis_ref", "")
+        )
     return content
 
 

@@ -50,6 +50,45 @@ class DecisionAction(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class GateRecord:
+    """Auditable reason and budget effect for a dynamic graph expansion."""
+
+    gate_name: str
+    trigger_artifact_refs: tuple[str, ...]
+    reason: str
+    added_node_count: int
+    budget_effect: str
+
+    def __post_init__(self) -> None:
+        if not self.gate_name.strip() or not self.reason.strip() or not self.budget_effect.strip():
+            raise ValueError("gate record text fields must not be empty")
+        object.__setattr__(self, "trigger_artifact_refs", tuple(self.trigger_artifact_refs))
+        if not self.trigger_artifact_refs:
+            raise ValueError("gate record requires triggering artifacts")
+        if isinstance(self.added_node_count, bool) or self.added_node_count <= 0:
+            raise ValueError("gate added_node_count must be positive")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "gate_name": self.gate_name,
+            "trigger_artifact_refs": list(self.trigger_artifact_refs),
+            "reason": self.reason,
+            "added_node_count": self.added_node_count,
+            "budget_effect": self.budget_effect,
+        }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> GateRecord:
+        return cls(
+            gate_name=str(value["gate_name"]),
+            trigger_artifact_refs=_strings(value["trigger_artifact_refs"]),
+            reason=str(value["reason"]),
+            added_node_count=int(value["added_node_count"]),
+            budget_effect=str(value["budget_effect"]),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CreateTaskRequest:
     node_type: str
     agent_type: str
@@ -120,6 +159,8 @@ class SupervisorDecision:
     hypothesis_ref: str | None = None
     patch_ref: str | None = None
     validation_ref: str | None = None
+    gate_record: GateRecord | None = None
+    failure_class: str | None = None
 
     def __post_init__(self) -> None:
         if not _ID_PATTERN.fullmatch(self.decision_id) or ".." in self.decision_id:
@@ -130,6 +171,15 @@ class SupervisorDecision:
         object.__setattr__(self, "create_tasks", tuple(self.create_tasks))
         object.__setattr__(self, "target_task_ids", tuple(self.target_task_ids))
         object.__setattr__(self, "evidence_refs", tuple(self.evidence_refs))
+        if self.action is DecisionAction.REQUEST_REPLAN and not self.failure_class:
+            defaults = {
+                "investigation": "evidence_incomplete",
+                "diagnosis": "root_cause_rejected",
+                "patch": "target_test_failure",
+            }
+            object.__setattr__(self, "failure_class", defaults.get(self.next_workflow_stage or ""))
+        if self.gate_record is not None and not isinstance(self.gate_record, GateRecord):
+            raise TypeError("gate_record must be a GateRecord")
         self._validate_action_fields()
 
     def _validate_action_fields(self) -> None:
@@ -154,6 +204,10 @@ class SupervisorDecision:
             DecisionAction.FINALIZE_TASK,
         }:
             raise ValueError("patch selection fields are not valid for this action")
+        if self.gate_record and self.action is not DecisionAction.CREATE_TASK:
+            raise ValueError("gate_record is only valid for CREATE_TASK")
+        if self.failure_class and self.action is not DecisionAction.REQUEST_REPLAN:
+            raise ValueError("failure_class is only valid for REQUEST_REPLAN")
         if self.action is DecisionAction.CREATE_TASK and not self.create_tasks:
             raise ValueError("CREATE_TASK requires create_tasks")
         if self.action in {
@@ -167,6 +221,8 @@ class SupervisorDecision:
             DecisionAction.REQUEST_REPLAN,
         } and not self.next_workflow_stage:
             raise ValueError(f"{self.action.value} requires next_workflow_stage")
+        if self.action is DecisionAction.REQUEST_REPLAN and not self.failure_class:
+            raise ValueError("REQUEST_REPLAN requires failure_class")
         if self.action is DecisionAction.ACCEPT_HYPOTHESIS and not self.hypothesis_ref:
             raise ValueError("ACCEPT_HYPOTHESIS requires hypothesis_ref")
         if self.action in {DecisionAction.SELECT_PATCH, DecisionAction.FINALIZE_TASK} and (
@@ -179,6 +235,10 @@ class SupervisorDecision:
         value = self.to_dict()
         value.pop("decision_id")
         value.pop("reason")
+        gate = value.get("gate_record")
+        if isinstance(gate, dict):
+            gate.pop("reason", None)
+            gate.pop("budget_effect", None)
         return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
     def to_dict(self) -> dict[str, Any]:
@@ -200,6 +260,10 @@ class SupervisorDecision:
             value["patch_ref"] = self.patch_ref
         if self.validation_ref:
             value["validation_ref"] = self.validation_ref
+        if self.gate_record:
+            value["gate_record"] = self.gate_record.to_dict()
+        if self.failure_class:
+            value["failure_class"] = self.failure_class
         return value
 
     @classmethod
@@ -222,6 +286,12 @@ class SupervisorDecision:
             hypothesis_ref=(str(value["hypothesis_ref"]) if value.get("hypothesis_ref") else None),
             patch_ref=str(value["patch_ref"]) if value.get("patch_ref") else None,
             validation_ref=(str(value["validation_ref"]) if value.get("validation_ref") else None),
+            gate_record=(
+                GateRecord.from_dict(value["gate_record"])
+                if isinstance(value.get("gate_record"), Mapping)
+                else None
+            ),
+            failure_class=str(value["failure_class"]) if value.get("failure_class") else None,
         )
 
 
@@ -253,6 +323,28 @@ def supervisor_decision_schema() -> dict[str, Any]:
             "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
         },
         "required": ["node_type", "agent_type", "mode", "objective"],
+        "additionalProperties": False,
+    }
+    gate_schema = {
+        "type": "object",
+        "properties": {
+            "gate_name": non_empty,
+            "trigger_artifact_refs": {
+                "type": "array",
+                "items": non_empty,
+                "minItems": 1,
+            },
+            "reason": non_empty,
+            "added_node_count": {"type": "integer", "minimum": 1},
+            "budget_effect": non_empty,
+        },
+        "required": [
+            "gate_name",
+            "trigger_artifact_refs",
+            "reason",
+            "added_node_count",
+            "budget_effect",
+        ],
         "additionalProperties": False,
     }
 
@@ -292,6 +384,7 @@ def supervisor_decision_schema() -> dict[str, Any]:
                         "minItems": 1,
                     },
                     "next_workflow_stage": stage["next_workflow_stage"],
+                    "gate_record": gate_schema,
                 },
                 ("create_tasks",),
             ),
@@ -299,7 +392,29 @@ def supervisor_decision_schema() -> dict[str, Any]:
             variant(DecisionAction.PAUSE_TASK, targets, ("target_task_ids",)),
             variant(DecisionAction.RESUME_TASK, targets, ("target_task_ids",)),
             variant(DecisionAction.CHANGE_WORKFLOW_STAGE, stage, ("next_workflow_stage",)),
-            variant(DecisionAction.REQUEST_REPLAN, stage, ("next_workflow_stage",)),
+            variant(
+                DecisionAction.REQUEST_REPLAN,
+                {
+                    **stage,
+                    "failure_class": {
+                        "type": "string",
+                        "enum": [
+                            "reproduction_failure",
+                            "wrong_location",
+                            "evidence_incomplete",
+                            "root_cause_rejected",
+                            "both_patches_fail_target",
+                            "counterexample_overturns",
+                            "patch_apply_failure",
+                            "syntax_failure",
+                            "target_test_failure",
+                            "regression_failure",
+                            "blocking_patch_review",
+                        ],
+                    },
+                },
+                ("next_workflow_stage", "failure_class"),
+            ),
             variant(
                 DecisionAction.ACCEPT_HYPOTHESIS,
                 {"hypothesis_ref": non_empty},

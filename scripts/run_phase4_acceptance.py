@@ -25,6 +25,7 @@ from repo_pilot_mas.runtime import TraceWriter, WorkspaceManager
 from repo_pilot_mas.schemas import (
     CreateTaskRequest,
     DecisionAction,
+    GateRecord,
     SupervisorDecision,
     validate_worker_artifact,
 )
@@ -96,6 +97,14 @@ class Phase4AcceptanceSupervisor:
                     ),
                 ),
                 next_workflow_stage="diagnosis",
+                evidence_refs=evidence_refs,
+                gate_record=GateRecord(
+                    "additional_diagnosis",
+                    evidence_refs,
+                    "同一组 Evidence 需要控制流与数据流两个独立视角",
+                    2,
+                    "新增 2 个诊断节点并占用 2 次 Worker 调用",
+                ),
             )
         elif len(nodes) == 4:
             evidence_refs = _refs(artifacts, "evidence")
@@ -120,6 +129,7 @@ class Phase4AcceptanceSupervisor:
         elif len(nodes) == 5:
             evidence_refs = _refs(artifacts, "evidence")
             hypothesis_refs = _refs(artifacts, "hypothesis")
+            review_refs = _refs(artifacts, "review")
             decision = SupervisorDecision(
                 "P4-D4-patch",
                 DecisionAction.CREATE_TASK,
@@ -145,6 +155,14 @@ class Phase4AcceptanceSupervisor:
                     ),
                 ),
                 next_workflow_stage="patch",
+                evidence_refs=(*hypothesis_refs, *review_refs),
+                gate_record=GateRecord(
+                    "dual_patch",
+                    (*hypothesis_refs, *review_refs),
+                    "根因审查后仍存在最小范围与稳健实现的取舍",
+                    2,
+                    "新增 2 个 Patch 节点并占用 2 次 Worker 调用",
+                ),
             )
         else:
             decision = SupervisorDecision(
