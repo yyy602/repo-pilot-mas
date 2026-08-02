@@ -27,6 +27,7 @@ class ArtifactType(str, Enum):
     GENERATED_TEST = "generated_test"
     VALIDATION_RESULT = "validation_result"
     REPLAN_RECORD = "replan_record"
+    ARTIFACT_REJECTION = "artifact_rejection"
 
 
 @dataclass(frozen=True, slots=True)
