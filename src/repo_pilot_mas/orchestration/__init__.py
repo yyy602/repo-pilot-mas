@@ -1,10 +1,12 @@
 """Deterministic orchestration primitives."""
 
-from repo_pilot_mas.orchestration.engine import (
+from repo_pilot_mas.orchestration.closed_loop_engine import (
     DecisionResult,
+    OrchestrationEngine,
+)
+from repo_pilot_mas.orchestration.engine import (
     EngineBudget,
     EngineStatus,
-    OrchestrationEngine,
     WorkflowStage,
 )
 from repo_pilot_mas.orchestration.langgraph_runtime import (
