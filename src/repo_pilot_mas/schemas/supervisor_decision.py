@@ -157,6 +157,9 @@ class SupervisorDecision:
     validation_ref: str | None = None
     gate_record: GateRecord | None = None
     failure_class: str | None = None
+    hypothesis_refs: tuple[str, ...] = ()
+    primary_hypothesis_ref: str | None = None
+    review_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not _ID_PATTERN.fullmatch(self.decision_id) or ".." in self.decision_id:
@@ -166,7 +169,10 @@ class SupervisorDecision:
         object.__setattr__(self, "action", DecisionAction(self.action))
         object.__setattr__(self, "create_tasks", tuple(self.create_tasks))
         object.__setattr__(self, "target_task_ids", tuple(self.target_task_ids))
-        object.__setattr__(self, "evidence_refs", tuple(self.evidence_refs))
+        object.__setattr__(self, "evidence_refs", _unique_strings(self.evidence_refs))
+        object.__setattr__(self, "hypothesis_refs", _unique_strings(self.hypothesis_refs))
+        object.__setattr__(self, "review_refs", _unique_strings(self.review_refs))
+        self._normalize_hypothesis_selection()
         if self.action is DecisionAction.REQUEST_REPLAN and not self.failure_class:
             defaults = {
                 "investigation": "evidence_incomplete",
@@ -177,6 +183,26 @@ class SupervisorDecision:
         if self.gate_record is not None and not isinstance(self.gate_record, GateRecord):
             raise TypeError("gate_record must be a GateRecord")
         self._validate_action_fields()
+
+    def _normalize_hypothesis_selection(self) -> None:
+        refs = self.hypothesis_refs
+        primary = self.primary_hypothesis_ref
+        legacy = self.hypothesis_ref
+        if legacy and not refs:
+            refs = (legacy,)
+        if primary and not refs:
+            refs = (primary,)
+        if refs and primary is None:
+            primary = legacy or refs[0]
+        if refs and legacy is None:
+            legacy = primary
+        if legacy and primary and legacy != primary:
+            raise ValueError("hypothesis_ref and primary_hypothesis_ref must match")
+        if primary is not None and primary not in refs:
+            raise ValueError("primary_hypothesis_ref must belong to hypothesis_refs")
+        object.__setattr__(self, "hypothesis_refs", refs)
+        object.__setattr__(self, "primary_hypothesis_ref", primary)
+        object.__setattr__(self, "hypothesis_ref", legacy)
 
     def _validate_action_fields(self) -> None:
         if self.create_tasks and self.action is not DecisionAction.CREATE_TASK:
@@ -193,8 +219,13 @@ class SupervisorDecision:
             DecisionAction.REQUEST_REPLAN,
         }:
             raise ValueError("next_workflow_stage is not valid for this action")
-        if self.hypothesis_ref and self.action is not DecisionAction.ACCEPT_HYPOTHESIS:
-            raise ValueError("hypothesis_ref is only valid for ACCEPT_HYPOTHESIS")
+        if (
+            self.hypothesis_ref
+            or self.hypothesis_refs
+            or self.primary_hypothesis_ref
+            or self.review_refs
+        ) and self.action is not DecisionAction.ACCEPT_HYPOTHESIS:
+            raise ValueError("hypothesis selection fields are only valid for ACCEPT_HYPOTHESIS")
         if (self.patch_ref or self.validation_ref) and self.action not in {
             DecisionAction.SELECT_PATCH,
             DecisionAction.FINALIZE_TASK,
@@ -219,8 +250,9 @@ class SupervisorDecision:
             raise ValueError(f"{self.action.value} requires next_workflow_stage")
         if self.action is DecisionAction.REQUEST_REPLAN and not self.failure_class:
             raise ValueError("REQUEST_REPLAN requires failure_class")
-        if self.action is DecisionAction.ACCEPT_HYPOTHESIS and not self.hypothesis_ref:
-            raise ValueError("ACCEPT_HYPOTHESIS requires hypothesis_ref")
+        if self.action is DecisionAction.ACCEPT_HYPOTHESIS:
+            if not self.hypothesis_refs or not self.primary_hypothesis_ref:
+                raise ValueError("ACCEPT_HYPOTHESIS requires hypothesis_refs and primary_hypothesis_ref")
         if self.action in {DecisionAction.SELECT_PATCH, DecisionAction.FINALIZE_TASK} and (
             not self.patch_ref or not self.validation_ref
         ):
@@ -250,8 +282,12 @@ class SupervisorDecision:
             value["target_task_ids"] = list(self.target_task_ids)
         if self.next_workflow_stage:
             value["next_workflow_stage"] = self.next_workflow_stage
-        if self.hypothesis_ref:
+        if self.hypothesis_refs:
+            value["hypothesis_refs"] = list(self.hypothesis_refs)
+            value["primary_hypothesis_ref"] = self.primary_hypothesis_ref
             value["hypothesis_ref"] = self.hypothesis_ref
+        if self.review_refs:
+            value["review_refs"] = list(self.review_refs)
         if self.patch_ref:
             value["patch_ref"] = self.patch_ref
         if self.validation_ref:
@@ -288,6 +324,13 @@ class SupervisorDecision:
                 else None
             ),
             failure_class=str(value["failure_class"]) if value.get("failure_class") else None,
+            hypothesis_refs=_strings(value.get("hypothesis_refs", ())),
+            primary_hypothesis_ref=(
+                str(value["primary_hypothesis_ref"])
+                if value.get("primary_hypothesis_ref")
+                else None
+            ),
+            review_refs=_strings(value.get("review_refs", ())),
         )
 
 
@@ -391,6 +434,23 @@ def supervisor_decision_schema() -> dict[str, Any]:
         "patch_ref": non_empty,
         "validation_ref": non_empty,
     }
+    legacy_hypothesis_selection = {
+        "hypothesis_ref": non_empty,
+        "review_refs": {"type": "array", "items": non_empty},
+    }
+    reviewed_hypothesis_selection = {
+        "hypothesis_refs": {
+            "type": "array",
+            "items": non_empty,
+            "minItems": 1,
+        },
+        "primary_hypothesis_ref": non_empty,
+        "review_refs": {
+            "type": "array",
+            "items": non_empty,
+            "minItems": 1,
+        },
+    }
     return {
         "oneOf": [
             variant(
@@ -435,8 +495,13 @@ def supervisor_decision_schema() -> dict[str, Any]:
             ),
             variant(
                 DecisionAction.ACCEPT_HYPOTHESIS,
-                {"hypothesis_ref": non_empty},
+                legacy_hypothesis_selection,
                 ("hypothesis_ref",),
+            ),
+            variant(
+                DecisionAction.ACCEPT_HYPOTHESIS,
+                reviewed_hypothesis_selection,
+                ("hypothesis_refs", "primary_hypothesis_ref", "review_refs"),
             ),
             variant(DecisionAction.SELECT_PATCH, selection, ("patch_ref", "validation_ref")),
             variant(DecisionAction.FINALIZE_TASK, selection, ("patch_ref", "validation_ref")),
@@ -449,3 +514,7 @@ def _strings(value: Sequence[Any]) -> tuple[str, ...]:
     if isinstance(value, (str, bytes)):
         raise TypeError("expected a sequence, not a string")
     return tuple(str(item) for item in value)
+
+
+def _unique_strings(value: Sequence[Any]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(str(item) for item in value if str(item)))
