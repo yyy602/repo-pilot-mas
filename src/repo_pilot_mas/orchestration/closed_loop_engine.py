@@ -60,8 +60,8 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
 
     def snapshot(self) -> dict[str, Any]:
         snapshot = super().snapshot()
-        selections = dict(snapshot.get("selections", {}))
         resolution = self.blackboard.hypothesis_resolution
+        selections = dict(snapshot.get("selections", {}))
         selections.update(
             {
                 "hypothesis_ref": resolution.primary_ref,
@@ -93,6 +93,7 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
                 "DUPLICATE_DECISION_ID",
                 "decision_id has already been processed",
             )
+
         self._decision_count += 1
         self.blackboard.bump()
         if decision.fingerprint in self._decision_fingerprints:
@@ -177,6 +178,8 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
                     decision_id=decision.decision_id,
                 )
             else:
+                # Compatibility for historic test/checkpoint data. PatchTask remains gated
+                # until a current Review is added.
                 self.blackboard.set_hypothesis(primary)
             return ()
 
@@ -203,11 +206,10 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
         if node.node_type is not NodeType.PATCH_TASK:
             return node
         resolution = self.blackboard.hypothesis_resolution
-        if resolution.status is not HypothesisResolutionStatus.ACCEPTED:
-            return node
-        node.input_artifact_ids = tuple(
-            dict.fromkeys((*node.input_artifact_ids, *resolution.review_refs))
-        )
+        if resolution.status is HypothesisResolutionStatus.ACCEPTED:
+            node.input_artifact_ids = tuple(
+                dict.fromkeys((*node.input_artifact_ids, *resolution.review_refs))
+            )
         return node
 
     def _resolve_hypothesis_acceptance(
@@ -222,48 +224,52 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
                 recommended_stage=WorkflowStage.REVIEW.value,
                 allowed_next_actions=("CHANGE_WORKFLOW_STAGE", "CREATE_TASK", "TERMINATE_TASK"),
             )
+
         hypotheses = self._canonical_artifacts(
             decision.hypothesis_refs,
             ArtifactType.HYPOTHESIS,
             latest=True,
         )
-        primary = self.blackboard.artifacts.get(
-            str(decision.primary_hypothesis_ref)
-        )
-        if primary.ref not in {item.ref for item in hypotheses}:
+        primary = self.blackboard.artifacts.get(str(decision.primary_hypothesis_ref))
+        accepted_refs = {item.ref for item in hypotheses}
+        if primary.ref not in accepted_refs:
             raise DecisionPolicyViolation(
                 "PRIMARY_HYPOTHESIS_MISMATCH",
                 "primary_hypothesis_ref must belong to the accepted hypothesis set",
                 recommended_stage=WorkflowStage.REVIEW.value,
                 allowed_next_actions=("ACCEPT_HYPOTHESIS", "CREATE_TASK", "TERMINATE_TASK"),
-                trigger_artifact_refs=tuple(item.ref for item in hypotheses),
+                trigger_artifact_refs=tuple(sorted(accepted_refs)),
             )
 
         reviews = self._current_reviews_for_hypotheses(hypotheses)
         if not reviews and all(self._is_legacy_hypothesis(item) for item in hypotheses):
             return hypotheses, ()
-        if not reviews:
+        covered_refs = set().union(
+            *(self._review_target_refs(review) for review in reviews)
+        ) if reviews else set()
+        missing_refs = accepted_refs - covered_refs
+        if missing_refs:
             raise DecisionPolicyViolation(
                 "HYPOTHESIS_REVIEW_REQUIRED",
-                "A current root-cause Review is required before accepting a Hypothesis",
+                "A current root-cause Review is required for every accepted Hypothesis",
                 recommended_stage=WorkflowStage.REVIEW.value,
                 allowed_next_actions=("CREATE_TASK", "CHANGE_WORKFLOW_STAGE", "TERMINATE_TASK"),
-                trigger_artifact_refs=tuple(item.ref for item in hypotheses),
+                trigger_artifact_refs=tuple(sorted(missing_refs)),
                 details={
                     "required_reviewer_modes": sorted(_ROOT_CAUSE_REVIEW_MODES),
-                    "candidate_hypothesis_refs": [item.ref for item in hypotheses],
+                    "unreviewed_hypothesis_refs": sorted(missing_refs),
                 },
             )
 
-        cited_review_refs = self._decision_review_refs(decision)
         selected_review_refs = {item.ref for item in reviews}
-        if cited_review_refs and not selected_review_refs.issubset(cited_review_refs):
+        cited_review_refs = self._decision_review_refs(decision)
+        if not selected_review_refs.issubset(cited_review_refs):
             raise DecisionPolicyViolation(
                 "HYPOTHESIS_REVIEW_STALE",
-                "The decision does not cite the current Review for every accepted Hypothesis",
+                "The decision must cite the current Review for every accepted Hypothesis",
                 recommended_stage=WorkflowStage.REVIEW.value,
                 allowed_next_actions=("ACCEPT_HYPOTHESIS", "CREATE_TASK", "TERMINATE_TASK"),
-                trigger_artifact_refs=tuple(selected_review_refs),
+                trigger_artifact_refs=tuple(sorted(selected_review_refs)),
                 details={
                     "required_review_refs": sorted(selected_review_refs),
                     "cited_review_refs": sorted(cited_review_refs),
@@ -284,7 +290,7 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
             if item.artifact_type is ArtifactType.REVIEW
             and str(item.content.get("mode", "")) in _ROOT_CAUSE_REVIEW_MODES
         ]
-        selected: dict[str, Artifact] = {}
+        selected_by_ref: dict[str, Artifact] = {}
         for hypothesis in hypotheses:
             covering = [
                 review
@@ -293,11 +299,9 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
             ]
             if not covering:
                 continue
-            selected[hypothesis.ref] = max(
-                covering,
-                key=lambda item: (item.created_at, item.ref),
-            )
-        return tuple(dict.fromkeys(selected.values()))
+            selected = max(covering, key=lambda item: (item.created_at, item.ref))
+            selected_by_ref[selected.ref] = selected
+        return tuple(selected_by_ref.values())
 
     def _validate_root_cause_review(self, review: Artifact) -> None:
         verdict = str(review.content.get("verdict", ""))
@@ -341,13 +345,11 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
                 allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
                 trigger_artifact_refs=(review.ref,),
             )
+
         evidence_refs = review.content.get("evidence_refs", ())
         if isinstance(evidence_refs, (str, bytes)):
             evidence_refs = (evidence_refs,)
-        evidence = [
-            self.blackboard.artifacts.get(str(ref))
-            for ref in evidence_refs
-        ]
+        evidence = [self.blackboard.artifacts.get(str(ref)) for ref in evidence_refs]
         if not evidence or not any(
             item.artifact_type is ArtifactType.EVIDENCE for item in evidence
         ):
@@ -436,9 +438,8 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
             ArtifactType.REVIEW,
         )
         required_review_refs = {item.ref for item in reviews}
-        if not required_review_refs.issubset(
-            explicit_review_refs | dependency_review_refs
-        ):
+        available_review_refs = explicit_review_refs | dependency_review_refs
+        if not required_review_refs.issubset(available_review_refs):
             raise DecisionPolicyViolation(
                 "PATCH_REVIEW_CONTEXT_MISSING",
                 "PatchTask must cite or depend on the accepted root-cause Review",
@@ -447,9 +448,7 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
                 trigger_artifact_refs=tuple(sorted(required_review_refs)),
                 details={
                     "required_review_refs": sorted(required_review_refs),
-                    "available_review_refs": sorted(
-                        explicit_review_refs | dependency_review_refs
-                    ),
+                    "available_review_refs": sorted(available_review_refs),
                 },
             )
 
@@ -460,7 +459,7 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
         *,
         latest: bool,
     ) -> tuple[Artifact, ...]:
-        artifacts: list[Artifact] = []
+        artifacts_by_ref: dict[str, Artifact] = {}
         for ref in refs:
             artifact = self.blackboard.artifacts.get(str(ref))
             if artifact.artifact_type is not expected_type:
@@ -479,8 +478,8 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
                     allowed_next_actions=("CREATE_TASK", "ACCEPT_HYPOTHESIS", "TERMINATE_TASK"),
                     trigger_artifact_refs=(artifact.ref,),
                 )
-            artifacts.append(artifact)
-        result = tuple(dict.fromkeys(artifacts))
+            artifacts_by_ref[artifact.ref] = artifact
+        result = tuple(artifacts_by_ref.values())
         if not result:
             raise DecisionPolicyViolation(
                 "HYPOTHESIS_SET_EMPTY",
@@ -497,6 +496,7 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
             raw = (target,) if target else ()
         if isinstance(raw, (str, bytes)):
             raw = (raw,)
+
         refs: set[str] = set()
         for value in raw:
             artifact = self.blackboard.artifacts.get(str(value))
@@ -516,7 +516,7 @@ class OrchestrationEngine(LegacyOrchestrationEngine):
         return frozenset(refs)
 
     def _decision_review_refs(self, decision: SupervisorDecision) -> set[str]:
-        refs = set()
+        refs: set[str] = set()
         for ref in (*decision.review_refs, *decision.evidence_refs):
             artifact = self.blackboard.artifacts.get(str(ref))
             if artifact.artifact_type is ArtifactType.REVIEW:
