@@ -28,6 +28,11 @@ class LocalTransformersAdapter(ModelAdapter):
         self._tokenizer: Any = None
         self._model: Any = None
 
+    def prepare(self) -> None:
+        """Load this model before concurrent dispatch to avoid lazy-import races."""
+
+        self._load()
+
     def _generate_once(
         self,
         messages: Sequence[Message],

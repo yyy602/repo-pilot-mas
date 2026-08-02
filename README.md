@@ -4,11 +4,13 @@
 
 ## 当前阶段
 
-Phase 0、Phase 1、Phase 2 已完成；当前下一阶段为 Phase 3（OrchestrationEngine、状态层与 SupervisorAgent），尚未开始。
+Phase 0、Phase 1、Phase 2、Phase 3、Phase 4 已完成；当前下一阶段为 Phase 5（动态门控与对抗协作），尚未开始。
 
 当前版本已经打通本地 Qwen3-8B Single-Agent 修复闭环：模型只能按结构化 Schema 选择九个确定性工具，测试命令和受保护路径由 TaskSpec 固定；系统在隔离工作区应用 Patch，并以真实目标测试、完整回归、静态检查和 Diff 决定最终结果。阶段状态与后续验收以唯一计划基线为准。
 
-Phase 3 的默认模型分工已经固定：Supervisor 使用阿里云百炼强模型 API，本地 Qwen3-8B 只承担 Worker 任务，OrchestrationEngine 保持确定性。Supervisor 按 `qwen3.7-max-2026-06-08`、`qwen3.7-flash`、`qwen3.7-flash-2026-07-15` 的模型顺序，并在每个模型内按账号 1、账号 2 顺序切换。
+Phase 3 已实现真实 SupervisorAgent 主导的 LangGraph 持久化运行循环，以及确定性的 OrchestrationEngine、动态 TaskGraph、版本化 Blackboard 和审计检查点。Supervisor 使用阿里云百炼强模型 API，LangGraph 负责恢复、流式事件和人工介入，本地 Qwen3-8B 只保留给 Phase 4 Worker；路由按 `qwen3.7-max-2026-06-08`、`qwen3.7-flash`、`qwen3.7-flash-2026-07-15` 的模型顺序，并在每个模型内按账号 1、账号 2 顺序切换。
+
+Phase 4 已实现四类专业 Worker、`AsyncSqliteSaver` 持久化异步调度和双 GPU 本地 Qwen3-8B 模型池。最终真实验收完成两路调查、两路独立诊断、引用审查和两个隔离 Patch 工作区；7 个节点全部成功、7 个 Artifact 全部通过 Schema，两个候选补丁的目标测试均通过。Supervisor 仍负责全局路由，Worker 不直接修改 TaskGraph。
 
 ## 已实现工具
 
@@ -58,7 +60,7 @@ conda activate multi_agent
 python -m ruff check .
 ```
 
-Phase 2 验收环境为 Python 3.10.20、pytest 9.1.1、Ruff 0.16.1；验收结果为 60 项测试通过、Ruff 无告警。详见 `docs/Phase2_验收报告.md`。
+当前验收环境为 Python 3.10.20、LangGraph 1.2.10、pytest 9.1.1、Ruff 0.16.1；全量 110 项测试通过、Ruff 无告警。详见 `docs/Phase4_验收报告.md`。
 
 ## 运行 Single-Agent 任务
 
@@ -81,12 +83,38 @@ cp .env.example .env.supervisor
 chmod 600 .env.supervisor
 ```
 
-在 `.env.supervisor` 中填写两个账号的 Key。该文件由 `.gitignore` 的 `.env.*` 规则忽略；Phase 3 运行入口必须自动读取它，并保证 Key 不进入日志、Trace、检查点或报告。非敏感路由配置见 `configs/supervisor.yaml`，六个 API 槽位的脱敏预检结果见 `reports/phase3/preflight.json`。
+在 `.env.supervisor` 中填写两个账号的 Key。该文件由 `.gitignore` 的 `.env.*` 规则忽略；Phase 3 运行入口会自动读取它，并保证 Key 不进入日志、Trace、检查点或报告。非敏感路由配置见 `configs/supervisor.yaml`，六个 API 槽位的脱敏预检结果见 `reports/phase3/preflight.json`。
+
+经 LangGraph 运行一次真实 Supervisor 决策，并在 Worker 派发前进入可恢复人工中断：
+
+```bash
+conda activate multi_agent
+python scripts/run_phase3_supervisor.py \
+  --task data/quixbugs/tasks/quixbugs_is_valid_parenthesization.json
+```
+
+生成可重复的动态图、降级、自动闭环、重启恢复和人工中断证据：
+
+```bash
+conda activate multi_agent
+python scripts/run_phase3_acceptance.py
+```
+
+运行真实 Phase 4 Worker 池与确定性超时隔离验收：
+
+```bash
+conda activate multi_agent
+python scripts/run_phase4_acceptance.py
+python scripts/run_phase4_timeout_acceptance.py
+```
 
 ## 项目计划
 
-- 唯一计划基线（v2.2）：`docs/RepoPilot-MAS_完整计划.md`
+- 唯一计划基线（v2.4）：`docs/RepoPilot-MAS_完整计划.md`
 - Phase 1 从属设计说明：`docs/Phase1_确定性工具层.md`
 - Phase 1 验收报告：`docs/Phase1_验收报告.md`
 - Phase 2 从属设计说明：`docs/Phase2_模型适配层与单智能体基线.md`
 - Phase 2 验收报告：`docs/Phase2_验收报告.md`
+- Phase 3 验收报告：`docs/Phase3_验收报告.md`
+- Phase 4 从属设计说明：`docs/Phase4_专业Worker池.md`
+- Phase 4 验收报告：`docs/Phase4_验收报告.md`

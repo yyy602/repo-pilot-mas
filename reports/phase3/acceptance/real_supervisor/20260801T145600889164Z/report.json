@@ -1,0 +1,60 @@
+{
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase3/acceptance/real_supervisor/20260801T145600889164Z/checkpoints/after-supervisor-decision",
+  "decision_result": {
+    "code": "DECISION_APPLIED",
+    "decision_id": "init_investigation_1",
+    "message": "supervisor decision was applied",
+    "mutated_node_ids": [
+      "N1"
+    ],
+    "ok": true,
+    "state_version": 5
+  },
+  "engine_status": "active",
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-01T14:56:17.116255+00:00",
+      "created_by_decision_id": "init_investigation_1",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": null,
+      "input_artifact_ids": [],
+      "mode": "default",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "分析 is_valid_parenthesization 函数的实现，找出导致只有未闭合左括号的字符串被错误判断为有效的根本原因，定位相关代码并提供修复方向。",
+      "output_artifact_ids": [],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "READY",
+      "timeout_seconds": 300.0
+    }
+  ],
+  "phase": 3,
+  "router_state": {
+    "exhausted_routes": []
+  },
+  "run_id": "20260801T145600889164Z",
+  "supervisor_call": {
+    "attempts": 1,
+    "input_tokens": 1673,
+    "latency_ms": 16213,
+    "metadata": {
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "model_provider": "dashscope_openai_compatible",
+      "request_id": "chatcmpl-3e6868dc-e2ea-9c23-84c7-6c4bded832fb",
+      "route_attempts": 1
+    },
+    "model_id": "qwen3.7-max-2026-06-08",
+    "ok": true,
+    "output_tokens": 801,
+    "raw_response_ref": "/home/user50305/yjh/repo-pilot-mas/reports/phase3/acceptance/real_supervisor/20260801T145600889164Z/raw_model_responses/734b314b297241279932e86714d2e935.json",
+    "trace_id": "734b314b297241279932e86714d2e935"
+  },
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase3/acceptance/real_supervisor/20260801T145600889164Z/trace.jsonl",
+  "workflow_stage": "investigation"
+}

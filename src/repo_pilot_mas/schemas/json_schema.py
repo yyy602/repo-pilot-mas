@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -55,10 +57,30 @@ def validate_json_schema(value: Any, schema: Mapping[str, Any], *, path: str = "
 
     if expected_type == "array":
         assert isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+        if "minItems" in schema and len(value) < int(schema["minItems"]):
+            raise SchemaValidationError(f"{path}: expected at least {schema['minItems']} items")
         item_schema = schema.get("items")
         if item_schema is not None:
             for index, item in enumerate(value):
                 validate_json_schema(item, item_schema, path=f"{path}[{index}]")
+
+    if expected_type == "string":
+        assert isinstance(value, str)
+        if "minLength" in schema and len(value) < int(schema["minLength"]):
+            raise SchemaValidationError(f"{path}: expected length >= {schema['minLength']}")
+        if "pattern" in schema and re.fullmatch(str(schema["pattern"]), value) is None:
+            raise SchemaValidationError(f"{path}: string does not match required pattern")
+
+    if expected_type in {"integer", "number"}:
+        assert isinstance(value, (int, float)) and not isinstance(value, bool)
+        if isinstance(value, float) and not math.isfinite(value):
+            raise SchemaValidationError(f"{path}: expected a finite number")
+        if "minimum" in schema and value < schema["minimum"]:
+            raise SchemaValidationError(f"{path}: expected value >= {schema['minimum']}")
+        if "maximum" in schema and value > schema["maximum"]:
+            raise SchemaValidationError(f"{path}: expected value <= {schema['maximum']}")
+        if "exclusiveMinimum" in schema and value <= schema["exclusiveMinimum"]:
+            raise SchemaValidationError(f"{path}: expected value > {schema['exclusiveMinimum']}")
 
 
 def _matches_type(value: Any, expected_type: str) -> bool:

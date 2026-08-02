@@ -1,0 +1,18 @@
+{
+  "checkpoint_db": "reports/phase4/timeout_acceptance/langgraph.sqlite3",
+  "gates": {
+    "collector_woke_supervisor": true,
+    "engine_remained_operational": true,
+    "fast_worker_succeeded": true,
+    "slow_worker_timed_out": true
+  },
+  "node_statuses": {
+    "N1": "SUCCEEDED",
+    "N2": "TIMED_OUT"
+  },
+  "passed": true,
+  "phase": 4,
+  "runtime_status": "terminated",
+  "scenario": "worker_timeout_isolation",
+  "trace_path": "reports/phase4/timeout_acceptance/trace.jsonl"
+}

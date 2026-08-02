@@ -56,6 +56,17 @@ class ToolRegistry:
     def definitions_for_model(self) -> list[dict[str, Any]]:
         return [self._tools[name].for_model() for name in self.names]
 
+    def subset(self, names: tuple[str, ...]) -> ToolRegistry:
+        """Return a registry exposing only the explicitly permitted tools."""
+
+        unknown = sorted(set(names) - set(self._tools))
+        if unknown:
+            raise ValueError(f"unknown tools in subset: {unknown}")
+        registry = ToolRegistry()
+        for name in names:
+            registry.register(self._tools[name])
+        return registry
+
     def invoke(self, name: str, arguments: Mapping[str, Any]) -> ToolResult:
         definition = self._tools.get(name)
         if definition is None:

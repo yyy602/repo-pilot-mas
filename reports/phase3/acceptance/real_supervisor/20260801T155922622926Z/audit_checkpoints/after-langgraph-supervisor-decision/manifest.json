@@ -1,0 +1,15 @@
+{
+  "checkpoint_name": "after-langgraph-supervisor-decision",
+  "created_at": "2026-08-01T15:59:37.063350+00:00",
+  "files": {
+    "blackboard.json": "90eec412c2912e84a7c70e5116b54f5800b2761acd44c9afd960b50900876d32",
+    "router_state.json": "5161ced42efbaed2c1e92ff15683b57faefb620ab24766d2b2e4f22a07bee9ee",
+    "task_graph.json": "458b0e73711d6c73b5904b5bf685a1fc081c13c756a677f9782790e37e89c67c",
+    "task_state.json": "d6792f46f32829c22d557a260096a2a594f561598596b4b9515ea32197717070",
+    "trace.jsonl": "509cba0ac73f9422f3fd5ac9cdfb9f2e6e88049e57db362de5afe2a177028f65",
+    "workspace_refs.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+  },
+  "state_version": 5,
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "thread_id": "quixbugs_is_valid_parenthesization-20260801T155922622926Z"
+}

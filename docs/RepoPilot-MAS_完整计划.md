@@ -1,11 +1,11 @@
-# RepoPilot-MAS 完整计划（唯一基线 v2.2）
+# RepoPilot-MAS 完整计划（唯一基线 v2.4）
 
 > 项目名称：RepoPilot-MAS
 > 中文定位：基于 Supervisor 主导、动态任务图与对抗审查的多智能体代码修复系统
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
-> 计划版本：v2.2
+> 计划版本：v2.4
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0、Phase 1、Phase 2 已完成；当前下一阶段为 Phase 3，尚未开始
+> 当前进度：Phase 0、Phase 1、Phase 2、Phase 3、Phase 4 已完成；当前下一阶段为 Phase 5，尚未开始
 
 ---
 
@@ -30,6 +30,7 @@
 6. 保留结构化证据、独立根因分析、Challenge/Rebuttal、双补丁竞争、真实测试和定向重规划；
 7. 所有简历指标必须来自可复现的 Trace 和评测结果。
 8. 默认部署采用阿里云强模型 API 作为 Supervisor、本地 Qwen3-8B 作为 Worker，确定性 Engine 负责约束两者。
+9. LangGraph 只承载固定的系统执行循环、持久化恢复和人工介入，不替代 SupervisorAgent，也不复制动态 TaskGraph。
 
 ---
 
@@ -154,6 +155,12 @@
                                   │
                                   ▼
                     ┌────────────────────────┐
+                    │ LangGraph Runtime Loop │
+                    │ 持久化、恢复、流式事件、HITL │
+                    └────────────┬───────────┘
+                                 │ 唤醒决策节点
+                                 ▼
+                    ┌────────────────────────┐
                     │    SupervisorAgent     │
                     │ 阿里云强模型 API 全局决策 │
                     └────────────┬───────────┘
@@ -161,7 +168,7 @@
                                  ▼
                     ┌────────────────────────┐
                     │  OrchestrationEngine   │
-                    │ Schema、DAG、预算与硬约束 │
+                    │ Schema、TaskGraph 与硬约束 │
                     └────────────┬───────────┘
                                  │
               ┌──────────────────┼──────────────────┐
@@ -183,24 +190,29 @@
                                  ▼
               Blackboard + Artifact Store + Trace
                                  │
-                                 └────→ SupervisorAgent
+                                 └────→ LangGraph 唤醒 SupervisorAgent
 ```
 
-系统分为六层：
+系统分为七层：
 
-1. Supervisor 决策层；
-2. OrchestrationEngine 编排执行层；
-3. Worker Agent 推理层；
-4. Blackboard 与 Artifact 状态层；
-5. 确定性工具层；
-6. 隔离运行环境层。
+1. LangGraph 持久化运行时层；
+2. Supervisor 决策层；
+3. OrchestrationEngine 确定性执行层；
+4. Worker Agent 推理层；
+5. Blackboard 与 Artifact 状态层；
+6. 确定性工具层；
+7. 隔离运行环境层。
 
 ### 3.1 架构原则
 
 - Agent 类型固定，运行时实例按需创建；
+- LangGraph 控制图是固定的系统执行循环，TaskGraph 是 Supervisor 动态生成的领域任务 DAG，两者不得合并或重复维护同一状态；
 - Worker 只能提交 Artifact 和建议，不能修改全局任务图；
 - Supervisor 只能输出结构化决策，不能直接操作进程和文件；
 - Engine 执行状态迁移、预算和安全约束；
+- LangGraph Dispatcher 只调用 Engine 判定为 READY 的节点，并把 Worker 返回值交回 Engine；
+- LangGraph Checkpointer 是执行位置恢复的权威来源；自研 CheckpointStore 只负责可审计导出，不参与决定下一执行节点；
+- 每个运行必须绑定相同的 `task_id`、LangGraph `thread_id` 和 Engine `state_version`，不一致时拒绝恢复；
 - Agent 之间不转发完整聊天历史；
 - 每次 Worker 调用使用任务所需的最小上下文；
 - Supervisor 只接收压缩后的全局状态、Artifact 和证据引用，不默认上传完整仓库或聊天历史；
@@ -285,7 +297,7 @@ OrchestrationEngine 不是 Agent。它负责：
 - 创建和更新 TaskNode；
 - 维护依赖、条件边和 Join Barrier；
 - 将节点从 PENDING 转为 READY；
-- 调度 Worker Agent 和确定性工具；
+- 判定可调度 Worker 节点，由 LangGraph Dispatcher 执行实际调用；
 - 控制最大并发、超时、重试和重规划次数；
 - 保存 Artifact、状态版本、检查点和 Trace；
 - 检测重复节点、无进展循环和预算耗尽；
@@ -299,7 +311,18 @@ Supervisor 只在以下决策点调用，Engine 不为普通状态更新反复�
 4. Patch 验证完成或失败；
 5. 需要重规划或最终结束。
 
-### 4.4 Engine 硬约束
+### 4.4 LangGraph Runtime 的职责
+
+LangGraph Runtime 不是 Agent，也不拥有全局语义决策权。它负责：
+
+- 固定连接 `Supervisor → Engine → Dispatcher → Collector → Supervisor` 执行循环；
+- 以 `thread_id` 持久化每一步运行状态，并在进程重启后从未完成位置继续；
+- 保留同一执行步中已成功节点的结果，恢复时不重复执行已完成 Worker；
+- 对外输出 Supervisor、Engine、Worker、Artifact 和终止事件流；
+- 在需要人工确认时触发可恢复中断，并通过同一 `thread_id` 接收恢复命令；
+- 在终态结束图执行，不用固定 Pipeline 替代 Supervisor 的动态决策。
+
+### 4.5 Engine 硬约束
 
 Engine 必须拒绝：
 
@@ -741,7 +764,12 @@ Join 等待所有节点进入终态，不要求所有节点成功。单个非关
 
 ### 7.6 检查点与恢复
 
-关键 Join、根因接受、Patch 生成和 Validation 后保存检查点：
+运行时使用两类互补但职责唯一的持久化：
+
+1. LangGraph SQLite Checkpointer：执行恢复权威，保存每个图步骤和中断位置；
+2. 自研 CheckpointStore：审计导出，保存可阅读、带校验和的 Engine 快照与路由状态。
+
+关键 Join、根因接受、Patch 生成和 Validation 后可导出：
 
 ```text
 task_state.json
@@ -751,7 +779,9 @@ trace.jsonl
 workspace_refs.json
 ```
 
-MVP 至少支持进程中断后从最近结构化检查点加载状态；是否自动恢复执行在 Phase 3 验收中明确。
+审计快照必须记录对应的 `task_id`、`thread_id` 和 `state_version`。载入时若三者与 LangGraph 当前线程状态不一致，必须拒绝，不能自行选择“较新”的一份覆盖另一份。
+
+MVP 必须支持进程中断后使用同一 SQLite 文件和 `thread_id` 自动恢复执行，并证明已经完成的 Worker 不会重复运行。
 
 ---
 
@@ -1048,6 +1078,7 @@ MVP 完成后再选择 3～5 个环境容易启动的 SWE-Gym Lite Python 任务
 - SupervisorAgent：调用阿里云百炼 OpenAI 兼容 API，使用更强的模型完成全局规划、路由、冲突判断、重规划和最终语义决策；
 - Worker Agent：使用服务器本地 Qwen3-8B，在 Supervisor 给定的目标和 Artifact 边界内完成调查、诊断、审查和补丁生成；
 - OrchestrationEngine：不调用模型，只执行 Schema、状态机、预算、检查点和安全约束。
+- LangGraph Runtime：不调用模型，只负责固定执行循环、SQLite 持久化、恢复、事件流和人工介入。
 
 本地 Worker 模型目录为：
 
@@ -1152,6 +1183,7 @@ repo-pilot-mas/
 │   │   └── local_transformers.py
 │   ├── orchestration/
 │   │   ├── engine.py
+│   │   ├── langgraph_runtime.py
 │   │   ├── task_graph.py
 │   │   ├── state_machine.py
 │   │   ├── scheduler.py
@@ -1300,9 +1332,9 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 
 ### Phase 3：OrchestrationEngine、状态层与 SupervisorAgent
 
-**状态：未开始，当前下一阶段。**
+**状态：已于 2026-08-01 完成验收。**
 
-**目标：先证明动态控制内核正确，再接入真实 Supervisor 决策。**
+**目标：由真实 SupervisorAgent 主导决策，以确定性 Engine 约束状态，以 LangGraph 形成可恢复的完整运行循环。**
 
 工作内容：
 
@@ -1314,7 +1346,10 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 6. 阿里云百炼 OpenAI 兼容 ModelAdapter；
 7. 双账号、三模型的确定顺序 SupervisorModelRouter；
 8. SupervisorAgent；
-9. 基础检查点和 Trace。
+9. 基础检查点和 Trace；
+10. LangGraph 固定控制图与 SQLite Checkpointer；
+11. Supervisor、Engine、Dispatcher、Collector 和人工介入节点；
+12. 事件流、进程重启恢复与线程身份一致性校验。
 
 验收标准：
 
@@ -1330,7 +1365,15 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - 六个 Supervisor API 槽位的顺序与 `configs/supervisor.yaml` 完全一致；
 - Fake HTTP 测试覆盖额度耗尽切换、瞬时限流、鉴权失败、模型错误和全部槽位耗尽；
 - 明确额度耗尽状态可随 Engine 检查点恢复，瞬时限流不会被错误持久化；
-- 至少一次真实 Supervisor API 调用产生合法 SupervisorDecision，并记录模型、账号环境变量名、Token、延迟和请求 ID。
+- 至少一次真实 Supervisor API 调用产生合法 SupervisorDecision，并记录模型、账号环境变量名、Token、延迟和请求 ID；
+- 真实 SupervisorAgent 必须从 LangGraph 入口被调用，不能由独立脚本绕开运行时；
+- `Supervisor → Engine → Fake Worker → Artifact → Supervisor` 至少完成一个自动闭环；
+- 使用 SQLite Checkpointer 和相同 `thread_id` 在新 Runtime 实例中恢复未完成执行；
+- 恢复时不得重新执行已经成功并持久化的 Worker；
+- 人工介入使用可恢复 interrupt/Command，而不是仅把节点状态改成 PAUSED；
+- 对外可流式观察 Supervisor 决策、Engine 应用、Worker 完成、Artifact 收集和终止事件；
+- `task_id`、`thread_id` 或 `state_version` 任一不一致时必须拒绝恢复；
+- 原有 Engine、TaskGraph、Router、Supervisor 与凭据安全测试全部回归通过。
 
 输出物：
 
@@ -1338,10 +1381,33 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - SupervisorDecision Schema；
 - Blackboard；
 - DashScope ModelAdapter 与 SupervisorModelRouter；
+- LangGraph Runtime 与 SQLite 检查点数据库；
 - 一条动态图状态 Trace；
 - 一条超时或非法决策降级 Trace。
 
+已完成的编排核心验收：
+
+- [x] 35 项 Phase 3 专项测试覆盖状态迁移、动态节点、混合终态 Join、预算、重试、循环检测、检查点、格式修复和凭据安全；
+- [x] 六槽位 Fake HTTP 测试覆盖额度耗尽、瞬时限流、鉴权错误、模型错误和全部耗尽，持久状态只保存明确额度耗尽槽位；
+- [x] Scripted Supervisor 生成可复现动态图，证据修订使依赖旧版本的后继节点取消；非法依赖和节点超时均留下结构化降级 Trace；
+- [x] 真实 `qwen3.7-max-2026-06-08` Supervisor 通过账号 1 一次生成合法 `CREATE_TASK`，并记录 Token、延迟、请求 ID 和脱敏账号环境变量名；
+- [x] 在 `multi_agent` 环境执行全量 96 项 pytest 全绿，Ruff、`git diff --check` 和凭据泄漏扫描通过。
+
+LangGraph 运行时验收：
+
+- [x] 固定控制图自动完成 `Supervisor → Engine → Fake Worker → Artifact → Supervisor` 闭环，Supervisor 调用两次并读取 Worker 证据；
+- [x] SQLite 在新 Runtime 实例中恢复失败的并行 Worker，已完成的 `N1` 不重复执行，仅失败的 `N2` 重试；
+- [x] LangGraph `interrupt` 与 `Command` 支持跨 Runtime 人工恢复，拒绝时不派发 Worker；
+- [x] `updates` 流覆盖 Supervisor、Dispatcher、Worker、Collector 和终止节点更新；
+- [x] `task_id`、`thread_id`、`state_version` 及审计快照绑定均有拒绝测试；
+- [x] 真实 Supervisor 经 LangGraph 入口生成合法决策，运行时在 Worker 派发前进入人工中断，未用 Fake Worker 冒充 Phase 4；
+- [x] 在 `multi_agent` 环境执行全量 102 项 pytest 全绿，其中 Phase 3 专项 42 项；Ruff、Diff、编译和凭据扫描通过。
+
+原有编排核心证据和新增 LangGraph 运行时证据均保留，见 `docs/Phase3_验收报告.md`、`reports/phase3/acceptance_summary.json` 和 `reports/phase3/acceptance/`。
+
 ### Phase 4：专业 Worker Agent 池
+
+**状态：已完成（2026-08-02）。**
 
 **目标：实现真实多 Agent 调查、诊断、审查和补丁任务。**
 
@@ -1354,7 +1420,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - 默认全部 Worker 使用本地 Qwen3-8B；
 - mode-specific Prompt 和 Schema；
 - 独立上下文构造；
-- asyncio 并发调度；
+- 通过 LangGraph Dispatcher 执行 asyncio 并发调度；
 - Evidence、Hypothesis、Review、Patch Artifact。
 
 验收标准：
@@ -1362,6 +1428,7 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - 至少两个 Investigator 在 Trace 中有真实时间重叠；
 - 单个 Worker 超时不使 Engine 崩溃；
 - Worker 只返回 Artifact，不能修改 TaskGraph；
+- Worker 不直接决定下一路由，Collector 提交 Artifact 后由 LangGraph 再次唤醒 Supervisor；
 - 两个 Diagnostician 第一轮输入中没有对方 Hypothesis；
 - Reviewer 结论引用目标 Artifact 和 Evidence；
 - 两个 Patch 使用独立工作区且互不污染；
@@ -1374,7 +1441,24 @@ Phase 是唯一开发进度编号。任何“已完成”都必须由代码、�
 - 独立 Diagnosis Trace；
 - 双工作区 Patch Trace。
 
+完成证据：
+
+- [x] Investigator、Diagnostician、Reviewer、Patch 四类真实 Worker 均已实现，并按 mode/strategy 限定 Prompt、工具和 Schema；
+- [x] `AsyncLangGraphRuntime` 使用 `AsyncSqliteSaver` 与异步 Worker `Send`，同步 Phase 3 Runtime 保持兼容；
+- [x] 两个本地 Qwen3-8B 槽位分别绑定 `cuda:0`、`cuda:1`，最终真实运行 N1/N2 的模型时间窗发生重叠；
+- [x] 两个 Diagnostician 第一轮只接收两份 Evidence，不包含对方 Hypothesis；
+- [x] Reviewer 输出同时引用目标 Hypothesis 和直接 Evidence，且不拥有路由决策权；
+- [x] Minimal、Robust Patch 使用不同工作区；模型提出精确文本替换，确定性控制器生成并应用 Unified Diff；
+- [x] PatchCandidate 包含 `diff_sha256`、`protected_path_check` 和工作区 ID，与后续 Engine 选择门禁一致；
+- [x] 最终真实运行 7 个节点全部成功、7 个 Artifact 全部通过 Schema，两个候选工作区目标测试退出码均为 0；
+- [x] 独立超时场景中 N1 成功、N2 为 `TIMED_OUT`，Collector 仍提交结果并再次唤醒 Supervisor；
+- [x] 在 `multi_agent` 环境完成全量 110 项 pytest（Phase 4 专项 8 项）、Ruff、Diff、编译、依赖和凭据检查。
+
+最终真实运行 ID 为 `20260802T010050479360Z`。设计与证据分别见 `docs/Phase4_专业Worker池.md`、`docs/Phase4_验收报告.md`、`reports/phase4/acceptance/latest_summary.json` 和 `reports/phase4/timeout_acceptance/acceptance.json`。
+
 ### Phase 5：动态门控与对抗协作
+
+**状态：未开始，当前下一阶段。**
 
 **目标：完成项目最有辨识度的动态与对抗闭环。**
 
@@ -1648,10 +1732,11 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
 
 - [x] Single-Agent baseline；
 - [x] ModelAdapter 与 FakeModelAdapter；
-- [ ] SupervisorAgent；
-- [ ] OrchestrationEngine；
-- [ ] TaskGraph 与状态机；
-- [ ] Blackboard、Artifact 和检查点；
+- [x] SupervisorAgent；
+- [x] OrchestrationEngine；
+- [x] TaskGraph 与状态机；
+- [x] Blackboard、Artifact 和检查点；
+- [x] LangGraph 持久化执行闭环；
 - [ ] 四类 Worker Agent；
 - [ ] Challenge/Rebuttal；
 - [ ] 一个或双 Patch 及 Review；

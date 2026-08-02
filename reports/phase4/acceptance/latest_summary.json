@@ -1,0 +1,16 @@
+{
+  "gates": {
+    "all_artifacts_schema_valid": true,
+    "collector_wakes_supervisor": true,
+    "diagnosis_first_round_isolated": true,
+    "investigator_real_overlap": true,
+    "patch_target_tests_pass": true,
+    "reviewer_cites_target_and_evidence": true,
+    "seven_workers_succeeded": true,
+    "two_patch_workspaces_isolated": true
+  },
+  "passed": true,
+  "phase": 4,
+  "report_path": "/home/user50305/yjh/repo-pilot-mas/reports/phase4/acceptance/20260802T010050479360Z/acceptance.json",
+  "run_id": "20260802T010050479360Z"
+}

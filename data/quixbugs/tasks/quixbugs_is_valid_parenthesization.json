@@ -5,7 +5,7 @@
   "failing_tests": ["tests/test_is_valid_parenthesization.py"],
   "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
   "test_command": ["python", "-m", "pytest", "-q"],
-  "target_files": [],
+  "target_files": ["is_valid_parenthesization.py"],
   "protected_paths": ["tests"],
   "max_runtime_seconds": 20,
   "metadata": {"dataset": "quixbugs", "category": "missing_final_condition"}

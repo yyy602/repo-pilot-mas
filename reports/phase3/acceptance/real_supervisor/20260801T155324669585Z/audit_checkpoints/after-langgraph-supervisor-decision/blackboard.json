@@ -1,0 +1,39 @@
+{
+  "artifacts": [],
+  "messages": [],
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "state_version": 5,
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "task_spec": {
+    "acceptance_criteria": [
+      "目标测试通过",
+      "完整回归通过",
+      "tests 目录未修改"
+    ],
+    "failing_tests": [
+      "tests/test_is_valid_parenthesization.py"
+    ],
+    "issue": "is_valid_parenthesization 会把只有未闭合左括号的字符串错误判断为有效。",
+    "max_runtime_seconds": 20.0,
+    "metadata": {
+      "category": "missing_final_condition",
+      "dataset": "quixbugs"
+    },
+    "protected_paths": [
+      "tests"
+    ],
+    "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/is_valid_parenthesization",
+    "target_files": [],
+    "task_id": "quixbugs_is_valid_parenthesization",
+    "test_command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  },
+  "trace_refs": [],
+  "validation_ref": null,
+  "workflow_stage": "investigation"
+}

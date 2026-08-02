@@ -1,0 +1,7 @@
+{
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "workspace_id": "N7-bccf1f3c89",
+  "source_root": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/is_valid_parenthesization",
+  "baseline_digest": "455dc829925eda000238eba77a5ea26f0cafe9d16cfb883080aed0e9e97d4e87",
+  "created_at": "2026-08-02T01:01:38.383194+00:00"
+}

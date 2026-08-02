@@ -1,0 +1,14 @@
+{
+  "checkpoint_name": "after-supervisor-decision",
+  "created_at": "2026-08-01T14:56:17.118758+00:00",
+  "files": {
+    "blackboard.json": "90eec412c2912e84a7c70e5116b54f5800b2761acd44c9afd960b50900876d32",
+    "router_state.json": "5161ced42efbaed2c1e92ff15683b57faefb620ab24766d2b2e4f22a07bee9ee",
+    "task_graph.json": "e2939227668787a6a5cdf0c35d1d9e4a6a3560e9f723472ea84d956fdf872e59",
+    "task_state.json": "f2f9abd36d8dc879e8260aa17ab2661ba713f93274117d7f78b85dd2cf55dd8d",
+    "trace.jsonl": "5f9eb8e1af7de5a5d6d1ce5e40d7671faa04d325558d9079c73e197c4acddeff",
+    "workspace_refs.json": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+  },
+  "state_version": 5,
+  "task_id": "quixbugs_is_valid_parenthesization"
+}

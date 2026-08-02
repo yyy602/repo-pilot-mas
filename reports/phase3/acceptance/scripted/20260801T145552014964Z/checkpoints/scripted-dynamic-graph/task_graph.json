@@ -1,0 +1,94 @@
+{
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-01T14:55:52.015261+00:00",
+      "created_by_decision_id": "D1",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-01T14:55:52.015917+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "定位失败路径",
+      "output_artifact_ids": [
+        "E1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-01T14:55:52.015545+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-01T14:55:52.015273+00:00",
+      "created_by_decision_id": "D1",
+      "critical": false,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "复现任务超时",
+      "finished_at": "2026-08-01T14:55:52.016034+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "独立复现失败",
+      "output_artifact_ids": [],
+      "retry_count": 0,
+      "started_at": "2026-08-01T14:55:52.015685+00:00",
+      "status": "TIMED_OUT",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-01T14:55:52.016200+00:00",
+      "created_by_decision_id": "D2",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2"
+      ],
+      "dependency_policy": "all_terminal",
+      "failure_reason": null,
+      "finished_at": "2026-08-01T14:55:52.016469+00:00",
+      "input_artifact_ids": [
+        "E1@v1"
+      ],
+      "mode": "evidence_join",
+      "node_id": "N3",
+      "node_type": "REVIEW_TASK",
+      "objective": "审查已完成的调查结果",
+      "output_artifact_ids": [],
+      "retry_count": 0,
+      "started_at": "2026-08-01T14:55:52.016356+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "DiagnosisAgent",
+      "created_at": "2026-08-01T14:55:52.016640+00:00",
+      "created_by_decision_id": "D3",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "input artifact superseded by E1@v2",
+      "finished_at": "2026-08-01T14:55:52.016779+00:00",
+      "input_artifact_ids": [
+        "E1@v1"
+      ],
+      "mode": "focused",
+      "node_id": "N4",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "形成根因假设",
+      "output_artifact_ids": [],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "CANCELLED",
+      "timeout_seconds": 120.0
+    }
+  ],
+  "version": 15
+}

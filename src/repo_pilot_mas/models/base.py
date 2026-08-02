@@ -7,7 +7,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
@@ -74,6 +74,8 @@ class RawGeneration:
     text: str
     input_tokens: int
     output_tokens: int
+    model_id: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +88,7 @@ class ModelResponse:
     raw_response_ref: str
     trace_id: str
     attempts: int = 1
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 class ModelAdapterError(RuntimeError):
@@ -100,6 +103,7 @@ class ModelAdapterError(RuntimeError):
         usage: TokenUsage | None = None,
         latency_ms: int = 0,
         raw_response_refs: Sequence[str] = (),
+        details: Mapping[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
@@ -107,6 +111,7 @@ class ModelAdapterError(RuntimeError):
         self.usage = usage or TokenUsage()
         self.latency_ms = latency_ms
         self.raw_response_refs = tuple(raw_response_refs)
+        self.details = dict(details or {})
 
 
 class ModelAdapter(ABC):
@@ -175,12 +180,15 @@ class ModelAdapter(ABC):
             output_tokens += raw.output_tokens
             content = _apply_stop(raw.text, active_config.stop)
             trace_id = uuid4().hex
+            response_model_id = raw.model_id or self.model_id
             raw_ref = self._write_raw_response(
                 trace_id,
                 attempt=attempt,
                 messages=active_messages,
                 content=content,
                 usage=TokenUsage(raw.input_tokens, raw.output_tokens),
+                model_id=response_model_id,
+                metadata=raw.metadata,
             )
             raw_refs.append(raw_ref)
 
@@ -194,10 +202,11 @@ class ModelAdapter(ABC):
                     structured_output=structured_output,
                     usage=TokenUsage(input_tokens, output_tokens),
                     latency_ms=int((time.perf_counter() - started) * 1000),
-                    model_id=self.model_id,
+                    model_id=response_model_id,
                     raw_response_ref=raw_ref,
                     trace_id=trace_id,
                     attempts=attempt,
+                    metadata=dict(raw.metadata),
                 )
             except (ValueError, SchemaValidationError) as exc:
                 last_error = str(exc)
@@ -250,18 +259,21 @@ class ModelAdapter(ABC):
         messages: Sequence[Message],
         content: str,
         usage: TokenUsage,
+        model_id: str,
+        metadata: Mapping[str, Any],
     ) -> str:
         if self.raw_log_dir is None:
-            return f"memory://{self.model_id}/{trace_id}"
+            return f"memory://{model_id}/{trace_id}"
         self.raw_log_dir.mkdir(parents=True, exist_ok=True)
         path = self.raw_log_dir / f"{trace_id}.json"
         payload = {
             "trace_id": trace_id,
-            "model_id": self.model_id,
+            "model_id": model_id,
             "attempt": attempt,
             "messages": [message.to_dict() for message in messages],
             "content": content,
             "usage": usage.to_dict(),
+            "metadata": dict(metadata),
         }
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         return str(path)

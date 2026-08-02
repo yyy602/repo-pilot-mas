@@ -1,0 +1,14 @@
+{
+  "checkpoint_name": "scripted-dynamic-graph",
+  "created_at": "2026-08-01T14:55:52.018280+00:00",
+  "files": {
+    "blackboard.json": "da48142963f074c9bdd509ed37c3a3dbe2a995ba003f336ce046826c7542a8ac",
+    "router_state.json": "342709a1e0cd6e22f1c05acb291848ff76c354ee0affd4764d671ac39dc7f1a5",
+    "task_graph.json": "363f9e465a1b8bb9df535303f1b8ed1d7b0ccb3529cd70c2b170e70183fdc719",
+    "task_state.json": "1ba12fed40da99e9b2185a3f8b03403f9d93a6385da13a806268c32bed2c532b",
+    "trace.jsonl": "3416368ea570680e1ffee95e0d5b975236782b7c3d2d589e011ca0a43ed32eb8",
+    "workspace_refs.json": "8c62072377e8b8527c3c61890b552be50d428f42d4058269e891193df51fdb8c"
+  },
+  "state_version": 25,
+  "task_id": "phase3-scripted-dynamic"
+}

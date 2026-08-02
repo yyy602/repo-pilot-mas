@@ -64,12 +64,14 @@ class ReactLoop:
         budget: ReactBudget,
         generation_config: GenerationConfig | None = None,
         trace_writer: TraceWriter | None = None,
+        final_payload_schema: Mapping[str, Any] | None = None,
     ) -> None:
         self.model = model
         self.tools = tools
         self.budget = budget
         self.generation_config = generation_config or GenerationConfig()
         self.trace_writer = trace_writer
+        self.final_payload_schema = final_payload_schema
 
     def run(self, messages: Sequence[Message]) -> ReactResult:
         history = list(messages)
@@ -80,7 +82,10 @@ class ReactLoop:
         output_tokens = 0
         successful_tools: list[str] = []
         failed_action_signatures: set[str] = set()
-        response_schema = _response_schema(self.tools.names)
+        response_schema = _response_schema(
+            self.tools.names,
+            final_payload_schema=self.final_payload_schema,
+        )
 
         for step in range(1, self.budget.max_steps + 1):
             elapsed = time.perf_counter() - started
@@ -304,8 +309,21 @@ class ReactLoop:
             self.trace_writer.write(event_type, data, trace_id=trace_id)
 
 
-def _response_schema(tool_names: Sequence[str]) -> dict[str, Any]:
+def _response_schema(
+    tool_names: Sequence[str],
+    *,
+    final_payload_schema: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     thought = {"type": "string"}
+    final_properties: dict[str, Any] = {
+        "type": {"const": "final"},
+        "status": {"type": "string", "enum": ["success", "failure"]},
+        "reason": {"type": "string"},
+    }
+    final_required = ["type", "status", "reason"]
+    if final_payload_schema is not None:
+        final_properties["artifact"] = dict(final_payload_schema)
+        final_required.append("artifact")
     return {
         "oneOf": [
             {
@@ -332,12 +350,8 @@ def _response_schema(tool_names: Sequence[str]) -> dict[str, Any]:
                     "thought_summary": thought,
                     "action": {
                         "type": "object",
-                        "properties": {
-                            "type": {"const": "final"},
-                            "status": {"type": "string", "enum": ["success", "failure"]},
-                            "reason": {"type": "string"},
-                        },
-                        "required": ["type", "status", "reason"],
+                        "properties": final_properties,
+                        "required": final_required,
                         "additionalProperties": False,
                     },
                 },

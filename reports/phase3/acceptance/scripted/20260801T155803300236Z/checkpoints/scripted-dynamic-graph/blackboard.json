@@ -1,0 +1,65 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "E1",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "已定位失败入口",
+        "status": "verified"
+      },
+      "created_at": "2026-08-01T15:58:03.300887+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "dd5067fa5a3e4115964cf782867986b9",
+      "version": 1
+    },
+    {
+      "artifact_id": "E1",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "失败入口证据已修订",
+        "status": "verified"
+      },
+      "created_at": "2026-08-01T15:58:03.301940+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "revised",
+      "supersedes": "E1@v1",
+      "trace_id": "bcffdd547b814d4e8f4b94cbc6d3c1f1",
+      "version": 2
+    }
+  ],
+  "messages": [],
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "state_version": 25,
+  "task_id": "phase3-scripted-dynamic",
+  "task_spec": {
+    "acceptance_criteria": [
+      "动态图可复现",
+      "失败可降级",
+      "检查点一致"
+    ],
+    "failing_tests": [],
+    "issue": "验证 Phase 3 动态编排内核",
+    "max_runtime_seconds": 60.0,
+    "metadata": {},
+    "protected_paths": [
+      "tests"
+    ],
+    "repository_path": "/home/user50305/yjh/repo-pilot-mas",
+    "target_files": [],
+    "task_id": "phase3-scripted-dynamic",
+    "test_command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q"
+    ]
+  },
+  "trace_refs": [],
+  "validation_ref": null,
+  "workflow_stage": "investigation"
+}

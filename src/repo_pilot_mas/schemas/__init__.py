@@ -1,7 +1,37 @@
 """Public schemas used by RepoPilot-MAS."""
 
+from repo_pilot_mas.schemas.artifact import Artifact, ArtifactType
 from repo_pilot_mas.schemas.final_report import FinalReport
+from repo_pilot_mas.schemas.supervisor_decision import (
+    CreateTaskRequest,
+    DecisionAction,
+    SupervisorDecision,
+    supervisor_decision_schema,
+)
 from repo_pilot_mas.schemas.task import TaskSpec
 from repo_pilot_mas.schemas.tool_result import ToolError, ToolResult
+from repo_pilot_mas.schemas.worker_artifact import (
+    DIAGNOSIS_PERSPECTIVES,
+    INVESTIGATOR_MODES,
+    PATCH_STRATEGIES,
+    REVIEWER_MODES,
+    validate_worker_artifact,
+)
 
-__all__ = ["FinalReport", "TaskSpec", "ToolError", "ToolResult"]
+__all__ = [
+    "DIAGNOSIS_PERSPECTIVES",
+    "INVESTIGATOR_MODES",
+    "PATCH_STRATEGIES",
+    "REVIEWER_MODES",
+    "Artifact",
+    "ArtifactType",
+    "CreateTaskRequest",
+    "DecisionAction",
+    "FinalReport",
+    "SupervisorDecision",
+    "TaskSpec",
+    "ToolError",
+    "ToolResult",
+    "supervisor_decision_schema",
+    "validate_worker_artifact",
+]

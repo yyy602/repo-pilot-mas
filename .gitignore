@@ -211,6 +211,7 @@ tempCodeRunnerFile.py
 
 # RepoPilot-MAS runtime workspaces
 .repo_pilot_workspaces/
+.repo_pilot_checkpoints/
 
 # Marimo
 marimo/_static/
@@ -240,6 +241,16 @@ reports/phase2/*
 !reports/phase3/
 reports/phase3/*
 !reports/phase3/preflight.json
+!reports/phase3/acceptance_summary.json
+!reports/phase3/acceptance/
+!reports/phase3/acceptance/**
+!reports/phase4/
+reports/phase4/*
+!reports/phase4/acceptance_summary.json
+!reports/phase4/acceptance/
+!reports/phase4/acceptance/**
+!reports/phase4/timeout_acceptance/
+!reports/phase4/timeout_acceptance/**
 
 data/workspaces/
 data/cache/
