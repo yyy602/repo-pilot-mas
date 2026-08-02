@@ -8,6 +8,7 @@ import pytest
 from repo_pilot_mas.models import (
     FakeModelAdapter,
     GenerationConfig,
+    LocalTransformersAdapter,
     Message,
     ModelAdapterError,
 )
@@ -66,3 +67,14 @@ def test_fake_model_async_generation() -> None:
     )
 
     assert response.structured_output == {"answer": "async"}
+
+
+def test_local_adapter_close_drops_loaded_resources(tmp_path: Path) -> None:
+    adapter = LocalTransformersAdapter(tmp_path)
+    adapter._model = object()
+    adapter._tokenizer = object()
+
+    adapter.close()
+
+    assert adapter._model is None
+    assert adapter._tokenizer is None

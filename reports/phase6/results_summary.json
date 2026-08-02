@@ -1,0 +1,303 @@
+{
+  "corrected_invalid_decisions": {
+    "dynamic_hybrid": 5,
+    "fixed_hybrid": 0,
+    "local_single_agent": 0,
+    "no_challenge_rebuttal": 7,
+    "no_second_diagnostician": 3
+  },
+  "limitations": [
+    "测试集只有 10 个小型 Python 算法任务",
+    "只执行 seed=0，未做重复采样和显著性检验",
+    "动态系统与本地 Single-Agent 的比较包含 Supervisor 模型能力差异",
+    "真实动态运行未触发有效 Challenge/Rebuttal，相关机制仅由 Phase 5 确定性案例证明",
+    "重规划尝试没有在本次冻结测试中恢复成功"
+  ],
+  "run_id": "phase6_quixbugs_final_v1",
+  "schema_version": 1,
+  "seed": 0,
+  "suite_id": "quixbugs_python_phase6_v1",
+  "supervisor_route_usage": {
+    "dynamic_hybrid": {
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 75,
+      "supervisor_route_succeeded:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 75
+    },
+    "fixed_hybrid": {
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 5,
+      "supervisor_route_succeeded:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 5
+    },
+    "local_single_agent": {},
+    "no_challenge_rebuttal": {
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 2,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 76,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 2,
+      "supervisor_route_succeeded:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 75
+    },
+    "no_second_diagnostician": {
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 9,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 70,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_succeeded:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 8,
+      "supervisor_route_succeeded:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 70
+    }
+  },
+  "systems": [
+    {
+      "budget_violations": 7,
+      "critique_induced_corrections": 0,
+      "estimated_api_cost_cny": 0.0,
+      "estimated_api_cost_per_solved_cny": 0.0,
+      "failed": 9,
+      "median_latency_ms": 47893,
+      "parallel_overlap_pairs": 0,
+      "patch_apply_rate": 0.1,
+      "protected_path_violations": 0,
+      "regression_pass_rate": 0.1,
+      "replan_attempts": 0,
+      "replan_recoveries": 0,
+      "route_distribution": {
+        "single": 10
+      },
+      "solved": 1,
+      "syntax_valid_rate": 0.1,
+      "system_id": "local_single_agent",
+      "target_test_pass_rate": 0.1,
+      "task_count": 10,
+      "task_resolution_rate": 0.1,
+      "task_result_paths": [
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_bucketsort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_flatten/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_get_factors/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_hanoi/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_knapsack/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_lcs_length/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_lis/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_next_permutation/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_quicksort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/local_single_agent/quixbugs_sieve/result.json"
+      ],
+      "totals": {
+        "duration_ms": 460712,
+        "input_tokens": 379766,
+        "model_calls": 93,
+        "output_tokens": 9707,
+        "supervisor_api_calls": 0,
+        "tool_calls": 118,
+        "total_tokens": 389473,
+        "worker_model_calls": 93
+      },
+      "unnecessary_expansions": 0,
+      "valid_challenges": 0
+    },
+    {
+      "budget_violations": 0,
+      "critique_induced_corrections": 0,
+      "estimated_api_cost_cny": 0.503904,
+      "estimated_api_cost_per_solved_cny": 0.251952,
+      "failed": 8,
+      "median_latency_ms": 99339,
+      "parallel_overlap_pairs": 23,
+      "patch_apply_rate": 0.3,
+      "protected_path_violations": 0,
+      "regression_pass_rate": 0.2,
+      "replan_attempts": 0,
+      "replan_recoveries": 0,
+      "route_distribution": {
+        "deep": 3,
+        "standard": 7
+      },
+      "solved": 2,
+      "syntax_valid_rate": 0.2,
+      "system_id": "fixed_hybrid",
+      "target_test_pass_rate": 0.2,
+      "task_count": 10,
+      "task_resolution_rate": 0.2,
+      "task_result_paths": [
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_bucketsort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_flatten/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_get_factors/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_hanoi/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_knapsack/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_lcs_length/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_lis/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_next_permutation/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_quicksort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/fixed_hybrid/quixbugs_sieve/result.json"
+      ],
+      "totals": {
+        "duration_ms": 933002,
+        "input_tokens": 281885,
+        "model_calls": 133,
+        "output_tokens": 24946,
+        "supervisor_api_calls": 5,
+        "tool_calls": 105,
+        "total_tokens": 306831,
+        "worker_model_calls": 128
+      },
+      "unnecessary_expansions": 10,
+      "valid_challenges": 0
+    },
+    {
+      "budget_violations": 0,
+      "critique_induced_corrections": 0,
+      "estimated_api_cost_cny": 8.940828,
+      "estimated_api_cost_per_solved_cny": 1.277261,
+      "failed": 3,
+      "median_latency_ms": 245337,
+      "parallel_overlap_pairs": 1,
+      "patch_apply_rate": 0.9,
+      "protected_path_violations": 0,
+      "regression_pass_rate": 0.8,
+      "replan_attempts": 3,
+      "replan_recoveries": 0,
+      "route_distribution": {
+        "deep": 3,
+        "fast": 6,
+        "standard": 1
+      },
+      "solved": 7,
+      "syntax_valid_rate": 0.8,
+      "system_id": "dynamic_hybrid",
+      "target_test_pass_rate": 0.8,
+      "task_count": 10,
+      "task_resolution_rate": 0.7,
+      "task_result_paths": [
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_bucketsort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_flatten/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_get_factors/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_hanoi/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_knapsack/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_lcs_length/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_lis/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_next_permutation/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_quicksort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/dynamic_hybrid/quixbugs_sieve/result.json"
+      ],
+      "totals": {
+        "duration_ms": 2971290,
+        "input_tokens": 754215,
+        "model_calls": 216,
+        "output_tokens": 133305,
+        "supervisor_api_calls": 75,
+        "tool_calls": 133,
+        "total_tokens": 887520,
+        "worker_model_calls": 141
+      },
+      "unnecessary_expansions": 4,
+      "valid_challenges": 0
+    },
+    {
+      "budget_violations": 0,
+      "critique_induced_corrections": 0,
+      "estimated_api_cost_cny": 9.471288,
+      "estimated_api_cost_per_solved_cny": 1.578548,
+      "failed": 4,
+      "median_latency_ms": 276847,
+      "parallel_overlap_pairs": 0,
+      "patch_apply_rate": 0.9,
+      "protected_path_violations": 0,
+      "regression_pass_rate": 0.7,
+      "replan_attempts": 4,
+      "replan_recoveries": 0,
+      "route_distribution": {
+        "deep": 4,
+        "fast": 5,
+        "standard": 1
+      },
+      "solved": 6,
+      "syntax_valid_rate": 0.7,
+      "system_id": "no_second_diagnostician",
+      "target_test_pass_rate": 0.7,
+      "task_count": 10,
+      "task_resolution_rate": 0.6,
+      "task_result_paths": [
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_bucketsort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_flatten/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_get_factors/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_hanoi/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_knapsack/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_lcs_length/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_lis/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_next_permutation/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_quicksort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_second_diagnostician/quixbugs_sieve/result.json"
+      ],
+      "totals": {
+        "duration_ms": 3242594,
+        "input_tokens": 834166,
+        "model_calls": 224,
+        "output_tokens": 144158,
+        "supervisor_api_calls": 79,
+        "tool_calls": 139,
+        "total_tokens": 978324,
+        "worker_model_calls": 145
+      },
+      "unnecessary_expansions": 5,
+      "valid_challenges": 0
+    },
+    {
+      "budget_violations": 0,
+      "critique_induced_corrections": 0,
+      "estimated_api_cost_cny": 8.985158,
+      "estimated_api_cost_per_solved_cny": 1.497526,
+      "failed": 4,
+      "median_latency_ms": 255327,
+      "parallel_overlap_pairs": 0,
+      "patch_apply_rate": 0.8,
+      "protected_path_violations": 0,
+      "regression_pass_rate": 0.7,
+      "replan_attempts": 3,
+      "replan_recoveries": 0,
+      "route_distribution": {
+        "deep": 3,
+        "fast": 5,
+        "standard": 2
+      },
+      "solved": 6,
+      "syntax_valid_rate": 0.7,
+      "system_id": "no_challenge_rebuttal",
+      "target_test_pass_rate": 0.7,
+      "task_count": 10,
+      "task_resolution_rate": 0.6,
+      "task_result_paths": [
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_bucketsort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_flatten/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_get_factors/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_hanoi/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_knapsack/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_lcs_length/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_lis/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_next_permutation/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_quicksort/result.json",
+        "reports/phase6/evaluation/phase6_quixbugs_final_v1/no_challenge_rebuttal/quixbugs_sieve/result.json"
+      ],
+      "totals": {
+        "duration_ms": 3090744,
+        "input_tokens": 878266,
+        "model_calls": 226,
+        "output_tokens": 142268,
+        "supervisor_api_calls": 79,
+        "tool_calls": 139,
+        "total_tokens": 1020534,
+        "worker_model_calls": 147
+      },
+      "unnecessary_expansions": 5,
+      "valid_challenges": 0
+    }
+  ],
+  "task_ids": [
+    "quixbugs_bucketsort",
+    "quixbugs_flatten",
+    "quixbugs_get_factors",
+    "quixbugs_hanoi",
+    "quixbugs_knapsack",
+    "quixbugs_lcs_length",
+    "quixbugs_lis",
+    "quixbugs_next_permutation",
+    "quixbugs_quicksort",
+    "quixbugs_sieve"
+  ]
+}

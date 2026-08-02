@@ -1,129 +1,123 @@
 # RepoPilot-MAS
 
-基于动态任务图与对抗审查的多智能体代码修复系统。
+基于 API Supervisor、动态任务图与确定性验证的多智能体代码修复系统。Phase 0～Phase 6 已全部完成，阶段状态和验收口径以 `docs/RepoPilot-MAS_完整计划.md` 为唯一基线。
 
-## 当前阶段
+![RepoPilot-MAS 分层架构](docs/images/phase6_architecture.svg)
 
-Phase 0 至 Phase 5 已完成；当前下一阶段为 Phase 6（评测、观测与简历交付），尚未开始。
+## 为什么不是固定 Agent 流水线
 
-当前版本已经打通本地 Qwen3-8B Single-Agent 修复闭环：模型只能按结构化 Schema 选择九个确定性工具，测试命令和受保护路径由 TaskSpec 固定；系统在隔离工作区应用 Patch，并以真实目标测试、完整回归、静态检查和 Diff 决定最终结果。阶段状态与后续验收以唯一计划基线为准。
+Single-Agent 容易沿单一推理路径形成错误归因；固定多角色流水线又会在简单任务上无条件支付全部成本。RepoPilot-MAS 从最小任务图开始，由 SupervisorAgent 根据结构化 Evidence、风险和验证结果决定是否扩展 Investigation、Diagnosis、Challenge、Review 或第二个 Patch。
 
-Phase 3 已实现真实 SupervisorAgent 主导的 LangGraph 持久化运行循环，以及确定性的 OrchestrationEngine、动态 TaskGraph、版本化 Blackboard 和审计检查点。Supervisor 使用阿里云百炼强模型 API，LangGraph 负责恢复、流式事件和人工介入，本地 Qwen3-8B 只保留给 Phase 4 Worker；路由按 `qwen3.7-max-2026-06-08`、`qwen3.7-flash`、`qwen3.7-flash-2026-07-15` 的模型顺序，并在每个模型内按账号 1、账号 2 顺序切换。
+系统把职责明确拆开：
 
-Phase 4 已实现四类专业 Worker、`AsyncSqliteSaver` 持久化异步调度和双 GPU 本地 Qwen3-8B 模型池。最终真实验收完成两路调查、两路独立诊断、引用审查和两个隔离 Patch 工作区；7 个节点全部成功、7 个 Artifact 全部通过 Schema，两个候选补丁的目标测试均通过。Supervisor 仍负责全局路由，Worker 不直接修改 TaskGraph。
+- `SupervisorAgent`：阿里云强模型 API，负责全局语义规划和选择；
+- `OrchestrationEngine`：确定性状态、动态 TaskGraph、Gate、预算和安全约束；
+- `Investigator / Diagnostician / Reviewer / PatchAgent`：本地 Qwen3-8B 专业 Worker，只返回结构化 Artifact；
+- `LangGraph Runtime`：异步执行循环、SQLite Checkpoint、恢复和人工介入；
+- 确定性工具层：在隔离候选工作区应用 Patch，以真实测试而非模型自评裁决成功。
 
-Phase 5 已实现基于 Artifact 的动态扩展门、双向 Challenge/一轮 Rebuttal、版本化根因修订、Reviewer 根因与 Patch 建议、双 Patch 竞争、确定性真实验证、失败分类和一次定向重规划。机制验收中，简单任务按实际节点标记为 `fast`；对抗任务标记为 `deep`，错误 Minimal Patch 虽通过目标测试但被完整回归淘汰。该结果只证明机制闭环，不是 Phase 6 的真实模型效果指标。
+Worker 不能修改全局任务图；Supervisor 不能直接执行文件或进程操作；最终成功必须绑定目标测试、完整回归、静态检查和受保护路径检查全部通过的 `ValidationResult`。
 
-## 已实现工具
+## 已实现能力
 
-| 工具 | 功能 |
-| --- | --- |
-| `list_files` | 在安全路径边界内列出仓库目录 |
-| `search_code` | 关键词或正则检索文本代码 |
-| `inspect_code` | 查看文件行区间或 Python 符号上下文 |
-| `find_references` | 基于 Python AST 查找符号定义与引用 |
-| `run_tests` | 在超时和命令白名单约束下运行 pytest 或 unittest |
-| `apply_patch` | 先校验再使用 `git apply` 应用 Unified Diff |
-| `collect_diff` | 比较候选工作区与只读基线并生成差异 |
-| `rollback_workspace` | 将候选工作区恢复到初始基线 |
-| `static_check` | 执行 Python 语法检查，并在可用时运行 Ruff |
+- 动态任务图、条件扩展、Fork–Join、取消、重试和一次定向重规划；
+- 版本化 Blackboard 与 Evidence/Hypothesis/Challenge/Rebuttal/Patch/Validation Artifact；
+- 双向 Challenge/Rebuttal、Reviewer 建议和双 Patch 竞争；
+- 九个路径受限、命令受信、超时和输出有界的确定性工具；
+- 双 GPU 本地 WorkerPool、显式模型释放和任务级隔离工作区；
+- 阿里云三模型×双账号六槽位路由，区分额度耗尽、限流和配置错误；
+- JSONL Trace、原始响应引用、Token/成本/时延和机制指标；
+- development/test 隔离的 QuixBugs 批量评测与独立审计。
 
-## 核心基础设施
+## 快速开始
 
-- `TaskSpec`：代码修复任务的统一输入结构；
-- `ToolResult`：包含状态、错误、标准输出、退出码、耗时、截断标记和 Trace ID；
-- `PathGuard`：拒绝绝对路径、目录穿越、`.git` 访问和越界符号链接；
-- `WorkspaceManager`：为每个候选 Patch 创建独立的只读校验基线与可写工作树；
-- `CommandRunner`：禁用 Shell 展开、绑定受信可执行文件、终止超时进程组并流式限制输出。
-
-## 安装开发依赖
+要求 Python 3.10 或更高版本。当前服务器使用：
 
 ```bash
-python -m pip install -e ".[dev]"
-```
-
-运行本地模型还需要模型依赖：
-
-```bash
+conda activate multi_agent
 python -m pip install -e ".[dev,model]"
 ```
 
-## 运行测试
-
-```bash
-conda activate multi_agent
-python -m pytest
-```
-
-## 代码检查
-
-```bash
-conda activate multi_agent
-python -m ruff check .
-```
-
-当前验收环境为 Python 3.10.20、LangGraph 1.2.10、pytest 9.1.1、Ruff 0.16.1；全量 118 项测试通过，Ruff 无告警。Phase 5 设计与证据见 `docs/Phase5_动态门控与对抗协作.md`、`docs/Phase5_验收报告.md`。
-
-运行 Phase 5 可重复机制验收：
-
-```bash
-conda activate multi_agent
-python scripts/run_phase5_acceptance.py
-```
-
-## 运行 Single-Agent 任务
-
-```bash
-conda activate multi_agent
-python scripts/run_task.py \
-  --task data/quixbugs/tasks/quixbugs_is_valid_parenthesization.json
-```
-
-成功和失败任务都会在 `reports/phase2/runs/` 保存 FinalReport 与 Trace。命令退出码为 `0` 表示确定性终检成功，`1` 表示任务闭环正常结束但没有修复成功。
-
-Phase 2 的 5 个 QuixBugs 初步基线为 1/5 成功。该结果用于证明闭环及固定后续对照基线，不代表最终系统性能；精确运行 ID、Token、工具调用和耗时见 `reports/phase2/acceptance_summary.json`。
-
-## Supervisor API 凭据
-
-仓库只提交占位模板，真实 Key 不得写入 YAML 或文档：
+配置 Supervisor 凭据：
 
 ```bash
 cp .env.example .env.supervisor
 chmod 600 .env.supervisor
 ```
 
-在 `.env.supervisor` 中填写两个账号的 Key。该文件由 `.gitignore` 的 `.env.*` 规则忽略；Phase 3 运行入口会自动读取它，并保证 Key 不进入日志、Trace、检查点或报告。非敏感路由配置见 `configs/supervisor.yaml`，六个 API 槽位的脱敏预检结果见 `reports/phase3/preflight.json`。
+只在 `.env.supervisor` 中填写真实 Key。该文件被 `.gitignore` 忽略，配置、Trace、报告和 Checkpoint 只记录 `DASHSCOPE_API_KEY_1/2` 名称。
 
-经 LangGraph 运行一次真实 Supervisor 决策，并在 Worker 派发前进入可恢复人工中断：
-
-```bash
-conda activate multi_agent
-python scripts/run_phase3_supervisor.py \
-  --task data/quixbugs/tasks/quixbugs_is_valid_parenthesization.json
-```
-
-生成可重复的动态图、降级、自动闭环、重启恢复和人工中断证据：
+运行单个 development 任务：
 
 ```bash
-conda activate multi_agent
-python scripts/run_phase3_acceptance.py
+python scripts/run_phase6_evaluation.py \
+  --split development \
+  --systems dynamic_hybrid \
+  --task-id quixbugs_gcd
 ```
 
-运行真实 Phase 4 Worker 池与确定性超时隔离验收：
+运行完整冻结评测和独立审计：
 
 ```bash
-conda activate multi_agent
-python scripts/run_phase4_acceptance.py
-python scripts/run_phase4_timeout_acceptance.py
+python scripts/run_phase6_evaluation.py \
+  --run-id phase6_quixbugs_final_v1
+python scripts/audit_phase6_evaluation.py \
+  --run-root reports/phase6/evaluation/phase6_quixbugs_final_v1
 ```
 
-## 项目计划
+完整批次会真实调用 API 和本地模型，耗时较长。开发时必须使用 `--split development`；只有完整 test split × 五系统运行才能通过最终评测门。
 
-- 唯一计划基线（v2.4）：`docs/RepoPilot-MAS_完整计划.md`
-- Phase 1 从属设计说明：`docs/Phase1_确定性工具层.md`
-- Phase 1 验收报告：`docs/Phase1_验收报告.md`
-- Phase 2 从属设计说明：`docs/Phase2_模型适配层与单智能体基线.md`
-- Phase 2 验收报告：`docs/Phase2_验收报告.md`
-- Phase 3 验收报告：`docs/Phase3_验收报告.md`
-- Phase 4 从属设计说明：`docs/Phase4_专业Worker池.md`
-- Phase 4 验收报告：`docs/Phase4_验收报告.md`
+## 冻结评测结果
+
+数据集为 10 个未参与 Phase 6 调试的 [QuixBugs Python](https://github.com/jkoppel/QuixBugs/tree/4257f44b0ff1181dedaedee6a447e133219fcebf) 任务，固定 seed=0。失败、超时和预算耗尽全部保留在分母中。
+
+![Phase 6 结果](docs/images/phase6_results.svg)
+
+| 系统 | 解决数 | Token | API 调用 | 中位时延 | 等价 API 成本 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Local Single-Agent | 1/10 | 389,473 | 0 | 47,893 ms | ¥0 |
+| Fixed Hybrid | 2/10 | 306,831 | 5 | 99,339 ms | ¥0.503904 |
+| Dynamic Hybrid | 7/10 | 887,520 | 75 | 245,337 ms | ¥8.940828 |
+| No Second Diagnostician | 6/10 | 978,324 | 79 | 276,847 ms | ¥9.471288 |
+| No Challenge/Rebuttal | 6/10 | 1,020,534 | 79 | 255,327 ms | ¥8.985158 |
+
+Dynamic Hybrid 在这个小型固定协议内完成更多任务，但也更慢、更贵。Local 与 Dynamic 的比较包含 Supervisor 模型能力差异，只能作为部署对比。两个消融均实际执行了约束，但主系统本次也没有触发第二 Diagnostician 或有效 Challenge，因此 7/10 与 6/10 的差异不能解释为对应机制的因果收益。
+
+完整解释见 `docs/Phase6_评测观测与简历交付.md`，机器可读结果见 `reports/phase6/results_summary.json` 和 `reports/phase6/final_audit.json`。
+
+## 典型 Trace
+
+- 真实 Dynamic fast 成功路径：`reports/phase6/demo_traces/dynamic_hybrid_quixbugs_bucketsort.jsonl`；
+- 真实 Fixed Worker 并行：`reports/phase6/demo_traces/fixed_hybrid_quixbugs_bucketsort.jsonl`；
+- 真实验证失败与重规划：`reports/phase6/demo_traces/dynamic_hybrid_quixbugs_flatten.jsonl`；
+- 真实非法 Supervisor 决策被 Engine 拒绝：`reports/phase6/demo_traces/dynamic_hybrid_quixbugs_get_factors.jsonl`；
+- Phase 5 质疑修订、错误 Patch 淘汰与简单路径：`reports/phase5/acceptance/20260802T033236637083Z/`。
+
+统一索引见 `reports/phase6/trace_index.json`。Phase 5 固定认知输出证明机制可达性；Phase 6 真实模型结果用于效果评测，两类证据不混用。
+
+## 验证
+
+```bash
+/home/user50305/.conda/envs/multi_agent/bin/python -m pytest
+/home/user50305/.conda/envs/multi_agent/bin/python -m ruff check .
+git diff --check
+```
+
+Phase 6 最终验收环境中，全量 `130 passed`，Ruff 与 `git diff --check` 均通过。
+
+## 当前限制
+
+- 仅评测 10 个小型 Python 算法任务和一个 seed，没有显著性检验；
+- 真实 Dynamic 运行的有效 Challenge 为 0，3 次重规划均未恢复成功；
+- Dynamic 只有 1 对 Worker 时间重叠，不能宣称并行加速；
+- 尚未运行 SWE-bench Verified、SWE-Gym Lite、Java 或 C 项目；
+- 不是容器级不可信代码沙箱，也没有多用户队列和前端平台。
+
+## 文档
+
+- 唯一计划基线：`docs/RepoPilot-MAS_完整计划.md`；
+- Phase 6 设计与结果：`docs/Phase6_评测观测与简历交付.md`；
+- Phase 6 验收报告：`docs/Phase6_验收报告.md`；
+- 真实框架问题复盘：`docs/Phase6_真实问题复盘与排障.md`；
+- 面试讲解与简历表述：`docs/Phase6_面试讲解.md`；
+- Phase 1～Phase 5 的设计和验收报告均位于 `docs/`。

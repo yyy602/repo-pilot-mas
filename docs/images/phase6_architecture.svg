@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650">
+  <rect width="1200" height="650" fill="#f8fafc"/>
+  <style>
+    .title { font: 700 28px sans-serif; fill: #0f172a; }
+    .box { stroke-width: 2; rx: 14; }
+    .h { font: 700 18px sans-serif; fill: #0f172a; text-anchor: middle; }
+    .t { font: 14px sans-serif; fill: #334155; text-anchor: middle; }
+    .arrow { stroke: #475569; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+  </style>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#475569"/></marker></defs>
+  <text x="600" y="45" class="title" text-anchor="middle">RepoPilot-MAS 分层架构</text>
+  <rect x="430" y="75" width="340" height="72" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="600" y="105" class="h">LangGraph Runtime</text><text x="600" y="130" class="t">异步循环 · SQLite Checkpoint · 恢复</text>
+  <rect x="430" y="180" width="340" height="76" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="600" y="211" class="h">SupervisorAgent</text><text x="600" y="237" class="t">阿里云强模型 API · 全局语义决策</text>
+  <rect x="430" y="290" width="340" height="76" class="box" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="600" y="321" class="h">OrchestrationEngine</text><text x="600" y="347" class="t">Schema · TaskGraph · Gate · 预算 · 安全</text>
+  <rect x="45" y="420" width="245" height="82" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="167" y="450" class="h">Investigator</text><text x="167" y="477" class="t">检索与失败复现</text>
+  <rect x="330" y="420" width="245" height="82" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="452" y="450" class="h">Diagnostician</text><text x="452" y="477" class="t">根因与质疑/回应</text>
+  <rect x="615" y="420" width="245" height="82" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="737" y="450" class="h">Reviewer</text><text x="737" y="477" class="t">根因与补丁审查</text>
+  <rect x="900" y="420" width="245" height="82" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="1022" y="450" class="h">PatchAgent</text><text x="1022" y="477" class="t">候选补丁生成</text>
+  <rect x="300" y="555" width="270" height="62" class="box" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="435" y="582" class="h">确定性工具与隔离工作区</text><text x="435" y="604" class="t">真实测试裁决</text>
+  <rect x="630" y="555" width="270" height="62" class="box" fill="#e2e8f0" stroke="#475569"/>
+  <text x="765" y="582" class="h">Blackboard + Trace</text><text x="765" y="604" class="t">结构化 Artifact 与证据链</text>
+  <path d="M600 147 L600 180" class="arrow"/><path d="M600 256 L600 290" class="arrow"/>
+  <path d="M520 366 L167 420" class="arrow"/><path d="M565 366 L452 420" class="arrow"/>
+  <path d="M635 366 L737 420" class="arrow"/><path d="M680 366 L1022 420" class="arrow"/>
+  <path d="M452 502 L440 555" class="arrow"/><path d="M1022 502 L560 568" class="arrow"/>
+  <path d="M570 586 L630 586" class="arrow"/><path d="M765 555 C780 390 820 275 770 220" class="arrow"/>
+</svg>

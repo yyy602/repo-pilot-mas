@@ -1,0 +1,34 @@
+{
+  "budget_exhausted_failure_count": 7,
+  "failed_result_count": 28,
+  "gates": {
+    "all_hybrid_checkpoints_exist": true,
+    "all_traces_are_valid_jsonl": true,
+    "api_supervisor_really_called": true,
+    "budget_outcomes_fail_closed": true,
+    "complete_fifty_result_matrix": true,
+    "fixed_and_dynamic_share_hybrid_limits": true,
+    "frozen_split_matches_manifest": true,
+    "no_challenge_rebuttal_contract_holds": true,
+    "no_runner_errors": true,
+    "no_second_diagnostician_contract_holds": true,
+    "phase5_mechanism_acceptance_passed": true,
+    "saved_summaries_recompute_exactly": true,
+    "sources_unchanged": true,
+    "successful_results_pass_all_validation": true,
+    "three_main_and_two_ablations_present": true
+  },
+  "outputs": {
+    "results": "reports/phase6/results.md",
+    "summary": "reports/phase6/results_summary.json",
+    "task_results": "reports/phase6/task_results.csv",
+    "trace_index": "reports/phase6/trace_index.json"
+  },
+  "passed": true,
+  "phase": 6,
+  "raw_acceptance_note": "原始 v1 运行器把任何预算耗尽误判为整场实验无效；本审计保留原文件，按 fail-closed 语义重新验收，未重写任务结果。",
+  "raw_run_root": "reports/phase6/evaluation/phase6_quixbugs_final_v1",
+  "result_count": 50,
+  "run_id": "phase6_quixbugs_final_v1",
+  "schema_version": 1
+}

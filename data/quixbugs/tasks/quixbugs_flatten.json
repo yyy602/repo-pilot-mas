@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_flatten",
+  "repository_path": "../flatten",
+  "issue": "flatten 对非列表叶节点返回了生成器对象，而不是叶节点本身。",
+  "failing_tests": ["tests/test_flatten.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["flatten.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "wrong_return_value"}
+}

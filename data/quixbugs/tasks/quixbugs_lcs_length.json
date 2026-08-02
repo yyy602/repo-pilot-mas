@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_lcs_length",
+  "repository_path": "../lcs_length",
+  "issue": "lcs_length 在公共连续片段长度大于一时经常低估结果。",
+  "failing_tests": ["tests/test_lcs_length.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["lcs_length.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "dynamic_programming_index"}
+}

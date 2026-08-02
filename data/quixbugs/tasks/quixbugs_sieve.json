@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_sieve",
+  "repository_path": "../sieve",
+  "issue": "sieve 对大于等于 2 的上界没有生成正确的质数序列。",
+  "failing_tests": ["tests/test_sieve.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["sieve.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "predicate_error"}
+}

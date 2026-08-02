@@ -243,6 +243,9 @@ class ModelAdapter(ABC):
             config=config,
         )
 
+    def close(self) -> None:
+        """Release provider resources; stateless adapters need no action."""
+
     @abstractmethod
     def _generate_once(
         self,

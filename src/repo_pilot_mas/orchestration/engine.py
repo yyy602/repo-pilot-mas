@@ -280,6 +280,14 @@ class OrchestrationEngine:
                 "patch_ref": self.blackboard.selected_patch_ref,
                 "validation_ref": self.blackboard.validation_ref,
             },
+            "decision_history": {
+                "processed_decision_ids": sorted(self._processed_decision_ids),
+                "last_supervisor_call": (
+                    dict(self.last_supervisor_call)
+                    if self.last_supervisor_call is not None
+                    else None
+                ),
+            },
             "budget": self.budget.to_dict(),
         }
 
@@ -338,7 +346,10 @@ class OrchestrationEngine:
                 "supervisor token budget is exhausted",
                 terminate=True,
             )
-        return self.apply_decision(outcome.decision)
+        result = self.apply_decision(outcome.decision)
+        if self.last_supervisor_call is not None:
+            self.last_supervisor_call["decision_result"] = result.to_dict()
+        return result
 
     def apply_decision(self, decision: SupervisorDecision) -> DecisionResult:
         if self.status is not EngineStatus.ACTIVE:
@@ -612,7 +623,10 @@ class OrchestrationEngine:
                 duplicate = self.graph.semantic_duplicate(candidate)
                 if duplicate:
                     raise ValueError(f"equivalent active task already exists: {duplicate}")
-            if decision.next_workflow_stage:
+            if (
+                decision.next_workflow_stage
+                and decision.next_workflow_stage != current_stage.value
+            ):
                 self._validate_stage(decision.next_workflow_stage)
         elif decision.action in {
             DecisionAction.CANCEL_TASK,
@@ -697,7 +711,10 @@ class OrchestrationEngine:
                 self.graph.add_node(node)
                 mutated.append(node_id)
             self._bump_graph_delta(before)
-            if decision.next_workflow_stage:
+            if (
+                decision.next_workflow_stage
+                and decision.next_workflow_stage != self.blackboard.workflow_stage
+            ):
                 self._change_stage(str(decision.next_workflow_stage))
         elif decision.action is DecisionAction.CANCEL_TASK:
             for node_id in decision.target_task_ids:
@@ -927,6 +944,9 @@ class OrchestrationEngine:
     ) -> DecisionResult:
         if terminate and self.status is EngineStatus.ACTIVE:
             self._terminate(EngineStatus.FAILED, code)
+        result = DecisionResult(False, code, message, decision_id, self.state_version)
+        if self.last_supervisor_call is not None:
+            self.last_supervisor_call["decision_result"] = result.to_dict()
         self._trace(
             "supervisor_decision_rejected",
             {
@@ -936,7 +956,7 @@ class OrchestrationEngine:
                 "state_version": self.state_version,
             },
         )
-        return DecisionResult(False, code, message, decision_id, self.state_version)
+        return result
 
     def _trace(self, event_type: str, data: Mapping[str, Any]) -> None:
         if self.trace_writer is not None:
@@ -964,7 +984,17 @@ def _requires_gate_record(
         NodeType.PATCH_TASK,
     }
     for node_type in expandable:
-        existing = sum(node.node_type is node_type for node in nodes)
+        existing = sum(
+            node.node_type is node_type
+            and node.status
+            not in {
+                NodeStatus.FAILED,
+                NodeStatus.TIMED_OUT,
+                NodeStatus.BLOCKED,
+                NodeStatus.CANCELLED,
+            }
+            for node in nodes
+        )
         added = new_types.count(node_type)
         if added and existing + added > 1:
             return True

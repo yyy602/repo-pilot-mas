@@ -1,0 +1,38 @@
+{
+  "suite_id": "quixbugs_python_phase6_v1",
+  "dataset": "QuixBugs Python",
+  "upstream_commit": "4257f44b0ff1181dedaedee6a447e133219fcebf",
+  "seed": 0,
+  "development_task_ids": [
+    "quixbugs_find_first_in_sorted",
+    "quixbugs_gcd",
+    "quixbugs_is_valid_parenthesization",
+    "quixbugs_max_sublist_sum",
+    "quixbugs_powerset"
+  ],
+  "test_task_ids": [
+    "quixbugs_bucketsort",
+    "quixbugs_flatten",
+    "quixbugs_get_factors",
+    "quixbugs_hanoi",
+    "quixbugs_knapsack",
+    "quixbugs_lcs_length",
+    "quixbugs_lis",
+    "quixbugs_next_permutation",
+    "quixbugs_quicksort",
+    "quixbugs_sieve"
+  ],
+  "task_manifest_directory": "tasks",
+  "task_annotations": {
+    "quixbugs_bucketsort": {"expected_complexity": "simple"},
+    "quixbugs_flatten": {"expected_complexity": "simple"},
+    "quixbugs_get_factors": {"expected_complexity": "simple"},
+    "quixbugs_hanoi": {"expected_complexity": "simple"},
+    "quixbugs_knapsack": {"expected_complexity": "simple"},
+    "quixbugs_lcs_length": {"expected_complexity": "simple"},
+    "quixbugs_lis": {"expected_complexity": "simple"},
+    "quixbugs_next_permutation": {"expected_complexity": "simple"},
+    "quixbugs_quicksort": {"expected_complexity": "simple"},
+    "quixbugs_sieve": {"expected_complexity": "simple"}
+  }
+}

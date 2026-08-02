@@ -19,7 +19,7 @@ def _valid_decision() -> dict[str, object]:
             {
                 "node_type": "INVESTIGATION_TASK",
                 "agent_type": "InvestigatorAgent",
-                "mode": "focused",
+                "mode": "code_retrieval",
                 "objective": "定位失败测试对应的代码入口",
                 "depends_on": [],
                 "input_artifact_ids": [],
@@ -62,6 +62,22 @@ def test_supervisor_repairs_one_malformed_response_and_traces_metadata(tmp_path:
     assert events[-1]["event_type"] == "supervisor_decision_generated"
     assert events[-1]["data"]["model_id"] == "fake-model"
     assert "secret" not in trace_path.read_text(encoding="utf-8").casefold()
+
+
+def test_supervisor_repairs_invalid_worker_contract() -> None:
+    invalid = _valid_decision()
+    invalid["create_tasks"][0]["agent_type"] = "Investigator"
+    invalid["create_tasks"][0]["mode"] = "default"
+    model = FakeModelAdapter([invalid, _valid_decision()])
+
+    outcome = SupervisorAgent(
+        model,
+        generation_config=GenerationConfig(max_retries=1),
+    ).decide({"workflow_stage": "initialization", "nodes": []})
+
+    assert outcome.attempts == 2
+    assert outcome.decision.create_tasks[0].agent_type == "InvestigatorAgent"
+    assert outcome.decision.create_tasks[0].mode == "code_retrieval"
 
 
 def test_malformed_response_after_repair_limit_terminates_engine_structurally(

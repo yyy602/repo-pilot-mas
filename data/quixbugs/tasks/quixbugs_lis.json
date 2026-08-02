@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_lis",
+  "repository_path": "../lis",
+  "issue": "lis 对需要从较短候选序列继续延伸的输入返回了偏小的长度。",
+  "failing_tests": ["tests/test_lis.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["lis.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "state_update"}
+}

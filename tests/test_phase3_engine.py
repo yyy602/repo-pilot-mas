@@ -118,6 +118,48 @@ def test_dynamic_create_pause_resume_and_cancel(tmp_path: Path) -> None:
     assert engine.graph.get("N1").status is NodeStatus.CANCELLED
 
 
+def test_failed_worker_retry_does_not_require_artifact_gate(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+    assert engine.apply_decision(_create("D-retry-1")).ok
+    engine.start_node("N1")
+    engine.finish_node("N1", NodeStatus.FAILED, reason="worker contract failure")
+
+    retry = engine.apply_decision(
+        SupervisorDecision(
+            "D-retry-2",
+            DecisionAction.CREATE_TASK,
+            "使用合法 Worker 契约重试调查",
+            create_tasks=(
+                CreateTaskRequest(
+                    "INVESTIGATION_TASK",
+                    "InvestigatorAgent",
+                    "code_retrieval",
+                    "使用合法 Worker 契约重试调查",
+                ),
+            ),
+            next_workflow_stage="investigation",
+        )
+    )
+
+    assert retry.ok
+    assert engine.graph.get("N2").status is NodeStatus.READY
+
+
+def test_snapshot_exposes_decision_ids_and_last_rejection(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+    decision = _create("D-visible")
+    assert engine.run_supervisor(ScriptedSupervisor((decision,))).ok
+
+    duplicate = engine.run_supervisor(ScriptedSupervisor((decision,)))
+    snapshot = engine.snapshot()
+
+    assert duplicate.code == "DUPLICATE_DECISION_ID"
+    assert snapshot["decision_history"]["processed_decision_ids"] == ["D-visible"]
+    assert snapshot["decision_history"]["last_supervisor_call"]["decision_result"][
+        "code"
+    ] == "DUPLICATE_DECISION_ID"
+
+
 def test_illegal_decision_dependency_evidence_and_budget_are_rejected(tmp_path: Path) -> None:
     engine = _engine(tmp_path, budget=EngineBudget(max_nodes=1))
     missing_dependency = SupervisorDecision(

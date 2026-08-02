@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_bucketsort",
+  "repository_path": "../bucketsort",
+  "issue": "bucketsort 在非空输入上会产生数量和取值都不正确的排序结果。",
+  "failing_tests": ["tests/test_bucketsort.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["bucketsort.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "wrong_iteration_source"}
+}

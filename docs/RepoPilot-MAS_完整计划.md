@@ -1,11 +1,11 @@
-# RepoPilot-MAS 完整计划（唯一基线 v2.4）
+# RepoPilot-MAS 完整计划（唯一基线 v2.5）
 
 > 项目名称：RepoPilot-MAS
 > 中文定位：基于 Supervisor 主导、动态任务图与对抗审查的多智能体代码修复系统
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
-> 计划版本：v2.4
+> 计划版本：v2.5
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0、Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成；当前下一阶段为 Phase 6，尚未开始
+> 当前进度：Phase 0～Phase 6 已全部完成；当前进入维护与扩展阶段
 
 ---
 
@@ -1164,7 +1164,7 @@ repo-pilot-mas/
 │   ├── model.yaml
 │   ├── supervisor.yaml
 │   ├── runtime.yaml
-│   └── evaluation.yaml
+│   └── phase6.yaml
 ├── docs/
 │   ├── RepoPilot-MAS_完整计划.md
 │   └── Phase1_确定性工具层.md
@@ -1220,8 +1220,8 @@ repo-pilot-mas/
 │   └── adversarial_cases/
 ├── scripts/
 │   ├── run_task.py
-│   ├── run_eval.py
-│   └── summarize_results.py
+│   ├── run_phase6_evaluation.py
+│   └── audit_phase6_evaluation.py
 ├── tests/
 └── reports/
     ├── traces/
@@ -1511,7 +1511,7 @@ LangGraph 运行时验收：
 
 ### Phase 6：评测、观测与简历交付
 
-**状态：未开始，当前下一阶段。**
+**状态：已完成（2026-08-02）。**
 
 **目标：把系统整理为可复现、可对照和可写入简历的项目。**
 
@@ -1528,13 +1528,28 @@ LangGraph 运行时验收：
 
 验收标准：
 
-- 一条命令运行单任务；
-- 一条命令运行批量评测；
-- 至少 10 个任务都有结构化结果；
-- 所有表格数字可以追溯到 Trace；
-- 三个系统遵守预先声明的总预算，Fixed Hybrid 与 Proposed 另使用相同 API 和 Worker 分项预算；
-- README 明确失败任务、当前限制和环境要求；
-- 简历不声称未完成的数据集或虚构提升。
+- [x] 一条命令运行 development 单任务；
+- [x] 一条命令运行冻结批量评测；
+- [x] 10 个 test 任务 × 5 个系统共 50 个结构化结果，失败全部保留；
+- [x] 所有表格数字可回溯到结果、Trace、原始响应引用和 Checkpoint；
+- [x] 三个主系统使用预声明预算，Fixed Hybrid 与 Proposed 使用相同 API/Worker 分项上限；
+- [x] 两个关键消融完成且节点约束通过独立机器审计；
+- [x] README 明确失败任务、当前限制和环境要求；
+- [x] 简历表述只使用真实结果，并明确数据规模、单 seed 和等价成本。
+
+完成证据：
+
+- 正式运行 ID 为 `phase6_quixbugs_final_v1`；
+- Local Single-Agent、Fixed Hybrid、Dynamic Hybrid 分别完成 1/10、2/10、7/10；
+- 两个消融均为 6/10，但因 Proposed 实际也没有触发第二 Diagnostician 或有效 Challenge，不能据此声称因果收益；
+- Dynamic Hybrid 使用 887,520 Token、75 次 Supervisor API 调用，中位时延 245,337 ms，按冻结公开单价估算成本为 8.940828 元；
+- 50 条 Trace 可解析，40 个 Hybrid SQLite Checkpoint 存在，22 个成功结果全部通过目标、回归、静态和 protected-path 门；
+- 7 个预算耗尽结果全部失败关闭，没有删样本或越预算成功；
+- 独立审计 15 项门禁全部通过，精简证据见 `reports/phase6/final_audit.json` 与 `reports/phase6/results_summary.json`；
+- 真实运行有效 Challenge 为 0、重规划 3 次且恢复 0 次，这些限制已写入 README 和简历说明。
+- 在 `multi_agent` 环境执行全量 130 项 pytest 全绿，Ruff 与 `git diff --check` 通过，凭据泄漏扫描无命中。
+
+设计、验收、框架问题复盘和面试材料分别见 `docs/Phase6_评测观测与简历交付.md`、`docs/Phase6_验收报告.md`、`docs/Phase6_真实问题复盘与排障.md` 与 `docs/Phase6_面试讲解.md`。
 
 ---
 
@@ -1550,7 +1565,7 @@ LangGraph 运行时验收：
 
 Fixed Hybrid Pipeline 与 Proposed 必须使用相同的 Supervisor 模型池、Worker 模型、工具、候选上限和最大 API/Worker 预算，不能故意削弱基线。Baseline A 与混合系统的对比属于实际部署效果与成本对比，不能单独用于证明多 Agent 架构收益。
 
-另保留 `Dynamic Local-Supervisor` 消融：保持 Engine、动态图和 Worker 不变，只把 Supervisor 显式替换为本地 Qwen3-8B，用于区分强 Supervisor 模型带来的收益与动态机制本身的收益；该消融不是默认部署配置。
+`Dynamic Local-Supervisor` 是后续可选消融：保持 Engine、动态图和 Worker 不变，只把 Supervisor 显式替换为本地 Qwen3-8B，用于区分强 Supervisor 模型带来的收益与动态机制本身的收益。Phase 6 MVP 未执行该消融，不得在当前结果中声称已完成。
 
 ### 15.2 主要结果指标
 
@@ -1759,32 +1774,32 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
 - [x] Challenge/Rebuttal；
 - [x] 一个或双 Patch 及 Review；
 - [x] Validation 与一次重规划；
-- [ ] Trace 和 Metrics；
-- [ ] 单任务和批量评测入口。
+- [x] Trace 和 Metrics；
+- [x] 单任务和批量评测入口。
 
 ### 18.2 数据与实验
 
-- [ ] 10～15 个 QuixBugs TaskSpec；
-- [ ] 两个独立机制案例；
-- [ ] 三个主系统对照；
-- [ ] 至少两个关键消融；
-- [ ] 真实结果表；
-- [ ] Token、调用数和时延；
-- [ ] Critique 修订和重规划统计；
-- [ ] 动态路径分布和不必要扩展统计。
+- [x] 15 个 QuixBugs TaskSpec，其中 5 个 development、10 个冻结 test；
+- [x] 两个独立机制案例；
+- [x] 三个主系统对照；
+- [x] 两个关键消融；
+- [x] 真实结果表；
+- [x] Token、调用数和时延；
+- [x] Critique 修订和重规划统计；
+- [x] 动态路径分布和不必要扩展统计。
 
 ### 18.3 展示材料
 
-- [ ] README 与快速开始；
-- [ ] 架构图；
-- [ ] 一条成功修复 Trace；
-- [ ] 一条质疑后修正根因 Trace；
-- [ ] 一条测试淘汰 Patch Trace；
-- [ ] 一条重规划 Trace；
-- [ ] 一条简单任务未扩展 Trace；
-- [ ] 结果表和消融图；
-- [ ] 2 分钟面试讲解；
-- [ ] 基于真实指标的简历描述。
+- [x] README 与快速开始；
+- [x] 架构图；
+- [x] 一条成功修复 Trace；
+- [x] 一条质疑后修正根因 Trace；
+- [x] 一条测试淘汰 Patch Trace；
+- [x] 一条重规划 Trace；
+- [x] 一条简单任务未扩展 Trace；
+- [x] 结果表和消融图；
+- [x] 2 分钟面试讲解；
+- [x] 基于真实指标的简历描述。
 
 ---
 
@@ -1820,7 +1835,7 @@ README 推荐结构：
 8. 失败只回退相关节点；
 9. 使用 Single-Agent 做部署对比，并用同模型池的 Fixed Hybrid 验证动态机制的收益与成本。
 
-简历描述只能在 Phase 6 根据真实结果填写。可以描述已实现机制，但不得提前写入成功率提升、SWE-Gym 结果或训练成果。
+Phase 6 已在 `docs/Phase6_面试讲解.md` 中根据真实结果给出简历表述。后续更新仍不得写入未经新评测支持的成功率提升、SWE-Gym 结果或训练成果。
 
 ---
 

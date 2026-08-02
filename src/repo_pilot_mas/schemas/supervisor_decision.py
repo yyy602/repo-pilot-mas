@@ -10,18 +10,14 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
-_NODE_TYPES = (
-    "INVESTIGATION_TASK",
-    "DIAGNOSIS_TASK",
-    "CHALLENGE_TASK",
-    "REBUTTAL_TASK",
-    "REVIEW_TASK",
-    "PATCH_TASK",
-    "VALIDATION_TASK",
-    "REPLAN_TASK",
-    "FINALIZATION_TASK",
+from repo_pilot_mas.schemas.worker_artifact import (
+    DIAGNOSIS_PERSPECTIVES,
+    INVESTIGATOR_MODES,
+    PATCH_STRATEGIES,
+    REVIEWER_MODES,
 )
+
+_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _WORKFLOW_STAGES = (
     "initialization",
     "investigation",
@@ -306,24 +302,46 @@ def supervisor_decision_schema() -> dict[str, Any]:
         "reason": non_empty,
         "evidence_refs": {"type": "array", "items": non_empty},
     }
-    task_schema = {
-        "type": "object",
-        "properties": {
-            "node_type": {"type": "string", "enum": list(_NODE_TYPES)},
-            "agent_type": non_empty,
-            "mode": non_empty,
-            "objective": non_empty,
-            "depends_on": {"type": "array", "items": non_empty},
-            "input_artifact_ids": {"type": "array", "items": non_empty},
-            "dependency_policy": {
-                "type": "string",
-                "enum": ["all_succeeded", "all_terminal"],
-            },
-            "critical": {"type": "boolean"},
-            "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+    worker_contracts = (
+        ("INVESTIGATION_TASK", "InvestigatorAgent", INVESTIGATOR_MODES),
+        ("DIAGNOSIS_TASK", "DiagnosticianAgent", DIAGNOSIS_PERSPECTIVES),
+        ("CHALLENGE_TASK", "DiagnosticianAgent", ("challenge",)),
+        ("REBUTTAL_TASK", "DiagnosticianAgent", ("rebuttal",)),
+        ("REVIEW_TASK", "ReviewerAgent", REVIEWER_MODES),
+        (
+            "REVIEW_TASK",
+            "PatchAgent",
+            ("minimal_critiques_robust", "robust_critiques_minimal"),
+        ),
+        ("PATCH_TASK", "PatchAgent", PATCH_STRATEGIES),
+        ("VALIDATION_TASK", "ValidationExecutor", ("deterministic",)),
+    )
+    task_common = {
+        "objective": non_empty,
+        "depends_on": {"type": "array", "items": non_empty},
+        "input_artifact_ids": {"type": "array", "items": non_empty},
+        "dependency_policy": {
+            "type": "string",
+            "enum": ["all_succeeded", "all_terminal"],
         },
-        "required": ["node_type", "agent_type", "mode", "objective"],
-        "additionalProperties": False,
+        "critical": {"type": "boolean"},
+        "timeout_seconds": {"type": "number", "exclusiveMinimum": 0},
+    }
+    task_schema = {
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "node_type": {"const": node_type},
+                    "agent_type": {"const": agent_type},
+                    "mode": {"type": "string", "enum": list(modes)},
+                    **task_common,
+                },
+                "required": ["node_type", "agent_type", "mode", "objective"],
+                "additionalProperties": False,
+            }
+            for node_type, agent_type, modes in worker_contracts
+        ]
     }
     gate_schema = {
         "type": "object",

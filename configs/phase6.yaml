@@ -1,0 +1,65 @@
+protocol:
+  version: phase6_v1
+  suite: data/quixbugs/phase6_suite.json
+  seeds: [0]
+  main_systems:
+    - local_single_agent
+    - fixed_hybrid
+    - dynamic_hybrid
+  ablations:
+    - no_second_diagnostician
+    - no_challenge_rebuttal
+
+single_agent_limits:
+  max_model_calls: 12
+  max_tool_calls: 16
+  max_input_tokens: 40000
+  max_output_tokens: 8000
+  max_runtime_seconds: 300
+
+hybrid_limits:
+  max_supervisor_api_calls: 18
+  max_worker_model_calls: 120
+  max_tool_calls: 120
+  max_input_tokens: 600000
+  max_output_tokens: 100000
+  max_runtime_seconds: 1200
+  max_patch_candidates: 2
+
+worker_react:
+  max_steps: 8
+  max_model_calls: 10
+  max_tool_calls: 8
+  max_input_tokens: 40000
+  max_output_tokens: 8000
+  max_runtime_seconds: 300
+
+pricing:
+  snapshot_date: "2026-08-02"
+  currency: CNY
+  source: https://help.aliyun.com/zh/model-studio/model-pricing
+  models:
+    qwen3.7-max-2026-06-08:
+      - max_input_tokens: 1000000
+        input_cny_per_million: 12
+        output_cny_per_million: 36
+    qwen3.7-flash:
+      - max_input_tokens: 32000
+        input_cny_per_million: 0.2
+        output_cny_per_million: 0.8
+      - max_input_tokens: 256000
+        input_cny_per_million: 0.6
+        output_cny_per_million: 2.4
+      - max_input_tokens: 1000000
+        input_cny_per_million: 1.2
+        output_cny_per_million: 4.8
+    qwen3.7-flash-2026-07-15:
+      - max_input_tokens: 32000
+        input_cny_per_million: 0.2
+        output_cny_per_million: 0.8
+      - max_input_tokens: 256000
+        input_cny_per_million: 0.6
+        output_cny_per_million: 2.4
+      - max_input_tokens: 1000000
+        input_cny_per_million: 1.2
+        output_cny_per_million: 4.8

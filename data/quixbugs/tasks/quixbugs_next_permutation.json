@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_next_permutation",
+  "repository_path": "../next_permutation",
+  "issue": "next_permutation 没有返回输入序列按字典序排列的直接后继。",
+  "failing_tests": ["tests/test_next_permutation.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["next_permutation.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "comparison_direction"}
+}

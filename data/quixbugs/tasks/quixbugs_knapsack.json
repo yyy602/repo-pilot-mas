@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_knapsack",
+  "repository_path": "../knapsack",
+  "issue": "knapsack 会错误排除重量恰好等于当前容量的物品。",
+  "failing_tests": ["tests/test_knapsack.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["knapsack.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "comparison_boundary"}
+}

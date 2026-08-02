@@ -21,12 +21,14 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     supervisor_decision_schema,
 )
 
-_SYSTEM_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
+DYNAMIC_SUPERVISOR_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
 你的职责是从完整状态快照中做全局编排决策，而不是执行代码修改。
 
 硬约束：
 1. 每次只能选择一个 action，并且只输出符合给定 Schema 的 JSON 对象。
 2. 不得引用快照中不存在的任务或 Artifact；不得绕过依赖、预算和阶段约束。
+   N1、N2 等是 node ID，只能用于 depends_on/target_task_ids；E1@v1 等带版本号的是
+   Artifact ref，只能用于 input_artifact_ids/evidence_refs/各类选择字段，二者不得混用。
 3. 初始化且任务图为空时，创建至少一个 INVESTIGATION_TASK，并将阶段推进到 investigation。
 4. 子任务目标必须具体、可验证；本地 Worker 只负责执行已规划任务。
 5. 只有补丁验证通过后才可 FINALIZE_TASK；无法安全继续时使用 TERMINATE_TASK。
@@ -43,6 +45,25 @@ _SYSTEM_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
     根因被推翻或两个 Patch 均失败回 diagnosis，单个 Patch 的应用/语法/目标/回归失败回 patch。
     MVP 最多重规划一次，不得用重复决策绕过预算。
 11. execution_path_class 是 Engine 根据已创建节点计算的后验只读值，不得预先选择路径标签。
+12. 创建节点时必须严格使用以下 Worker 契约，禁止自造名称或 mode：
+    INVESTIGATION_TASK -> InvestigatorAgent -> code_retrieval/failure_reproduction/
+    dependency_trace/evidence_completion/regression_scope；
+    DIAGNOSIS_TASK -> DiagnosticianAgent -> control_flow/data_flow；
+    CHALLENGE_TASK -> DiagnosticianAgent -> challenge；
+    REBUTTAL_TASK -> DiagnosticianAgent -> rebuttal；
+    REVIEW_TASK -> ReviewerAgent -> evidence_review/hypothesis_comparison/challenge_quality/
+    root_cause_recommendation/patch_review/final_risk_review；
+    PATCH_TASK -> PatchAgent -> minimal/robust；
+    VALIDATION_TASK -> ValidationExecutor -> deterministic。
+    不得创建 REPLAN_TASK 或 FINALIZATION_TASK，改用 REQUEST_REPLAN 或 FINALIZE_TASK action。
+13. 快照 decision_history.last_supervisor_call.decision_result 若显示上一决定被拒绝，下一次必须
+    修正其中的 code/message；decision_id 不得出现在 processed_decision_ids 中，也不得重复同类
+    无效决定。已有同类成功或活动节点之外再增加 Investigation、Diagnosis、Patch，
+    以及任何 Challenge/Rebuttal，都属于动态扩图：必须引用现有 Artifact，并同时填写 evidence_refs
+    和字段完全一致的 gate_record；单纯重试 FAILED/TIMED_OUT/BLOCKED 节点不算动态扩图。
+14. selections.hypothesis_ref 非空表示根因已经被接受，禁止再次 ACCEPT_HYPOTHESIS，应据此创建
+    PATCH_TASK；selections.patch_ref 与 validation_ref 非空表示补丁已经选择，禁止重复 SELECT_PATCH，
+    验证完整时使用 FINALIZE_TASK。
 """
 
 
@@ -85,7 +106,10 @@ class SupervisorAgent:
         *,
         generation_config: GenerationConfig | None = None,
         trace_writer: TraceWriter | None = None,
+        system_prompt: str = DYNAMIC_SUPERVISOR_PROMPT,
     ) -> None:
+        if not system_prompt.strip():
+            raise ValueError("system_prompt must not be empty")
         self.model = model
         self.generation_config = generation_config or GenerationConfig(
             temperature=0.0,
@@ -93,10 +117,11 @@ class SupervisorAgent:
             max_retries=1,
         )
         self.trace_writer = trace_writer
+        self.system_prompt = system_prompt
 
     def decide(self, snapshot: Mapping[str, Any]) -> SupervisorOutcome:
         messages = (
-            Message("system", _SYSTEM_PROMPT),
+            Message("system", self.system_prompt),
             Message(
                 "user",
                 "请基于以下只读状态快照给出下一步唯一决策：\n"

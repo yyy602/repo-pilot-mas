@@ -255,6 +255,15 @@ reports/phase4/*
 reports/phase5/*
 !reports/phase5/acceptance/
 !reports/phase5/acceptance/**
+!reports/phase6/
+reports/phase6/*
+!reports/phase6/final_audit.json
+!reports/phase6/results_summary.json
+!reports/phase6/task_results.csv
+!reports/phase6/results.md
+!reports/phase6/trace_index.json
+!reports/phase6/demo_traces/
+!reports/phase6/demo_traces/**
 
 data/workspaces/
 data/cache/

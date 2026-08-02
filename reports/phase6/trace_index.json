@@ -1,0 +1,14 @@
+{
+  "phase5_deterministic_mechanism": {
+    "定向重规划": "reports/phase5/acceptance/20260802T033236637083Z/replan_trace.jsonl",
+    "无进展确定性终止": "reports/phase5/acceptance/20260802T033236637083Z/no_progress_trace.jsonl",
+    "简单任务未扩展": "reports/phase5/acceptance/20260802T033236637083Z/simple_trace.jsonl",
+    "质疑修正与错误补丁淘汰": "reports/phase5/acceptance/20260802T033236637083Z/deep_trace.jsonl"
+  },
+  "phase6_real_model": {
+    "固定流水线真实并行": "reports/phase6/demo_traces/fixed_hybrid_quixbugs_bucketsort.jsonl",
+    "真实动态成功快速路径": "reports/phase6/demo_traces/dynamic_hybrid_quixbugs_bucketsort.jsonl",
+    "真实动态验证失败与重规划": "reports/phase6/demo_traces/dynamic_hybrid_quixbugs_flatten.jsonl",
+    "真实非法决策被拒绝": "reports/phase6/demo_traces/dynamic_hybrid_quixbugs_get_factors.jsonl"
+  }
+}

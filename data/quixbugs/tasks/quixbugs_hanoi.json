@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_hanoi",
+  "repository_path": "../hanoi",
+  "issue": "hanoi 生成的移动序列不能把圆盘从起始柱正确移动到目标柱。",
+  "failing_tests": ["tests/test_hanoi.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["hanoi.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "wrong_recursive_move"}
+}

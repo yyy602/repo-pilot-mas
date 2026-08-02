@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_get_factors",
+  "repository_path": "../get_factors",
+  "issue": "get_factors 会遗漏分解链末尾的质因数，并把质数分解为空列表。",
+  "failing_tests": ["tests/test_get_factors.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["get_factors.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "wrong_base_return"}
+}

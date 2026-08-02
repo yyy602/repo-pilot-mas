@@ -6,5 +6,7 @@
 - `run_phase4_acceptance.py`：运行双 GPU 本地 Qwen3-8B 四类 Worker 的完整真实验收链。
 - `run_phase4_timeout_acceptance.py`：生成单 Worker 超时不击穿 Engine 的确定性证据。
 - `run_phase5_acceptance.py`：生成动态门控、Challenge/Rebuttal、双 Patch 真实验证、定向重规划与简单路径的确定性机制证据。
+- `run_phase6_evaluation.py`：运行 development 单任务，或运行冻结 test split 的三个主系统与两个消融；完整批次会真实调用 API 和本地模型。
+- `audit_phase6_evaluation.py`：独立复核 Phase 6 结果矩阵、Trace、Checkpoint、预算、安全门和消融约束，并导出可提交的精简证据。
 
 从仓库根目录运行，具体命令见主 `README.md`。

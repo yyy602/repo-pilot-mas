@@ -33,6 +33,21 @@ class LocalTransformersAdapter(ModelAdapter):
 
         self._load()
 
+    def close(self) -> None:
+        """Deterministically release model tensors instead of waiting for object GC."""
+
+        model = self._model
+        self._model = None
+        self._tokenizer = None
+        del model
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            return
+
     def _generate_once(
         self,
         messages: Sequence[Message],

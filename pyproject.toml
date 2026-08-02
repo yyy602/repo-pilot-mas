@@ -37,3 +37,7 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint.per-file-ignores]
+# 公开基准中的缺陷实现必须保持冻结，不能为静态检查改写。
+"data/quixbugs/flatten/flatten.py" = ["UP028"]
