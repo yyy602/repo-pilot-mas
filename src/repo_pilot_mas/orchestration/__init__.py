@@ -4,18 +4,18 @@ from repo_pilot_mas.orchestration.closed_loop_engine import (
     DecisionResult,
     OrchestrationEngine,
 )
-from repo_pilot_mas.orchestration.engine import (
-    EngineBudget,
-    EngineStatus,
-    WorkflowStage,
-)
-from repo_pilot_mas.orchestration.langgraph_runtime import (
+from repo_pilot_mas.orchestration.closed_loop_runtime import (
     AsyncLangGraphRuntime,
     FakeWorkerExecutor,
     LangGraphRuntime,
     WorkerExecutor,
     WorkerOutcome,
     restore_engine_from_runtime_state,
+)
+from repo_pilot_mas.orchestration.engine import (
+    EngineBudget,
+    EngineStatus,
+    WorkflowStage,
 )
 from repo_pilot_mas.orchestration.phase5_policy import (
     ExecutionPath,
