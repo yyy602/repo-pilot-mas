@@ -133,6 +133,18 @@ class _ClosedLoopRuntimeMixin:
                 engine.blackboard.artifacts.get(ref).to_dict()
                 for ref in node.input_artifact_ids
             ]
+            input_artifact_types = [
+                str(artifact.get("artifact_type", ""))
+                for artifact in artifacts
+            ]
+            contract_context = {
+                "node_id": node_id,
+                "node_type": node.node_type.value,
+                "agent_type": node.agent_type,
+                "mode": node.mode,
+                "input_artifact_refs": list(node.input_artifact_ids),
+                "input_artifact_types": input_artifact_types,
+            }
             try:
                 validate_agent_input_contract(
                     node.agent_type,
@@ -140,6 +152,16 @@ class _ClosedLoopRuntimeMixin:
                     artifacts,
                 )
             except AgentContractViolation as exc:
+                self._trace(
+                    self._event(
+                        "agent_input_contract_checked",
+                        state,
+                        engine,
+                        **contract_context,
+                        passed=False,
+                        code=AgentContractViolation.code,
+                    )
+                )
                 engine.start_node(node_id)
                 max_attempts = max(
                     1,
@@ -164,6 +186,7 @@ class _ClosedLoopRuntimeMixin:
                         "agent_type": node.agent_type,
                         "mode": node.mode,
                         "input_artifact_refs": list(node.input_artifact_ids),
+                        "input_artifact_types": input_artifact_types,
                     },
                 )
                 collection = collect_worker_outcome(
@@ -171,9 +194,40 @@ class _ClosedLoopRuntimeMixin:
                     outcome,
                     max_attempts=max_attempts,
                 )
-                contract_results[node_id] = collection.to_dict()
+                collection_payload = collection.to_dict()
+                contract_results[node_id] = collection_payload
                 rejected_ids.append(node_id)
+                self._trace(
+                    self._event(
+                        "agent_input_contract_rejected",
+                        state,
+                        engine,
+                        **contract_context,
+                        code=AgentContractViolation.code,
+                        reason=str(exc),
+                        rejection_ref=collection.rejection_ref,
+                        recoverable=True,
+                        recommended_stage=_contract_recovery_stage(node.node_type),
+                        allowed_next_actions=["CREATE_TASK", "REQUEST_REPLAN"],
+                        retry_scheduled=collection.retry_scheduled,
+                        recovery_class="input_contract",
+                        recovery_action=collection.details.get(
+                            "recovery_action",
+                            "return_to_supervisor",
+                        ),
+                    )
+                )
                 continue
+            self._trace(
+                self._event(
+                    "agent_input_contract_checked",
+                    state,
+                    engine,
+                    **contract_context,
+                    passed=True,
+                    code="AGENT_INPUT_CONTRACT_VALID",
+                )
+            )
             dispatch_ids.append(node_id)
 
         for node_id in dispatch_ids:
