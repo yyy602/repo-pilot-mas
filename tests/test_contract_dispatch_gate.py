@@ -164,6 +164,35 @@ def _events(path: Path, event_type: str) -> list[Mapping[str, Any]]:
     ]
 
 
+def _merge_runtime_state(
+    state: Mapping[str, Any],
+    update: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Apply a LangGraph node update to the full state used by direct-node tests."""
+
+    merged = dict(state)
+    for key, value in update.items():
+        if key == "worker_results":
+            existing = merged.get("worker_results", {})
+            if not isinstance(existing, Mapping) or not isinstance(value, Mapping):
+                raise TypeError("worker_results updates must be mappings")
+            worker_results = dict(existing)
+            worker_results.update(value)
+            merged[key] = worker_results
+        else:
+            merged[key] = value
+    return merged
+
+
+def _prepare_dispatch_state(
+    runtime: LangGraphRuntime,
+    state: Mapping[str, Any],
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    update = runtime._prepare_dispatch_node(state, config)
+    return _merge_runtime_state(state, update)
+
+
 def _collect_single_worker(
     runtime: LangGraphRuntime,
     prepared: Mapping[str, Any],
@@ -173,9 +202,9 @@ def _collect_single_worker(
     assert isinstance(sends, list)
     assert len(sends) == 1
     worker_update = runtime._worker_node(sends[0].arg)
-    collector_state = dict(prepared)
-    collector_state["worker_results"] = worker_update["worker_results"]
-    return runtime._collector_node(collector_state, config)
+    collector_state = _merge_runtime_state(prepared, worker_update)
+    collector_update = runtime._collector_node(collector_state, config)
+    return _merge_runtime_state(collector_state, collector_update)
 
 
 def test_invalid_reviewer_is_rejected_before_worker_execution(tmp_path: Path) -> None:
@@ -197,7 +226,7 @@ def test_invalid_reviewer_is_rejected_before_worker_execution(tmp_path: Path) ->
     ) as runtime:
         state = runtime._initial_state(engine, "contract-invalid-thread", False)
         config = runtime._config("contract-invalid-thread")
-        prepared = runtime._prepare_dispatch_node(state, config)
+        prepared = _prepare_dispatch_state(runtime, state, config)
         route = runtime._route_prepared_dispatch(prepared)
 
     assert route == "supervisor"
@@ -252,7 +281,7 @@ def test_valid_reviewer_is_dispatched_and_collected(tmp_path: Path) -> None:
     ) as runtime:
         state = runtime._initial_state(engine, "contract-valid-thread", False)
         config = runtime._config("contract-valid-thread")
-        prepared = runtime._prepare_dispatch_node(state, config)
+        prepared = _prepare_dispatch_state(runtime, state, config)
         collected = _collect_single_worker(runtime, prepared, config)
 
     assert worker.calls == ["review-complete-inputs"]
@@ -302,7 +331,7 @@ def test_mixed_dispatch_rejects_invalid_node_without_blocking_valid_node(
     ) as runtime:
         state = runtime._initial_state(engine, "contract-mixed-thread", False)
         config = runtime._config("contract-mixed-thread")
-        prepared = runtime._prepare_dispatch_node(state, config)
+        prepared = _prepare_dispatch_state(runtime, state, config)
         collected = _collect_single_worker(runtime, prepared, config)
 
     assert prepared["pending_worker_ids"] == ["diagnosis-valid"]
