@@ -1,0 +1,29 @@
+{
+  "suite_id": "quixbugs_closed_loop_v1",
+  "dataset": "QuixBugs Python",
+  "seed": 0,
+  "task_manifest_directory": "tasks",
+  "test_task_ids": [
+    "quixbugs_bucketsort",
+    "quixbugs_flatten",
+    "quixbugs_get_factors",
+    "quixbugs_hanoi",
+    "quixbugs_knapsack",
+    "quixbugs_lcs_length",
+    "quixbugs_lis",
+    "quixbugs_next_permutation",
+    "quixbugs_quicksort",
+    "quixbugs_sieve",
+    "quixbugs_find_first_in_sorted",
+    "quixbugs_gcd",
+    "quixbugs_is_valid_parenthesization",
+    "quixbugs_max_sublist_sum",
+    "quixbugs_powerset",
+    "quixbugs_bitcount",
+    "quixbugs_levenshtein",
+    "quixbugs_mergesort",
+    "quixbugs_next_palindrome",
+    "quixbugs_to_base"
+  ],
+  "task_annotations": {}
+}
