@@ -1,4 +1,4 @@
-"""Atomic, checksummed Phase 3 checkpoints."""
+"""Atomic, checksummed checkpoints for the final closed-loop engine."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from repo_pilot_mas.runtime.trace import TraceWriter
 from repo_pilot_mas.schemas.tool_result import utc_now_iso
 
 if TYPE_CHECKING:
-    from repo_pilot_mas.orchestration.engine import OrchestrationEngine
+    from repo_pilot_mas.orchestration.closed_loop_engine import OrchestrationEngine
 
 _NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 _PAYLOAD_FILENAMES = frozenset(
@@ -110,7 +110,7 @@ class CheckpointStore:
         expected_thread_id: str | None = None,
         expected_state_version: int | None = None,
     ) -> CheckpointBundle:
-        from repo_pilot_mas.orchestration.engine import OrchestrationEngine
+        from repo_pilot_mas.orchestration.closed_loop_engine import OrchestrationEngine
 
         _validate_name(name)
         target = self.root / name
