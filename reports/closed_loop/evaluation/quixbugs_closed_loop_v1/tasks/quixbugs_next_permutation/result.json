@@ -1,0 +1,395 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "next_permutation 没有返回输入序列按字典序排列的直接后继。",
+        "confidence": 0.95,
+        "content": "assert next_permutation(values) == expected",
+        "missing_evidence": [
+          "next_permutation.py 实现细节"
+        ],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 15,
+          "line_start": 15,
+          "path": "tests/test_next_permutation.py"
+        },
+        "status": "unverified",
+        "tool_trace_ids": [
+          "31603a44622f4d7aaa795de38069b429"
+        ]
+      },
+      "created_at": "2026-08-03T03:55:40.538661+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "997f40df4eb14f7b80aed5f43f5a1907",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "next_permutation 函数未能正确返回字典序的直接后继。",
+        "confidence": 0.95,
+        "content": "def next_permutation(perm):\n    for i in range(len(perm) - 2, -1, -1):\n        if perm[i] < perm[i + 1]:\n            for j in range(len(perm) - 1, i, -1):\n                if perm[j] < perm[i]:\n                    next_perm = list(perm)\n                    next_perm[i], next_perm[j] = perm[j], perm[i]\n                    next_perm[i + 1 :] = reversed(next_perm[i + 1 :])\n                    return next_perm",
+        "missing_evidence": [
+          "测试用例验证"
+        ],
+        "mode": "evidence_completion",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 9,
+          "line_start": 1,
+          "path": "next_permutation.py"
+        },
+        "status": "unverified",
+        "tool_trace_ids": [
+          "5c59e8426f7340be8931279c71640cf8",
+          "5d632c5523314b80811e0eba891e9109"
+        ]
+      },
+      "created_at": "2026-08-03T03:56:36.829155+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "5bb86c533c4e4ffa9ae01035ef681275",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "next_permutation"
+        ],
+        "confidence": 0.9,
+        "counter_evidence": [],
+        "direct_cause": "在找到第一个可以交换的元素后，未正确反转后续元素，导致生成的排列不是字典序的直接后继。",
+        "missing_evidence": [
+          "测试用例验证"
+        ],
+        "perspective": "data_flow",
+        "root_cause": "未正确处理字典序后继的生成逻辑，导致无法找到正确的下一个排列。",
+        "supporting_evidence": [
+          "N2.evidence@v1"
+        ],
+        "verification_plan": [
+          "验证函数在找到第一个可以交换的元素后，是否正确地反转了后续元素。",
+          "测试函数在输入序列是字典序最后一个排列时是否返回 None 或空列表。",
+          "测试函数在输入序列是字典序中间排列时是否返回正确的下一个排列。"
+        ]
+      },
+      "created_at": "2026-08-03T03:57:09.138586+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N2.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "6e7b2fbf4a6f4c61aa34240be74f7431",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "WORKER_DIED",
+        "details": {},
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N4",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+        "recommended_stage": "review",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T03:57:48.349332+00:00",
+      "created_by": "N4",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "a07b35c3d08f4b0eb2b6d7a080876d9c",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "WORKER_DIED",
+        "details": {},
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N4",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+        "recommended_stage": "review",
+        "recoverable": false,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T03:58:26.215634+00:00",
+      "created_by": "N4",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "cf75972a1df440e3b9930fcf871af69c",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 18,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_next_permutation/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 0,
+    "artifact_rejection_count": 2,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 1,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_record_count": 0,
+    "retry_node_count": 1,
+    "root_cause_review_passed": false,
+    "worker_failure_count": 1,
+    "workspace_clean": true
+  },
+  "engine_status": "failed",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {},
+    "primary_ref": null,
+    "review_refs": [],
+    "status": "unresolved"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "standard",
+    "gate_records": [
+      {
+        "added_node_count": 1,
+        "budget_effect": "Consumes 1 node slot and ~5% of investigation budget for targeted code analysis.",
+        "gate_name": "evidence_sufficiency_gate",
+        "reason": "Evidence incomplete and unverified; requires source code retrieval to establish concrete root cause before diagnosis.",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "+1 node",
+        "gate_name": "hypothesis_validation_gate",
+        "reason": "Hypothesis contains missing evidence for test case verification; review required to validate root cause confidence before patching.",
+        "trigger_artifact_refs": [
+          "N3.hypothesis@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 2,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": false,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6
+    },
+    "unnecessary_expansion": true,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T03:55:24.671957+00:00",
+      "created_by_decision_id": "init_inv_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T03:55:40.559724+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "复现 next_permutation 未按字典序返回直接后继的失败案例，收集触发条件、预期与实际输出差异及相关测试上下文。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T03:55:24.681091+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T03:56:15.458485+00:00",
+      "created_by_decision_id": "inv_evidence_comp_002",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T03:56:36.837615+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "evidence_completion",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "检索 next_permutation.py 源码，逐行分析字典序后继生成逻辑，识别导致返回非直接后继的具体条件分支与边界处理缺陷，并输出完整实现上下文。",
+      "output_artifact_ids": [
+        "N2.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T03:56:15.476303+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 600.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-03T03:57:03.240710+00:00",
+      "created_by_decision_id": "diag_start_003",
+      "critical": true,
+      "dependencies": [
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T03:57:09.163687+00:00",
+      "input_artifact_ids": [
+        "N2.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "Trace the data flow and evaluate boundary conditions in the provided next_permutation implementation to identify the specific comparison or swap logic that fails to produce the lexicographically immediate successor, and formulate a testable root cause hypothesis.",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T03:57:03.258658+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-03T03:57:48.313388+00:00",
+      "created_by_decision_id": "rev_hyp_004",
+      "critical": true,
+      "dependencies": [
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+      "finished_at": "2026-08-03T03:58:26.216243+00:00",
+      "input_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "Evaluate the root cause hypothesis N3.hypothesis@v1, specifically assessing the validity of the data flow analysis and addressing the missing evidence regarding test case verification, to determine if the hypothesis is sufficient for patch generation.",
+      "output_artifact_ids": [
+        "N4.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-03T03:58:26.196308+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 120.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_next_permutation/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "238f106db19a8cd8110007c778244afde6b3c6bda0b5a39ccf6ed74431062f22",
+    "before_sha256": "238f106db19a8cd8110007c778244afde6b3c6bda0b5a39ccf6ed74431062f22",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_next_permutation",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_next_permutation/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 7,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 13102,
+        "output_tokens": 1179
+      },
+      "qwen3.7-flash": {
+        "calls": 6,
+        "estimated_cost_cny": 0.024325,
+        "input_tokens": 30604,
+        "output_tokens": 22755
+      }
+    },
+    "duration_ms": 240545,
+    "estimated_api_cost_cny": 0.024325,
+    "input_tokens": 43706,
+    "model_calls": 13,
+    "output_tokens": 23934,
+    "supervisor_api_calls": 6,
+    "supervisor_policy_calls": 6,
+    "tool_calls": 4,
+    "total_tokens": 67640,
+    "worker_model_calls": 7
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

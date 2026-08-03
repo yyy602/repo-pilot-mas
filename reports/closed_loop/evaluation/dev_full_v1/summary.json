@@ -1,0 +1,53 @@
+{
+  "artifact_rejection_count": 0,
+  "average_latency_ms": 206026.4,
+  "average_tokens": 71283.6,
+  "budget_violations": 0,
+  "estimated_api_cost_cny": 0.107981,
+  "estimated_api_cost_per_solved_cny": 0.107981,
+  "failed": 4,
+  "hypothesis_accept_rate": 0.8,
+  "isolated_worker_failure_count": 0,
+  "median_latency_ms": 218432,
+  "patch_apply_rate": 0.6,
+  "patch_binding_rate": 0.6,
+  "patch_success_rate": 0.2,
+  "recovery_attempted_tasks": 1,
+  "recovery_succeeded_tasks": 0,
+  "recovery_success_rate": 0.0,
+  "regression_pass_rate": 0.2,
+  "review_pass_rate": 0.0,
+  "route_distribution": {
+    "deep": 1,
+    "fast": 1,
+    "standard": 3
+  },
+  "schema_version": 1,
+  "solved": 1,
+  "source_integrity_violations": 0,
+  "syntax_valid_rate": 0.6,
+  "system_id": "closed_loop_dynamic",
+  "target_test_pass_rate": 0.4,
+  "task_count": 5,
+  "task_resolution_rate": 0.2,
+  "task_result_paths": [
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_find_first_in_sorted/result.json",
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_gcd/result.json",
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_is_valid_parenthesization/result.json",
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_max_sublist_sum/result.json",
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_powerset/result.json"
+  ],
+  "totals": {
+    "duration_ms": 1030132,
+    "input_tokens": 259457,
+    "model_calls": 79,
+    "output_tokens": 96961,
+    "supervisor_api_calls": 36,
+    "tool_calls": 39,
+    "total_tokens": 356418,
+    "worker_model_calls": 43
+  },
+  "worker_failure_count": 0,
+  "worker_failure_isolation_rate": null,
+  "workspace_cleanup_rate": 1.0
+}

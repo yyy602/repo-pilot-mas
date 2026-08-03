@@ -1,0 +1,292 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "powerset 函数未正确生成所有子集，遗漏空集及不包含首元素的组合。",
+        "confidence": 1,
+        "content": "def powerset(arr):\n    if arr:\n        first, *rest = arr\n        rest_subsets = powerset(rest)\n        return [[first] + subset for subset in rest_subsets]\n    return [[]]",
+        "missing_evidence": [],
+        "mode": "code_retrieval",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 6,
+          "line_start": 1,
+          "path": "powerset.py"
+        },
+        "status": "verified",
+        "tool_trace_ids": [
+          "2043c72e529f47fd95ff5030fa96ba4a",
+          "7c24cfc3316d47bdbfc238da65a549fa"
+        ]
+      },
+      "created_at": "2026-08-03T03:17:49.544889+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "cf461572e00b4539b87dbd781b1b08d3",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "powerset"
+        ],
+        "confidence": 1,
+        "counter_evidence": [],
+        "direct_cause": "函数在递归处理子集时，仅将首元素添加到子集中，未考虑空集和不包含首元素的组合。",
+        "missing_evidence": [],
+        "perspective": "data_flow",
+        "root_cause": "powerset 函数未正确生成所有子集，遗漏空集及不包含首元素的组合。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "验证 powerset 函数在输入非空列表时是否生成空集。",
+          "验证 powerset 函数在输入非空列表时是否生成不包含首元素的子集。",
+          "检查递归调用是否正确处理子集生成逻辑。"
+        ]
+      },
+      "created_at": "2026-08-03T03:18:28.319984+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "67b3d5a7258447099b3c43d0758c7322",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.review",
+      "artifact_type": "review",
+      "content": {
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "findings": [
+          "powerset 函数在递归处理子集时，仅将首元素添加到子集中，未考虑空集和不包含首元素的组合。",
+          "函数返回的子集仅包含首元素和其组合，遗漏了空集及不包含首元素的组合。"
+        ],
+        "mode": "root_cause_recommendation",
+        "recommendation": "修改 powerset 函数，使其在递归处理时不仅添加首元素，还要包含空集和不包含首元素的组合。",
+        "risk_notes": [
+          "函数未正确生成所有子集，可能导致逻辑错误或数据不完整。",
+          "未处理空集可能导致后续逻辑错误，特别是在需要空集作为输入的场景中。"
+        ],
+        "target_artifact_ref": "N2.hypothesis@v1",
+        "verdict": "supported"
+      },
+      "created_at": "2026-08-03T03:19:38.805555+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "bb07ef1ad06448fc9cfd8de3f93dfea8",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 18,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_powerset/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 1,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 0,
+    "hypothesis_accepted": true,
+    "isolated_worker_failure_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": false,
+    "recovery_succeeded": false,
+    "replan_record_count": 0,
+    "retry_node_count": 0,
+    "root_cause_review_passed": false,
+    "worker_failure_count": 0,
+    "workspace_clean": true
+  },
+  "engine_status": "failed",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": 31,
+    "accepted_by_decision_id": "accept_hyp_001",
+    "accepted_refs": [
+      "N2.hypothesis@v1"
+    ],
+    "candidate_refs": [
+      "N2.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "root_cause_recommendation"
+    },
+    "primary_ref": "N2.hypothesis@v1",
+    "review_refs": [
+      "N3.review@v1"
+    ],
+    "status": "accepted"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "standard",
+    "gate_records": [],
+    "invalid_decisions": 3,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": false,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T03:17:29.678650+00:00",
+      "created_by_decision_id": "init_inv_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T03:17:49.561310+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "检索 powerset 函数源码，分析其迭代与过滤逻辑，定位导致遗漏空集及不包含首元素组合的具体代码行，并编写失败复现测试。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T03:17:29.701463+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-03T03:18:22.622419+00:00",
+      "created_by_decision_id": "create_diag_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T03:18:28.347780+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 N1 的证据，追踪 powerset 函数在输入非空列表时的数据流变化，定位遗漏空集及非首元素组合的具体逻辑断点，并输出根因假设。",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T03:18:22.645211+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-03T03:19:32.452100+00:00",
+      "created_by_decision_id": "review_hyp_001",
+      "critical": true,
+      "dependencies": [
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T03:19:38.821706+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N3",
+      "node_type": "REVIEW_TASK",
+      "objective": "审查 N2.hypothesis@v1 的根因分析是否与 N1.evidence@v1 的代码证据一致，评估其是否满足进入补丁阶段的充分性条件。",
+      "output_artifact_ids": [
+        "N3.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T03:19:32.484201+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_powerset/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": "N2.hypothesis@v1",
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "4862d06f9e23b200c69bc84fecc878ea3209a9de5c42773ca00f0aab70923666",
+    "before_sha256": "4862d06f9e23b200c69bc84fecc878ea3209a9de5c42773ca00f0aab70923666",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_powerset",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_full_v1/tasks/quixbugs_powerset/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 6,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 7935,
+        "output_tokens": 1002
+      },
+      "qwen3.7-flash": {
+        "calls": 7,
+        "estimated_cost_cny": 0.023889,
+        "input_tokens": 34915,
+        "output_tokens": 21133
+      }
+    },
+    "duration_ms": 218432,
+    "estimated_api_cost_cny": 0.023889,
+    "input_tokens": 42850,
+    "model_calls": 13,
+    "output_tokens": 22135,
+    "supervisor_api_calls": 7,
+    "supervisor_policy_calls": 7,
+    "tool_calls": 3,
+    "total_tokens": 64985,
+    "worker_model_calls": 6
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

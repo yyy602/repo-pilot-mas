@@ -1,0 +1,4297 @@
+{
+  "tasks": [
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "bucketsort 函数在非空输入下可能产生数量和取值都不正确的排序结果。",
+            "confidence": 0.9,
+            "content": "    for i, count in enumerate(arr):\n        sorted_arr.extend([i] * count)",
+            "missing_evidence": [
+              "test_bucketsort.py 的内容"
+            ],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 8,
+              "line_start": 7,
+              "path": "bucketsort.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "a7a9b25900554f5691a039c11d0ce042"
+            ]
+          },
+          "created_at": "2026-08-03T03:23:43.141832+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "a8de7b832e3d4777b543a0ea06a264ec",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "bucketsort",
+              "arr",
+              "sorted_arr"
+            ],
+            "confidence": 0.8,
+            "counter_evidence": [],
+            "direct_cause": "在枚举循环中，使用了索引 i 作为元素值，而未考虑输入数组的原始值，导致 extend 操作将索引值而非原始值添加到排序数组中。",
+            "missing_evidence": [
+              "test_bucketsort.py 的内容"
+            ],
+            "perspective": "data_flow",
+            "root_cause": "在非空输入下，bucketsort 函数的枚举循环和 extend 操作未能正确处理元素的索引和计数，导致排序结果的数量和取值错误。",
+            "supporting_evidence": [
+              "N1.evidence@v1"
+            ],
+            "verification_plan": [
+              "检查 bucketsort 函数中 enumerate 的使用是否正确，确保索引 i 与原始值对应。",
+              "验证 extend 操作是否将正确的元素值添加到 sorted_arr 中。",
+              "在非空输入下运行测试用例，确认排序结果是否符合预期。",
+              "检查测试用例 test_bucketsort.py 的内容，确认其是否覆盖了非空输入的测试场景。"
+            ]
+          },
+          "created_at": "2026-08-03T03:24:31.761636+00:00",
+          "created_by": "N2",
+          "input_refs": [
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "aa5b0276fcdb4aada984de68955ae361",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:25:09.226930+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "e4b5ce651a6443748d10a1eb1dcb1eb7",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:26:07.717006+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "2a3d62fe7aeb47c6bd0997f90d924a71",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "bucketsort 在非空输入上会产生数量和取值都不正确的排序结果，是由于枚举索引与原始值不匹配导致的。",
+            "confidence": 0.95,
+            "content": "    for i, count in enumerate(arr):\n        sorted_arr.extend([i] * count)",
+            "missing_evidence": [],
+            "mode": "evidence_completion",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 8,
+              "line_start": 7,
+              "path": "bucketsort.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "45603bbb26a4460e9472e7fdb37b22a8"
+            ]
+          },
+          "created_at": "2026-08-03T03:26:07.709303+00:00",
+          "created_by": "N4",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "2d99e8d661014bf581e8522204f7b9d7",
+          "version": 1
+        },
+        {
+          "artifact_id": "N5.review",
+          "artifact_type": "review",
+          "content": {
+            "evidence_refs": [
+              "N4.evidence@v1"
+            ],
+            "findings": [
+              "在非空输入下，bucketsort 函数的枚举循环中使用了索引 i 作为元素值，导致 extend 操作将索引值而非原始值添加到排序数组中。",
+              "该错误导致排序结果的数量和取值都不正确，与测试用例的失败结果一致。"
+            ],
+            "mode": "root_cause_recommendation",
+            "recommendation": "接受该假设，建议修复枚举循环中索引 i 的使用，确保 extend 操作将原始值而非索引值添加到排序数组中。同时，验证测试用例是否覆盖了非空输入的测试场景。",
+            "risk_notes": [
+              "未正确处理索引和原始值的映射可能导致排序结果不准确，影响程序的正确性。",
+              "未覆盖非空输入的测试用例可能无法发现此类错误，增加潜在风险。"
+            ],
+            "target_artifact_ref": "N2.hypothesis@v1",
+            "verdict": "supported"
+          },
+          "created_at": "2026-08-03T03:26:52.895229+00:00",
+          "created_by": "N5",
+          "input_refs": [
+            "N2.hypothesis@v1",
+            "N4.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "0eb358d918774b839f9bac075308c36c",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_bucketsort/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 1,
+        "artifact_rejection_count": 2,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 1,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 1,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 1,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {
+          "latest_root_cause_review_mode": "root_cause_recommendation"
+        },
+        "primary_ref": null,
+        "review_refs": [
+          "N5.review@v1"
+        ],
+        "status": "under_review"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "消耗 1 节点配额与 1 次 Supervisor 调用，处于预算范围内。",
+            "gate_name": "hypothesis_review_gate",
+            "reason": "流程规范要求假设接受前需经独立评审，当前仅有一个假设且无冲突，需补充 Review 节点以满足后续 ACCEPT_HYPOTHESIS 的引用约束。",
+            "trigger_artifact_refs": [
+              "N2.hypothesis@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Within budget (+1 node)",
+            "gate_name": "evidence_insufficiency",
+            "reason": "Artifact rejection indicates missing test coverage/evidence required for root cause validation; expanding graph to complete evidence.",
+            "trigger_artifact_refs": [
+              "N3.rejection.a1@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "+1 node, within max_nodes limit.",
+            "gate_name": "evidence_completion_review",
+            "reason": "Previous review task N3 failed due to missing direct evidence. N4.evidence@v1 now provides verified direct evidence supporting the hypothesis. A new review is required to formally assess the root cause before acceptance.",
+            "trigger_artifact_refs": [
+              "N4.evidence@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 1,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6,
+          "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+          "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+          "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+          "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:23:17.545782+00:00",
+          "created_by_decision_id": "init_inv_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:23:43.150683+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "检索 bucketsort 实现代码与相关测试用例，定位非空输入下排序结果数量及取值错误的根本原因，并完成失败复现。",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:23:17.574016+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:24:23.448903+00:00",
+          "created_by_decision_id": "diag_create_001",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:24:31.782642+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "data_flow",
+          "node_id": "N2",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Verify the root cause of incorrect sorting in bucketsort by analyzing the data flow of the enumeration loop and extend operation on non-empty inputs.",
+          "output_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:24:23.484820+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:25:09.191054+00:00",
+          "created_by_decision_id": "rev_root_cause_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+          "finished_at": "2026-08-03T03:26:07.717617+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N3",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the proposed root cause for the bucketsort sorting error and provide a formal recommendation for hypothesis acceptance.",
+          "output_artifact_ids": [
+            "N3.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:25:44.011334+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:25:43.987273+00:00",
+          "created_by_decision_id": "inv_evidence_comp_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:26:07.719369+00:00",
+          "input_artifact_ids": [],
+          "mode": "evidence_completion",
+          "node_id": "N4",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Retrieve test_bucketsort.py to provide direct evidence verifying whether the enumerate index vs. original value mismatch causes the sorting error on non-empty inputs.",
+          "output_artifact_ids": [
+            "N4.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:25:44.011754+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:26:45.657093+00:00",
+          "created_by_decision_id": "rev_root_cause_002",
+          "critical": true,
+          "dependencies": [
+            "N2",
+            "N4"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:26:52.911491+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1",
+            "N4.evidence@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N5",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the proposed root cause in N2.hypothesis@v1 using the newly completed direct evidence N4.evidence@v1, and provide a formal recommendation for hypothesis acceptance.",
+          "output_artifact_ids": [
+            "N5.review@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:26:45.677895+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_bucketsort/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "ebbf2b7d9bc7866b7fb0dad69cc5757d09dc3780210d1e7cb12f4327567c5f2e",
+        "before_sha256": "ebbf2b7d9bc7866b7fb0dad69cc5757d09dc3780210d1e7cb12f4327567c5f2e",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_bucketsort",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_bucketsort/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 11,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 18410,
+            "output_tokens": 1841
+          },
+          "qwen3.7-flash": {
+            "calls": 6,
+            "estimated_cost_cny": 0.023046,
+            "input_tokens": 30800,
+            "output_tokens": 21108
+          }
+        },
+        "duration_ms": 254712,
+        "estimated_api_cost_cny": 0.023046,
+        "input_tokens": 49210,
+        "model_calls": 19,
+        "output_tokens": 22949,
+        "supervisor_api_calls": 8,
+        "supervisor_policy_calls": 6,
+        "tool_calls": 7,
+        "total_tokens": 72159,
+        "worker_model_calls": 11
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "flatten 函数在处理非列表叶节点时返回生成器对象。",
+            "confidence": 0.95,
+            "content": "            yield flatten(x)",
+            "missing_evidence": [],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 7,
+              "line_start": 7,
+              "path": "flatten.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "d5aea145bcf84c838ad943af0e626dc1"
+            ]
+          },
+          "created_at": "2026-08-03T03:27:47.390931+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "0261dc63b1a547d69b060d20e3a4bd75",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "flatten"
+            ],
+            "confidence": 0.95,
+            "counter_evidence": [],
+            "direct_cause": "flatten 函数在处理非列表叶节点时使用了 yield 语句，导致返回生成器对象。",
+            "missing_evidence": [],
+            "perspective": "control_flow",
+            "root_cause": "flatten 函数在处理非列表叶节点时返回生成器对象，而不是叶节点本身。",
+            "supporting_evidence": [
+              "N1.evidence@v1"
+            ],
+            "verification_plan": [
+              "检查 flatten 函数在处理非列表叶节点时的返回值类型。",
+              "验证 flatten 函数在处理列表时是否正确展开嵌套结构。",
+              "运行 failing_tests 并确认测试失败的原因是否与返回值类型有关。"
+            ]
+          },
+          "created_at": "2026-08-03T03:28:14.592675+00:00",
+          "created_by": "N2",
+          "input_refs": [
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "1337d5ffe18747b1a1ddaaffd0af36d1",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:28:46.204064+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "30fc126ff10e46fa8bff4da65f76bf71",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:29:38.011972+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "eb64f4371619440e9dfa2a8aaa7daea6",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.review",
+          "artifact_type": "review",
+          "content": {
+            "evidence_refs": [
+              "N1.evidence@v1"
+            ],
+            "findings": [
+              "flatten 函数在处理非列表叶节点时返回生成器对象，而不是叶节点本身。",
+              "该行为导致测试失败，因为预期返回的是叶节点，而非生成器对象。"
+            ],
+            "mode": "root_cause_recommendation",
+            "recommendation": "修改 flatten 函数，使其在处理非列表叶节点时直接返回叶节点，而非生成器对象。",
+            "risk_notes": [
+              "返回生成器对象可能导致后续代码无法正确处理返回值，引发类型错误或逻辑错误。",
+              "修改函数返回值类型可能影响现有依赖该函数的代码，需进行回归测试。"
+            ],
+            "target_artifact_ref": "N2.hypothesis@v1",
+            "verdict": "supported"
+          },
+          "created_at": "2026-08-03T03:29:37.995047+00:00",
+          "created_by": "N4",
+          "input_refs": [
+            "N1.evidence@v1",
+            "N2.hypothesis@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "972cae464cb74452bdf389e0ba3a5c9b",
+          "version": 1
+        },
+        {
+          "artifact_id": "N5.patch",
+          "artifact_type": "patch_candidate",
+          "content": {
+            "based_on_hypothesis_refs": [
+              "N2.hypothesis@v1"
+            ],
+            "changed_files": [
+              "flatten.py"
+            ],
+            "covered_root_causes": {
+              "N2.hypothesis@v1": "flatten 函数在处理非列表叶节点时返回生成器对象，而不是叶节点本身。"
+            },
+            "diff": "--- a/flatten.py\n+++ b/flatten.py\n@@ -4,4 +4,4 @@\n             for y in flatten(x):\n                 yield y\n         else:\n-            yield flatten(x)\n+            return flatten(x)\n",
+            "diff_sha256": "b92e16273cad0bd054e4fc3b79cb924bc167a6d2fdd517e9df474d2ff79d424c",
+            "primary_hypothesis_ref": "N2.hypothesis@v1",
+            "protected_path_check": true,
+            "rationale": "将 yield flatten(x) 改为 return flatten(x)，以确保非列表叶节点直接返回叶节点，而不是生成器对象。",
+            "risk_notes": [
+              "修改可能导致现有依赖该函数的代码需要调整以适应新的返回值类型。",
+              "需确保所有使用 flatten 函数的代码都能正确处理返回的叶节点。"
+            ],
+            "strategy": "minimal",
+            "workspace_id": "N5-13c1b432bb"
+          },
+          "created_at": "2026-08-03T03:30:32.529785+00:00",
+          "created_by": "N5",
+          "input_refs": [
+            "N2.hypothesis@v1",
+            "N4.review@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "5337e53cddae4d63b5ffb7675dbed3d8",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_flatten/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 1,
+        "accepted_review_count": 1,
+        "artifact_rejection_count": 2,
+        "hypothesis_accepted": true,
+        "isolated_worker_failure_count": 1,
+        "patch_bound_to_accepted_set": true,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 1,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 1,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": 45,
+        "accepted_by_decision_id": "accept_hypothesis_n2_001",
+        "accepted_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "candidate_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {
+          "latest_root_cause_review_mode": "root_cause_recommendation"
+        },
+        "primary_ref": "N2.hypothesis@v1",
+        "review_refs": [
+          "N4.review@v1"
+        ],
+        "status": "accepted"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "Allocates 1 node for diagnosis, transitions workflow to diagnosis stage.",
+            "gate_name": "investigation_complete",
+            "reason": "Initial code retrieval and evidence collection completed. Root cause analysis phase begins.",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Consumes 1 node slot and 1 supervisor call.",
+            "gate_name": "diagnosis_to_review",
+            "reason": "Single hypothesis generated and verified by diagnostician; requires reviewer validation before acceptance.",
+            "trigger_artifact_refs": [
+              "N2.hypothesis@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Minimal increase for one additional review pass.",
+            "gate_name": "review_evidence_gap",
+            "reason": "Reviewer N3 failed due to missing direct evidence. Expanding graph with N4 to ingest both hypothesis and raw evidence.",
+            "trigger_artifact_refs": [
+              "N3.rejection.a1@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 1,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:27:33.849110+00:00",
+          "created_by_decision_id": "init_inv_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:27:47.416902+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "检索 flatten 函数源码及调用上下文，定位非列表叶节点的处理分支，并准备复现返回生成器而非叶节点的失败用例。",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:27:33.866174+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:28:09.308459+00:00",
+          "created_by_decision_id": "inv_to_diag_001",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:28:14.611388+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "control_flow",
+          "node_id": "N2",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Analyze the control flow of the flatten function to confirm that yielding a generator instead of flattening non-list leaves is the root cause, and outline the necessary correction logic.",
+          "output_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:28:09.330030+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:28:46.159853+00:00",
+          "created_by_decision_id": "diag_to_review_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+          "finished_at": "2026-08-03T03:29:38.012588+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N3",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the root cause hypothesis from N2 for correctness and completeness, and provide a formal recommendation for acceptance.",
+          "output_artifact_ids": [
+            "N3.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:29:32.278338+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:29:32.263920+00:00",
+          "created_by_decision_id": "fix_review_evidence_001",
+          "critical": true,
+          "dependencies": [
+            "N1",
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:29:38.014308+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1",
+            "N2.hypothesis@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N4",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the root cause hypothesis in N2.hypothesis@v1 using direct access to the source code evidence in N1.evidence@v1 to confirm the control flow analysis and provide a formal acceptance recommendation.",
+          "output_artifact_ids": [
+            "N4.review@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:29:32.278796+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "PatchAgent",
+          "created_at": "2026-08-03T03:30:22.789303+00:00",
+          "created_by_decision_id": "create_patch_fix_flatten_001",
+          "critical": true,
+          "dependencies": [
+            "N2",
+            "N4"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:30:32.549932+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1",
+            "N4.review@v1"
+          ],
+          "mode": "minimal",
+          "node_id": "N5",
+          "node_type": "PATCH_TASK",
+          "objective": "Modify the flatten function to return leaf nodes directly instead of yielding a generator object when processing non-list leaves, ensuring correct return types for downstream consumers.",
+          "output_artifact_ids": [
+            "N5.patch@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:30:22.802354+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_flatten/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": "N2.hypothesis@v1",
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "b493fef968a1df418a06155b4e41481018c16c9eb073d09ff9a353e88036973f",
+        "before_sha256": "b493fef968a1df418a06155b4e41481018c16c9eb073d09ff9a353e88036973f",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_flatten",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_flatten/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 7,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 9457,
+            "output_tokens": 1070
+          },
+          "qwen3.7-flash": {
+            "calls": 7,
+            "estimated_cost_cny": 0.025113,
+            "input_tokens": 36520,
+            "output_tokens": 22261
+          }
+        },
+        "duration_ms": 216715,
+        "estimated_api_cost_cny": 0.025113,
+        "input_tokens": 45977,
+        "model_calls": 14,
+        "output_tokens": 23331,
+        "supervisor_api_calls": 7,
+        "supervisor_policy_calls": 7,
+        "tool_calls": 4,
+        "total_tokens": 69308,
+        "worker_model_calls": 7
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "get_factors 函数的实现代码及其依赖关系已成功检索。",
+            "confidence": 1,
+            "content": "def get_factors(n):\n    if n == 1:\n        return []\n\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return [i] + get_factors(n // i)\n\n    return []",
+            "missing_evidence": [],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 9,
+              "line_start": 1,
+              "path": "get_factors.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "830f6c5b682043bbb717b9ebdaeabc4a",
+              "22a569fcb5ba4ec1bba9e5933ef27deb"
+            ]
+          },
+          "created_at": "2026-08-03T03:31:40.104702+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "5483c2b33dc248b498c1461937567567",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "evidence",
+            "max_attempts": 2,
+            "node_id": "N2",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator 报告失败：get_factors 函数未能正确分解质因数，导致测试失败。",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:32:29.030368+00:00",
+          "created_by": "N2",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "8b4f0f71fcd94acbbd9653de120de965",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "evidence",
+            "max_attempts": 2,
+            "node_id": "N2",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:33:58.966448+00:00",
+          "created_by": "N2",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "b66446506e824e7e9c6426a83e5e0771",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "evidence",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator mode=failure_reproduction 缺少必要工具证据",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:33:58.967604+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "aba84a5aa61e4d269580bec469b92086",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "evidence",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator mode=failure_reproduction 缺少必要工具证据",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:35:23.596909+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "1d31cc704e9c4f3f95312ff55aa3661a",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "get_factors 函数在处理质数输入时返回空列表，并且在分解链末尾遗漏了质因数。",
+            "confidence": 0.95,
+            "content": "def get_factors(n):\n    if n == 1:\n        return []\n\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return [i] + get_factors(n // i)\n\n    return []",
+            "missing_evidence": [
+              "分解链末尾质因数未被正确捕获的详细变量状态",
+              "质数输入返回空列表的详细错误日志"
+            ],
+            "mode": "evidence_completion",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 9,
+              "line_start": 1,
+              "path": "get_factors.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "acdb0c9f1dc64a01b57086253a5729df",
+              "54850e45c3334767bd62b3f78a7f29d0",
+              "56bc3e6785854c498b6d728aa7795d28"
+            ]
+          },
+          "created_at": "2026-08-03T03:35:23.579670+00:00",
+          "created_by": "N4",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "a3632d6904d24a978cb5435a20da914f",
+          "version": 1
+        },
+        {
+          "artifact_id": "N5.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "get_factors"
+            ],
+            "confidence": 0.95,
+            "counter_evidence": [],
+            "direct_cause": "函数在分解链末尾未处理剩余的质因数，直接返回空列表。",
+            "missing_evidence": [
+              "分解链末尾质因数未被正确捕获的详细变量状态",
+              "质数输入返回空列表的详细错误日志"
+            ],
+            "perspective": "control_flow",
+            "root_cause": "分解链末尾的质因数未被正确捕获，导致质数输入返回空列表。",
+            "supporting_evidence": [
+              "N4.evidence@v1"
+            ],
+            "verification_plan": [
+              "在分解链末尾添加对剩余质因数的处理逻辑。",
+              "测试质数输入是否返回正确的质因数列表。",
+              "验证分解链末尾的质因数是否被正确捕获。",
+              "确保函数在处理非质数输入时返回完整的质因数列表。"
+            ]
+          },
+          "created_at": "2026-08-03T03:35:55.305840+00:00",
+          "created_by": "N5",
+          "input_refs": [
+            "N4.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "f82e5fc6ca19470e987e3030375456ff",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_get_factors/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 0,
+        "artifact_rejection_count": 4,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 2,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 2,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 2,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N5.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {},
+        "primary_ref": null,
+        "review_refs": [],
+        "status": "unresolved"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "消耗 1 个节点配额，预计增加少量 token 开销，仍在预算范围内",
+            "gate_name": "investigation_evidence_gap",
+            "reason": "代码已获取但缺乏实际失败运行数据，需补充复现证据以支撑后续诊断决策",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "使用 1 个节点配额，总节点数 3/64，未超预算。",
+            "gate_name": "investigation_evidence_insufficiency",
+            "reason": "N2 复现任务连续失败，证据不足，需动态扩展调查节点以获取关键失败样本。",
+            "trigger_artifact_refs": [
+              "N2.rejection.a1@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "消耗 1 个节点配额，当前总节点 4/64，在预算范围内。",
+            "gate_name": "evidence_gap_closure",
+            "reason": "前序 failure_reproduction 节点因工具证据缺失或步骤耗尽连续失败，导致根因诊断缺乏实证基础。动态扩展 evidence_completion 任务以定向补全关键失败路径的输入输出对与堆栈信息。",
+            "trigger_artifact_refs": [
+              "N2.rejection.a1@v1",
+              "N2.rejection.a2@v1",
+              "N3.rejection.a1@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 2,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:31:23.903334+00:00",
+          "created_by_decision_id": "init_inv_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:31:40.129230+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "检索 get_factors 函数的完整实现代码及其依赖关系，分析其在处理质数输入和长分解链时的控制流逻辑，为后续失败复现提供基础。",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:31:23.912258+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:32:05.109252+00:00",
+          "created_by_decision_id": "inv_fail_rep_002",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+          "finished_at": "2026-08-03T03:33:58.967082+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "failure_reproduction",
+          "node_id": "N2",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "复现 get_factors 在处理质数和长分解链时的失败行为，收集具体输入输出对及错误日志，为根因诊断提供实证基础。",
+          "output_artifact_ids": [
+            "N2.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:33:07.217236+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:33:07.196838+00:00",
+          "created_by_decision_id": "inv_retry_fail_rep_003",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator mode=failure_reproduction 缺少必要工具证据",
+          "finished_at": "2026-08-03T03:35:23.597526+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "failure_reproduction",
+          "node_id": "N3",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "基于 N1 检索的代码实现，针对‘分解链末尾质因数遗漏’及‘质数输入返回空列表’两个具体缺陷场景构造测试用例并复现失败，收集包含完整堆栈与变量状态的实证数据。",
+          "output_artifact_ids": [
+            "N3.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:34:34.733716+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 300.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:34:34.715219+00:00",
+          "created_by_decision_id": "inv_evidence_comp_004",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:35:23.599360+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "evidence_completion",
+          "node_id": "N4",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "基于 N1 检索的代码实现，构造针对‘质数输入返回空列表’及‘长分解链末尾质因数遗漏’的具体测试用例，运行并收集包含完整变量状态与错误日志的实证数据，弥补前序复现失败留下的证据缺口。",
+          "output_artifact_ids": [
+            "N4.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:34:34.734151+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:35:48.763806+00:00",
+          "created_by_decision_id": "diag_root_cause_005",
+          "critical": true,
+          "dependencies": [
+            "N4"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:35:55.330842+00:00",
+          "input_artifact_ids": [
+            "N4.evidence@v1"
+          ],
+          "mode": "control_flow",
+          "node_id": "N5",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "基于 N4 提供的实证数据，深入分析 get_factors 函数在控制流与数据流上的缺陷，精确定位导致分解链末尾质因数遗漏及质数输入返回空列表的根本原因。",
+          "output_artifact_ids": [
+            "N5.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:35:48.783432+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 600.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_get_factors/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "aa3befa1ffc0b22f5ac6755f72170b9072ddd5601a1a8f8c15d912f1f9172184",
+        "before_sha256": "aa3befa1ffc0b22f5ac6755f72170b9072ddd5601a1a8f8c15d912f1f9172184",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_get_factors",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_get_factors/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 25,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 52050,
+            "output_tokens": 3772
+          },
+          "qwen3.7-flash": {
+            "calls": 6,
+            "estimated_cost_cny": 0.025007,
+            "input_tokens": 31729,
+            "output_tokens": 23326
+          }
+        },
+        "duration_ms": 330652,
+        "estimated_api_cost_cny": 0.025007,
+        "input_tokens": 83779,
+        "model_calls": 31,
+        "output_tokens": 27098,
+        "supervisor_api_calls": 6,
+        "supervisor_policy_calls": 6,
+        "tool_calls": 19,
+        "total_tokens": 110877,
+        "worker_model_calls": 25
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "Hanoi 实现的源代码已成功检索。",
+            "confidence": 1,
+            "content": "def hanoi(height, start=1, end=3):\n    steps = []\n    if height > 0:\n        helper = ({1, 2, 3} - {start} - {end}).pop()\n        steps.extend(hanoi(height - 1, start, helper))\n        steps.append((start, helper))\n        steps.extend(hanoi(height - 1, helper, end))\n    return steps",
+            "missing_evidence": [],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 9,
+              "line_start": 1,
+              "path": "hanoi.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "3127c0f36e88403e8391996f605ad63a"
+            ]
+          },
+          "created_at": "2026-08-03T03:36:54.314845+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "34cae48e72cc48dd8a380fcb2ac909a2",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "hanoi 函数生成的移动序列不能正确将圆盘从起始柱移动到目标柱。",
+            "confidence": 0.9,
+            "content": "        helper = ({1, 2, 3} - {start} - {end}).pop()\n        steps.extend(hanoi(height - 1, start, helper))\n        steps.append((start, helper))\n        steps.extend(hanoi(height - 1, helper, end))",
+            "missing_evidence": [
+              "具体测试用例的预期输出",
+              "辅助柱计算方式的正确性验证"
+            ],
+            "mode": "failure_reproduction",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 9,
+              "line_start": 4,
+              "path": "hanoi.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "d711fdcc5e9a4fef81982d36ae5b7869",
+              "dde5a7ae94d147728614940b72f9322c"
+            ]
+          },
+          "created_at": "2026-08-03T03:38:20.470553+00:00",
+          "created_by": "N2",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "793a2d031c17492c9cda1f0dfeda11b4",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "辅助柱的计算方式 ({1, 2, 3} - {start} - {end}).pop() 是正确的。",
+            "confidence": 0.7,
+            "content": "helper = ({1, 2, 3} - {start} - {end}).pop()\n        steps.extend(hanoi(height - 1, start, helper))\n        steps.append((start, helper))\n        steps.extend(hanoi(height - 1, helper, end))",
+            "missing_evidence": [
+              "辅助柱计算方式在所有情况下的正确性验证"
+            ],
+            "mode": "evidence_completion",
+            "observation_type": "derived",
+            "source": {
+              "line_end": 9,
+              "line_start": 4,
+              "path": "hanoi.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "1df4b65de4e540a5b8d620ad3f2fc345"
+            ]
+          },
+          "created_at": "2026-08-03T03:39:44.335015+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "1dde96a79cd54676ab6e3867300a7b48",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "helper",
+              "steps",
+              "start",
+              "end"
+            ],
+            "confidence": 0.7,
+            "counter_evidence": [],
+            "direct_cause": "递归调用的顺序错误，导致辅助柱的计算和移动步骤不正确",
+            "missing_evidence": [
+              "具体测试用例的预期输出",
+              "辅助柱计算方式的正确性验证"
+            ],
+            "perspective": "control_flow",
+            "root_cause": "递归调用的顺序错误导致圆盘无法正确移动到目标柱",
+            "supporting_evidence": [
+              "N1.evidence@v1",
+              "N2.evidence@v1",
+              "N3.evidence@v1"
+            ],
+            "verification_plan": [
+              "验证辅助柱的计算方式是否正确",
+              "检查递归调用的顺序是否符合汉诺塔算法要求",
+              "运行测试用例以确认移动序列是否正确"
+            ]
+          },
+          "created_at": "2026-08-03T03:40:08.141888+00:00",
+          "created_by": "N4",
+          "input_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1",
+            "N3.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "53e45cbc34c048798b96b5b6a8239ea1",
+          "version": 1
+        },
+        {
+          "artifact_id": "N5.review",
+          "artifact_type": "review",
+          "content": {
+            "evidence_refs": [
+              "N1.evidence@v1",
+              "N2.evidence@v1",
+              "N3.evidence@v1"
+            ],
+            "findings": [
+              "递归调用的顺序错误导致辅助柱的计算和移动步骤不正确。",
+              "辅助柱的计算方式 ({1, 2, 3} - {start} - {end}).pop() 被认为是正确的，但未验证其在所有情况下的正确性。",
+              "测试用例未通过，表明移动序列未能正确将圆盘从起始柱移动到目标柱。"
+            ],
+            "mode": "root_cause_recommendation",
+            "recommendation": "验证辅助柱的计算方式在所有情况下的正确性，并检查递归调用的顺序是否符合汉诺塔算法要求。此外，应运行测试用例以确认移动序列是否正确。",
+            "risk_notes": [
+              "递归调用顺序错误可能导致汉诺塔算法无法正确执行，从而导致圆盘无法移动到目标柱。",
+              "辅助柱计算方式的正确性未完全验证，可能影响算法的通用性。",
+              "测试用例未通过，表明当前实现未能满足预期功能。"
+            ],
+            "target_artifact_ref": "N4.hypothesis@v1",
+            "verdict": "supported"
+          },
+          "created_at": "2026-08-03T03:40:52.592689+00:00",
+          "created_by": "N5",
+          "input_refs": [
+            "N4.hypothesis@v1",
+            "N1.evidence@v1",
+            "N2.evidence@v1",
+            "N3.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "8ec465eab6e54f3eb5e4ad7a46b6c3a7",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_hanoi/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 1,
+        "artifact_rejection_count": 0,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 0,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": false,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 0,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 0,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N4.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {
+          "latest_root_cause_review_mode": "root_cause_recommendation"
+        },
+        "primary_ref": null,
+        "review_refs": [
+          "N5.review@v1"
+        ],
+        "status": "under_review"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "消耗少量token，在预算范围内。",
+            "gate_name": "investigation_progression",
+            "reason": "源码检索完成，按最小路径规划进行失败复现。",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Adds 1 node; within max_nodes=64 and token limits.",
+            "gate_name": "evidence_gap_triggered_expansion",
+            "reason": "Artifact N2.evidence@v1 explicitly lists missing evidence regarding test case expectations and helper pillar calculation verification, triggering a targeted evidence completion step.",
+            "trigger_artifact_refs": [
+              "N2.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Consumes 1 node slot and 1 supervisor call within allocated limits.",
+            "gate_name": "investigation_to_diagnosis",
+            "reason": "All three investigation nodes (N1-N3) reached SUCCEEDED status. Evidence baseline is established, allowing transition to diagnostic reasoning for root cause identification.",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1",
+              "N2.evidence@v1",
+              "N3.evidence@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 2,
+        "parallel_overlap_pairs": 0,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:36:38.643579+00:00",
+          "created_by_decision_id": "init_invest_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:36:54.331947+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Retrieve the Hanoi implementation source code and reproduce the reported failure to establish a baseline for debugging.",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:36:38.668631+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:37:14.929538+00:00",
+          "created_by_decision_id": "invest_fail_rep_002",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:38:20.489726+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "failure_reproduction",
+          "node_id": "N2",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "使用已检索的汉诺塔实现代码复现报告中的移动序列错误，建立基准测试用例。",
+          "output_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:37:14.952526+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:39:10.575913+00:00",
+          "created_by_decision_id": "invest_evid_comp_004",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:39:44.360254+00:00",
+          "input_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "mode": "evidence_completion",
+          "node_id": "N3",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "补充缺失证据：生成汉诺塔移动序列错误的具体测试用例预期输出，并验证辅助柱计算方式 ({1, 2, 3} - {start} - {end}).pop() 的正确性。",
+          "output_artifact_ids": [
+            "N3.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:39:10.595839+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:40:03.085226+00:00",
+          "created_by_decision_id": "diag_start_005",
+          "critical": true,
+          "dependencies": [
+            "N1",
+            "N2",
+            "N3"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:40:08.160117+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1",
+            "N2.evidence@v1",
+            "N3.evidence@v1"
+          ],
+          "mode": "control_flow",
+          "node_id": "N4",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Trace the recursive control flow of hanoi.py to pinpoint why the disk movement sequence deviates from the expected correct path, focusing on base cases and recursive step transitions.",
+          "output_artifact_ids": [
+            "N4.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:40:03.100550+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:40:43.363075+00:00",
+          "created_by_decision_id": "review_root_006",
+          "critical": true,
+          "dependencies": [
+            "N4"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:40:52.615075+00:00",
+          "input_artifact_ids": [
+            "N4.hypothesis@v1",
+            "N1.evidence@v1",
+            "N2.evidence@v1",
+            "N3.evidence@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N5",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the proposed root cause hypothesis against the retrieved source code and failure reproduction evidence to determine if it sufficiently explains the deviation in disk movement sequence.",
+          "output_artifact_ids": [
+            "N5.review@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:40:43.386695+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_hanoi/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "ca957b97daef622d1a161e1b24d3da1e3563de29bb1b9b938fd0a1388f6eb309",
+        "before_sha256": "ca957b97daef622d1a161e1b24d3da1e3563de29bb1b9b938fd0a1388f6eb309",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_hanoi",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_hanoi/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 19,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 47827,
+            "output_tokens": 2882
+          },
+          "qwen3.7-flash": {
+            "calls": 7,
+            "estimated_cost_cny": 0.025317,
+            "input_tokens": 36183,
+            "output_tokens": 22600
+          }
+        },
+        "duration_ms": 291179,
+        "estimated_api_cost_cny": 0.025317,
+        "input_tokens": 84010,
+        "model_calls": 26,
+        "output_tokens": 25482,
+        "supervisor_api_calls": 7,
+        "supervisor_policy_calls": 7,
+        "tool_calls": 14,
+        "total_tokens": 109492,
+        "worker_model_calls": 19
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "knapsack 函数中，只有当物品重量小于当前容量时，才会考虑将其加入背包。",
+            "confidence": 1,
+            "content": "            if weight < j:\n                memo[i, j] = max(memo[i, j], value + memo[i - 1, j - weight])",
+            "missing_evidence": [],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 13,
+              "line_start": 12,
+              "path": "knapsack.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "fb144d5a578945bb99f35e80b1493335"
+            ]
+          },
+          "created_at": "2026-08-03T03:42:33.018408+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "8d782a07f3bd49a3a84d048727de5573",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "knapsack"
+            ],
+            "confidence": 1,
+            "counter_evidence": [],
+            "direct_cause": "knapsack 函数中，只有当物品重量小于当前容量时，才会考虑将其加入背包。",
+            "missing_evidence": [],
+            "perspective": "control_flow",
+            "root_cause": "控制流中使用严格小于操作符（<）导致重量恰好等于当前容量的物品被错误排除。",
+            "supporting_evidence": [
+              "N1.evidence@v1"
+            ],
+            "verification_plan": [
+              "检查 knapsack 函数中与容量比较的条件是否使用严格小于操作符（<）。",
+              "验证当物品重量等于当前容量时，是否被正确考虑加入背包。",
+              "运行测试用例以确认修改后的条件是否解决了问题。"
+            ]
+          },
+          "created_at": "2026-08-03T03:43:02.118566+00:00",
+          "created_by": "N2",
+          "input_refs": [
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "93e56d2a6cdd49558cabe6e95d4cdba2",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.review",
+          "artifact_type": "review",
+          "content": {
+            "evidence_refs": [
+              "N1.evidence@v1"
+            ],
+            "findings": [
+              "knapsack 函数中使用严格小于操作符（<）导致重量恰好等于当前容量的物品被错误排除。",
+              "测试用例表明当物品重量等于当前容量时，该物品未被正确考虑加入背包。"
+            ],
+            "mode": "root_cause_recommendation",
+            "recommendation": "建议将条件从严格小于操作符（<）更改为小于等于操作符（<=），以确保重量恰好等于当前容量的物品被正确考虑。",
+            "risk_notes": [
+              "修改条件可能导致其他边界情况的错误处理。",
+              "需要确保修改后的条件不会影响其他功能的正确性。"
+            ],
+            "target_artifact_ref": "N2.hypothesis@v1",
+            "verdict": "supported"
+          },
+          "created_at": "2026-08-03T03:43:34.512215+00:00",
+          "created_by": "N3",
+          "input_refs": [
+            "N2.hypothesis@v1",
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "d31de69539ce49c598751acfa0a11128",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.patch",
+          "artifact_type": "patch_candidate",
+          "content": {
+            "based_on_hypothesis_refs": [
+              "N2.hypothesis@v1"
+            ],
+            "changed_files": [
+              "knapsack.py"
+            ],
+            "covered_root_causes": {
+              "N2.hypothesis@v1": "控制流中使用严格小于操作符（<）导致重量恰好等于当前容量的物品被错误排除。"
+            },
+            "diff": "--- a/knapsack.py\n+++ b/knapsack.py\n@@ -9,7 +9,7 @@\n         for j in range(1, capacity + 1):\n             memo[i, j] = memo[i - 1, j]\n \n-            if weight < j:\n+            if weight <= j:\n                 memo[i, j] = max(memo[i, j], value + memo[i - 1, j - weight])\n \n     return memo[len(items), capacity]\n",
+            "diff_sha256": "04565d00b81c816bc3bfbf05800deadab6e68adae8efb0ccf298fcfb57364520",
+            "primary_hypothesis_ref": "N2.hypothesis@v1",
+            "protected_path_check": true,
+            "rationale": "将条件从严格小于操作符（<）更改为小于等于操作符（<=），以确保重量恰好等于当前容量的物品被正确考虑。",
+            "risk_notes": [
+              "修改条件可能导致其他边界情况的错误处理。",
+              "需要确保修改后的条件不会影响其他功能的正确性。"
+            ],
+            "strategy": "minimal",
+            "workspace_id": "N4-189e7c22ad"
+          },
+          "created_at": "2026-08-03T03:44:29.140029+00:00",
+          "created_by": "N4",
+          "input_refs": [
+            "N2.hypothesis@v1",
+            "N3.review@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "119daa6e10fc48768b778d768aa960a8",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_knapsack/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 1,
+        "accepted_review_count": 1,
+        "artifact_rejection_count": 0,
+        "hypothesis_accepted": true,
+        "isolated_worker_failure_count": 0,
+        "patch_bound_to_accepted_set": true,
+        "patch_validation_passed": false,
+        "recovery_attempted": false,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 0,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 0,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": 29,
+        "accepted_by_decision_id": "accept_hypothesis_001",
+        "accepted_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "candidate_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {
+          "latest_root_cause_review_mode": "root_cause_recommendation"
+        },
+        "primary_ref": "N2.hypothesis@v1",
+        "review_refs": [
+          "N3.review@v1"
+        ],
+        "status": "accepted"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 0,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:42:17.366025+00:00",
+          "created_by_decision_id": "init_inv_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:42:33.038053+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Retrieve the knapsack implementation source code and reproduce the reported bug where items with weight exactly equal to the current capacity are incorrectly excluded.",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:42:17.386281+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:42:56.667639+00:00",
+          "created_by_decision_id": "diag_knapsack_001",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:43:02.145812+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "control_flow",
+          "node_id": "N2",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Analyze the control flow around the knapsack capacity check to confirm that the strict less-than operator (`<`) incorrectly excludes items where weight equals capacity, and specify the exact line and condition change needed.",
+          "output_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:42:56.688155+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:43:28.766217+00:00",
+          "created_by_decision_id": "review_hypothesis_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:43:34.533779+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1",
+            "N1.evidence@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N3",
+          "node_type": "REVIEW_TASK",
+          "objective": "Review the root cause hypothesis that the strict less-than operator (<) in knapsack incorrectly excludes items where weight equals capacity. Validate supporting evidence from N1 and recommend acceptance for patching.",
+          "output_artifact_ids": [
+            "N3.review@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:43:28.784544+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        },
+        {
+          "agent_type": "PatchAgent",
+          "created_at": "2026-08-03T03:44:11.228160+00:00",
+          "created_by_decision_id": "create_patch_001",
+          "critical": true,
+          "dependencies": [
+            "N3"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:44:29.157108+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1",
+            "N3.review@v1"
+          ],
+          "mode": "minimal",
+          "node_id": "N4",
+          "node_type": "PATCH_TASK",
+          "objective": "Generate a minimal patch for knapsack.py to change the capacity comparison condition from strict less-than (<) to less-than-or-equal-to (<=) to correctly include items where weight equals capacity.",
+          "output_artifact_ids": [
+            "N4.patch@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:44:11.249818+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_knapsack/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": "N2.hypothesis@v1",
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "64275730b0014837fe9f8fd66d14e85025b4b6cdb132c7d5b3e58c4d5067c13b",
+        "before_sha256": "64275730b0014837fe9f8fd66d14e85025b4b6cdb132c7d5b3e58c4d5067c13b",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_knapsack",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_knapsack/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 8,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 12049,
+            "output_tokens": 1326
+          },
+          "qwen3.7-flash": {
+            "calls": 7,
+            "estimated_cost_cny": 0.025091,
+            "input_tokens": 34313,
+            "output_tokens": 22786
+          }
+        },
+        "duration_ms": 214533,
+        "estimated_api_cost_cny": 0.025091,
+        "input_tokens": 46362,
+        "model_calls": 15,
+        "output_tokens": 24112,
+        "supervisor_api_calls": 7,
+        "supervisor_policy_calls": 6,
+        "tool_calls": 4,
+        "total_tokens": 70474,
+        "worker_model_calls": 8
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "lcs_length.py 中的实现使用动态规划来计算最长公共子序列的长度，但当前逻辑可能无法正确处理公共连续片段长度大于一的情况。",
+            "confidence": 0.9,
+            "content": "def lcs_length(s, t):\n    from collections import Counter\n\n    dp = Counter()\n\n    for i in range(len(s)):\n        for j in range(len(t)):\n            if s[i] == t[j]:\n                dp[i, j] = dp[i - 1, j] + 1\n\n    return max(dp.values()) if dp else 0",
+            "missing_evidence": [
+              "需要进一步验证代码逻辑是否正确处理公共连续片段长度大于一的情况。"
+            ],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 11,
+              "line_start": 1,
+              "path": "lcs_length.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "712414b92ea24be7a4a206f28c12e56d",
+              "12563503dd054ef39a2f14a3cd98ecac",
+              "69e816aa7caf47319732113611bab23b",
+              "ad9419f8b5924d8d86b73a9764193a01"
+            ]
+          },
+          "created_at": "2026-08-03T03:45:35.539439+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "c6689067bc754b78bdc2fce292dd9cdd",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "lcs_length 函数在公共连续片段长度大于一时低估结果。",
+            "confidence": 0.95,
+            "content": "                dp[i, j] = dp[i - 1, j] + 1\n    \n    return max(dp.values()) if dp else 0",
+            "missing_evidence": [],
+            "mode": "failure_reproduction",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 11,
+              "line_start": 9,
+              "path": "lcs_length.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "3b5b4b1fb30442079347c8499fd9257d"
+            ]
+          },
+          "created_at": "2026-08-03T03:46:56.750039+00:00",
+          "created_by": "N2",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "1392de4c7c6941ac9722008f4d02add9",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "dp",
+              "lcs_length"
+            ],
+            "confidence": 0.95,
+            "counter_evidence": [],
+            "direct_cause": "在计算dp[i, j]时，仅使用了dp[i - 1, j]的值，而未考虑当前字符匹配时的正确递推关系。",
+            "missing_evidence": [],
+            "perspective": "data_flow",
+            "root_cause": "DP表未正确更新以处理公共连续片段长度大于一的情况。",
+            "supporting_evidence": [
+              "N2.evidence@v1"
+            ],
+            "verification_plan": [
+              "检查dp[i, j]的更新逻辑是否正确处理了公共连续片段的情况。",
+              "在测试用例中添加公共连续片段长度大于一的测试数据，验证结果是否正确。",
+              "验证dp表的更新是否覆盖了所有可能的公共子序列情况。"
+            ]
+          },
+          "created_at": "2026-08-03T03:47:22.116934+00:00",
+          "created_by": "N3",
+          "input_refs": [
+            "N2.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "6d298f59263b4050b76e34f1621d4e3f",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N4",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:47:54.783448+00:00",
+          "created_by": "N4",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "e5473978c3e1435db38aad70ae35173d",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N4",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:48:45.447745+00:00",
+          "created_by": "N4",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "696f7a70169b44dbabd2d3dae8c1ce80",
+          "version": 1
+        },
+        {
+          "artifact_id": "N5.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "lcs_length.py 中的 DP 表更新逻辑未正确处理连续公共子序列长度大于一的情况。",
+            "confidence": 0.95,
+            "content": "dp[i, j] = dp[i - 1, j] + 1",
+            "missing_evidence": [
+              "实际测试结果"
+            ],
+            "mode": "evidence_completion",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 9,
+              "line_start": 9,
+              "path": "lcs_length.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "04b634ff7a0b4f1da1f9881ead440d15"
+            ]
+          },
+          "created_at": "2026-08-03T03:48:45.437625+00:00",
+          "created_by": "N5",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "75e5a355cd904840a817df872d1b279b",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_lcs_length/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 0,
+        "artifact_rejection_count": 2,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 1,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 1,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 1,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N3.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {},
+        "primary_ref": null,
+        "review_refs": [],
+        "status": "unresolved"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "消耗1个节点配额，仍在预算范围内",
+            "gate_name": "investigation_continuation",
+            "reason": "初始证据表明存在逻辑缺口，需通过失败复现补充实质性证据以支撑后续诊断决策。",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Within limits (+1 node).",
+            "gate_name": "diagnosis_to_review",
+            "reason": "Single hypothesis generated with verified evidence; requires formal reviewer assessment before patching.",
+            "trigger_artifact_refs": [
+              "N3.hypothesis@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "+1 node, within max_nodes limit.",
+            "gate_name": "review_rejection_evidence_gap",
+            "reason": "Reviewer rejected hypothesis due to insufficient direct evidence for the claimed DP state update flaw. New investigation task added to collect targeted evidence.",
+            "trigger_artifact_refs": [
+              "N4.rejection.a1@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 1,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 7
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:45:04.927679+00:00",
+          "created_by_decision_id": "init_invest_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:45:35.563209+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Retrieve and analyze the lcs_length implementation to understand its logic for computing lengths when common contiguous subsequences exceed one character.",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:45:04.944742+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:45:57.456710+00:00",
+          "created_by_decision_id": "inv_fail_rep_001",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:46:56.768052+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "failure_reproduction",
+          "node_id": "N2",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "构造包含长度大于1的公共连续片段的测试用例，复现lcs_length低估结果的问题，并收集确凿的失败证据以供后续诊断。",
+          "output_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:45:57.475463+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:47:16.274893+00:00",
+          "created_by_decision_id": "diag_root_cause_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:47:22.137484+00:00",
+          "input_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "mode": "data_flow",
+          "node_id": "N3",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Trace the data flow and state updates in the DP table construction to identify why contiguous common subsequences longer than one character lead to underestimated LCS lengths.",
+          "output_artifact_ids": [
+            "N3.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:47:16.284765+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:47:54.736262+00:00",
+          "created_by_decision_id": "rev_root_cause_001",
+          "critical": true,
+          "dependencies": [
+            "N3"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+          "finished_at": "2026-08-03T03:48:45.448373+00:00",
+          "input_artifact_ids": [
+            "N3.hypothesis@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N4",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the proposed root cause (incorrect DP state update logic) against verified failure reproduction evidence and recommend whether to proceed to patch generation.",
+          "output_artifact_ids": [
+            "N4.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:48:16.196619+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:48:16.177485+00:00",
+          "created_by_decision_id": "inv_evidence_comp_002",
+          "critical": true,
+          "dependencies": [
+            "N3"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:48:45.450154+00:00",
+          "input_artifact_ids": [
+            "N3.hypothesis@v1"
+          ],
+          "mode": "evidence_completion",
+          "node_id": "N5",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Gather direct evidence verifying that the DP table state update logic correctly handles contiguous common subsequences longer than one character, addressing the reviewer's requirement for direct proof of the root cause.",
+          "output_artifact_ids": [
+            "N5.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:48:16.197047+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 600.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_lcs_length/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "365dd1a5299b1435185d5bf95372cac47458892094ede2f95ff9d9421c9e4ea0",
+        "before_sha256": "365dd1a5299b1435185d5bf95372cac47458892094ede2f95ff9d9421c9e4ea0",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_lcs_length",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_lcs_length/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 20,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 47068,
+            "output_tokens": 2909
+          },
+          "qwen3.7-flash": {
+            "calls": 7,
+            "estimated_cost_cny": 0.027536,
+            "input_tokens": 37956,
+            "output_tokens": 24931
+          }
+        },
+        "duration_ms": 312967,
+        "estimated_api_cost_cny": 0.027536,
+        "input_tokens": 85024,
+        "model_calls": 27,
+        "output_tokens": 27840,
+        "supervisor_api_calls": 7,
+        "supervisor_policy_calls": 6,
+        "tool_calls": 16,
+        "total_tokens": 112864,
+        "worker_model_calls": 20
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "evidence",
+            "max_attempts": 2,
+            "node_id": "N1",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:50:55.330552+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "ec6433c577b549fe82a44ba9cbe670b8",
+          "version": 1
+        },
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "lis 函数在处理从较短候选序列延伸时未能正确更新最长递增子序列的长度。",
+            "confidence": 0.9,
+            "content": "def lis(arr):\n    ends = {}\n    longest = 0\n\n    for i, val in enumerate(arr):\n        prefix_lengths = [j for j in range(1, longest + 1) if arr[ends[j]] < val]\n        length = max(prefix_lengths) if prefix_lengths else 0\n\n        if length == longest or val < arr[ends[length + 1]]:\n            ends[length + 1] = i\n            longest = length + 1\n\n    return longest",
+            "missing_evidence": [
+              "具体失败测试用例的输入和预期输出"
+            ],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 13,
+              "line_start": 5,
+              "path": "lis.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "5148383a675a451a84070e6cd746b908",
+              "a58290b74b1146e9b2788ec4bee9fd98",
+              "69a377a882b54a53b0202a882ff60bb4",
+              "1bb22390186e4faa888d7e34d29302a1",
+              "afb63cffdb604de4987e83cea5933505"
+            ]
+          },
+          "created_at": "2026-08-03T03:52:06.327933+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "f3853ac6eb524e48924d79c707a111ad",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "lis 函数未能正确处理较短候选序列的输入，导致返回的长度偏小。",
+            "confidence": 0.9,
+            "content": "prefix_lengths = [j for j in range(1, longest + 1) if arr[ends[j]] < val]\n        length = max(prefix_lengths) if prefix_lengths else 0\n        if length == longest or val < arr[ends[length + 1]]:\n            ends[length + 1] = i\n            longest = length + 1",
+            "missing_evidence": [
+              "具体输入数据",
+              "预期输出与实际输出的对比"
+            ],
+            "mode": "failure_reproduction",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 11,
+              "line_start": 6,
+              "path": "lis.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "b738af9ea1fe42f7aa879f1417dcacd4"
+            ]
+          },
+          "created_at": "2026-08-03T03:53:26.437325+00:00",
+          "created_by": "N2",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "3fb23496076d4a8797cd106fba4b2b3a",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "hypothesis",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:第一轮 Diagnostician 只能读取 Evidence Artifact",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:53:51.105090+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "860bb5abc6014384b42a9ddcae792ec4",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "hypothesis",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:第一轮 Diagnostician 只能读取 Evidence Artifact",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:54:28.504599+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "f0ab3980296b49f9bcac27eb11086376",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "longest",
+              "ends",
+              "prefix_lengths",
+              "length"
+            ],
+            "confidence": 0.8,
+            "counter_evidence": [],
+            "direct_cause": "在计算 prefix_lengths 时，未正确识别所有可能的前缀长度，导致 length 的计算不准确。",
+            "missing_evidence": [
+              "具体失败测试用例的输入和预期输出",
+              "预期输出与实际输出的对比"
+            ],
+            "perspective": "data_flow",
+            "root_cause": "在处理较短候选序列时，未能正确更新最长递增子序列的长度，导致返回的长度偏小。",
+            "supporting_evidence": [
+              "N1.evidence@v1",
+              "N2.evidence@v1"
+            ],
+            "verification_plan": [
+              "验证 prefix_lengths 的计算是否覆盖所有可能的前缀长度",
+              "检查 length 的计算是否正确",
+              "测试输入数据是否导致返回的长度偏小"
+            ]
+          },
+          "created_at": "2026-08-03T03:54:28.483150+00:00",
+          "created_by": "N4",
+          "input_refs": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "7a84a54c6b3b4103abf062d2580f8819",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_lis/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 0,
+        "artifact_rejection_count": 3,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 1,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 2,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 1,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N4.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {},
+        "primary_ref": null,
+        "review_refs": [],
+        "status": "unresolved"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "Consumes 1 node slot, within max_nodes limit.",
+            "gate_name": "investigation_continuation",
+            "reason": "Previous investigator exhausted steps; need focused reproduction to proceed to diagnosis.",
+            "trigger_artifact_refs": [
+              "N1.rejection.a1@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "Within budget, prepares for root cause analysis.",
+            "gate_name": "investigation_to_diagnosis_transition",
+            "reason": "Proactive planning for the next phase based on initial evidence indicating a clear code flaw.",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "consumes 1 node slot, within budget.",
+            "gate_name": "diagnosis_retry",
+            "reason": "N3 failed due to missing input artifacts; scheduling replacement diagnosis task with correct evidence inputs.",
+            "trigger_artifact_refs": [
+              "N3.rejection.a1@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 1,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:50:20.547568+00:00",
+          "created_by_decision_id": "init_inv_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:52:06.346144+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Locate the implementation of the 'lis' function, identify how it handles sequence extension from shorter candidates, and reproduce the specific failure case where the returned length is incorrectly small.",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:51:24.126182+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:51:24.095789+00:00",
+          "created_by_decision_id": "inv_retry_002",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:53:26.449375+00:00",
+          "input_artifact_ids": [
+            "N1.rejection.a1@v1"
+          ],
+          "mode": "failure_reproduction",
+          "node_id": "N2",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "Reproduce the specific 'lis' failure case with short candidate sequences, capture the exact input/output mismatch, and gather evidence for root cause analysis.",
+          "output_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:52:46.680924+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:52:46.661667+00:00",
+          "created_by_decision_id": "diag_schedule_003",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:第一轮 Diagnostician 只能读取 Evidence Artifact",
+          "finished_at": "2026-08-03T03:54:28.504927+00:00",
+          "input_artifact_ids": [],
+          "mode": "data_flow",
+          "node_id": "N3",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Analyze the reproduced failure case and the identified code flaw in lis() to pinpoint the exact root cause of the incorrect LIS length update and propose a targeted fix strategy.",
+          "output_artifact_ids": [
+            "N3.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:54:23.194969+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:54:23.175947+00:00",
+          "created_by_decision_id": "diag_retry_with_inputs_005",
+          "critical": true,
+          "dependencies": [
+            "N1",
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:54:28.505881+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1",
+            "N2.evidence@v1"
+          ],
+          "mode": "data_flow",
+          "node_id": "N4",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Analyze the reproduced failure case and the identified code flaw in lis() to pinpoint the exact root cause of the incorrect LIS length update and propose a targeted fix strategy.",
+          "output_artifact_ids": [
+            "N4.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:54:23.195412+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_lis/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "5218dbcd845a8fbb046352a450d34d646305ed9166daa6e36d180b8117131771",
+        "before_sha256": "5218dbcd845a8fbb046352a450d34d646305ed9166daa6e36d180b8117131771",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_lis",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_lis/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 22,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 52693,
+            "output_tokens": 3062
+          },
+          "qwen3.7-flash": {
+            "calls": 6,
+            "estimated_cost_cny": 0.024976,
+            "input_tokens": 30960,
+            "output_tokens": 23480
+          }
+        },
+        "duration_ms": 307538,
+        "estimated_api_cost_cny": 0.024976,
+        "input_tokens": 83653,
+        "model_calls": 28,
+        "output_tokens": 26542,
+        "supervisor_api_calls": 6,
+        "supervisor_policy_calls": 6,
+        "tool_calls": 19,
+        "total_tokens": 110195,
+        "worker_model_calls": 22
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "next_permutation 没有返回输入序列按字典序排列的直接后继。",
+            "confidence": 0.95,
+            "content": "assert next_permutation(values) == expected",
+            "missing_evidence": [
+              "next_permutation.py 实现细节"
+            ],
+            "mode": "failure_reproduction",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 15,
+              "line_start": 15,
+              "path": "tests/test_next_permutation.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "31603a44622f4d7aaa795de38069b429"
+            ]
+          },
+          "created_at": "2026-08-03T03:55:40.538661+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "997f40df4eb14f7b80aed5f43f5a1907",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "next_permutation 函数未能正确返回字典序的直接后继。",
+            "confidence": 0.95,
+            "content": "def next_permutation(perm):\n    for i in range(len(perm) - 2, -1, -1):\n        if perm[i] < perm[i + 1]:\n            for j in range(len(perm) - 1, i, -1):\n                if perm[j] < perm[i]:\n                    next_perm = list(perm)\n                    next_perm[i], next_perm[j] = perm[j], perm[i]\n                    next_perm[i + 1 :] = reversed(next_perm[i + 1 :])\n                    return next_perm",
+            "missing_evidence": [
+              "测试用例验证"
+            ],
+            "mode": "evidence_completion",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 9,
+              "line_start": 1,
+              "path": "next_permutation.py"
+            },
+            "status": "unverified",
+            "tool_trace_ids": [
+              "5c59e8426f7340be8931279c71640cf8",
+              "5d632c5523314b80811e0eba891e9109"
+            ]
+          },
+          "created_at": "2026-08-03T03:56:36.829155+00:00",
+          "created_by": "N2",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "5bb86c533c4e4ffa9ae01035ef681275",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "next_permutation"
+            ],
+            "confidence": 0.9,
+            "counter_evidence": [],
+            "direct_cause": "在找到第一个可以交换的元素后，未正确反转后续元素，导致生成的排列不是字典序的直接后继。",
+            "missing_evidence": [
+              "测试用例验证"
+            ],
+            "perspective": "data_flow",
+            "root_cause": "未正确处理字典序后继的生成逻辑，导致无法找到正确的下一个排列。",
+            "supporting_evidence": [
+              "N2.evidence@v1"
+            ],
+            "verification_plan": [
+              "验证函数在找到第一个可以交换的元素后，是否正确地反转了后续元素。",
+              "测试函数在输入序列是字典序最后一个排列时是否返回 None 或空列表。",
+              "测试函数在输入序列是字典序中间排列时是否返回正确的下一个排列。"
+            ]
+          },
+          "created_at": "2026-08-03T03:57:09.138586+00:00",
+          "created_by": "N3",
+          "input_refs": [
+            "N2.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "6e7b2fbf4a6f4c61aa34240be74f7431",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N4",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:57:48.349332+00:00",
+          "created_by": "N4",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "a07b35c3d08f4b0eb2b6d7a080876d9c",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.rejection.a2",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 2,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N4",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": false,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T03:58:26.215634+00:00",
+          "created_by": "N4",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "cf75972a1df440e3b9930fcf871af69c",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_next_permutation/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 0,
+        "artifact_rejection_count": 2,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 1,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 1,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 1,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N3.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {},
+        "primary_ref": null,
+        "review_refs": [],
+        "status": "unresolved"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [
+          {
+            "added_node_count": 1,
+            "budget_effect": "Consumes 1 node slot and ~5% of investigation budget for targeted code analysis.",
+            "gate_name": "evidence_sufficiency_gate",
+            "reason": "Evidence incomplete and unverified; requires source code retrieval to establish concrete root cause before diagnosis.",
+            "trigger_artifact_refs": [
+              "N1.evidence@v1"
+            ]
+          },
+          {
+            "added_node_count": 1,
+            "budget_effect": "+1 node",
+            "gate_name": "hypothesis_validation_gate",
+            "reason": "Hypothesis contains missing evidence for test case verification; review required to validate root cause confidence before patching.",
+            "trigger_artifact_refs": [
+              "N3.hypothesis@v1"
+            ]
+          }
+        ],
+        "invalid_decisions": 2,
+        "parallel_overlap_pairs": 0,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 6
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:55:24.671957+00:00",
+          "created_by_decision_id": "init_inv_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:55:40.559724+00:00",
+          "input_artifact_ids": [],
+          "mode": "failure_reproduction",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "复现 next_permutation 未按字典序返回直接后继的失败案例，收集触发条件、预期与实际输出差异及相关测试上下文。",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:55:24.681091+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:56:15.458485+00:00",
+          "created_by_decision_id": "inv_evidence_comp_002",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:56:36.837615+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "evidence_completion",
+          "node_id": "N2",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "检索 next_permutation.py 源码，逐行分析字典序后继生成逻辑，识别导致返回非直接后继的具体条件分支与边界处理缺陷，并输出完整实现上下文。",
+          "output_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:56:15.476303+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 600.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T03:57:03.240710+00:00",
+          "created_by_decision_id": "diag_start_003",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T03:57:09.163687+00:00",
+          "input_artifact_ids": [
+            "N2.evidence@v1"
+          ],
+          "mode": "data_flow",
+          "node_id": "N3",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Trace the data flow and evaluate boundary conditions in the provided next_permutation implementation to identify the specific comparison or swap logic that fails to produce the lexicographically immediate successor, and formulate a testable root cause hypothesis.",
+          "output_artifact_ids": [
+            "N3.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:57:03.258658+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T03:57:48.313388+00:00",
+          "created_by_decision_id": "rev_hyp_004",
+          "critical": true,
+          "dependencies": [
+            "N3"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+          "finished_at": "2026-08-03T03:58:26.216243+00:00",
+          "input_artifact_ids": [
+            "N3.hypothesis@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N4",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the root cause hypothesis N3.hypothesis@v1, specifically assessing the validity of the data flow analysis and addressing the missing evidence regarding test case verification, to determine if the hypothesis is sufficient for patch generation.",
+          "output_artifact_ids": [
+            "N4.rejection.a2@v1"
+          ],
+          "retry_count": 1,
+          "started_at": "2026-08-03T03:58:26.196308+00:00",
+          "status": "FAILED",
+          "timeout_seconds": 120.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_next_permutation/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "238f106db19a8cd8110007c778244afde6b3c6bda0b5a39ccf6ed74431062f22",
+        "before_sha256": "238f106db19a8cd8110007c778244afde6b3c6bda0b5a39ccf6ed74431062f22",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_next_permutation",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_next_permutation/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 7,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 13102,
+            "output_tokens": 1179
+          },
+          "qwen3.7-flash": {
+            "calls": 6,
+            "estimated_cost_cny": 0.024325,
+            "input_tokens": 30604,
+            "output_tokens": 22755
+          }
+        },
+        "duration_ms": 240545,
+        "estimated_api_cost_cny": 0.024325,
+        "input_tokens": 43706,
+        "model_calls": 13,
+        "output_tokens": 23934,
+        "supervisor_api_calls": 6,
+        "supervisor_policy_calls": 6,
+        "tool_calls": 4,
+        "total_tokens": 67640,
+        "worker_model_calls": 7
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "quicksort 函数在处理包含重复元素的输入时丢失元素。",
+            "confidence": 1,
+            "content": "    lesser = quicksort([x for x in arr[1:] if x < pivot])\n    greater = quicksort([x for x in arr[1:] if x > pivot])\n    return lesser + [pivot] + greater",
+            "missing_evidence": [],
+            "mode": "failure_reproduction",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 8,
+              "line_start": 6,
+              "path": "quicksort.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "d06493c4f4d346e5971e4e2946f4e071",
+              "c44e820d5aa84b37b7e43b9bb7af1438",
+              "f4b08174c96f4e8cb0ffa82f2e12fd81"
+            ]
+          },
+          "created_at": "2026-08-03T04:00:01.957784+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "0fa4df388ebc4b23aaef9e78b41000db",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "quicksort",
+              "pivot",
+              "arr"
+            ],
+            "confidence": 1,
+            "counter_evidence": [],
+            "direct_cause": "在 quicksort 函数中，过滤逻辑仅保留小于 pivot 的元素和大于 pivot 的元素，而等于 pivot 的元素被遗漏。",
+            "missing_evidence": [],
+            "perspective": "data_flow",
+            "root_cause": "quicksort 函数未正确处理等于 pivot 的元素，导致重复元素丢失。",
+            "supporting_evidence": [
+              "N1.evidence@v1"
+            ],
+            "verification_plan": [
+              "在 quicksort 函数中添加对等于 pivot 的元素的处理逻辑。",
+              "运行 failing_tests 来验证修复后的 quicksort 是否能正确保留重复元素。",
+              "检查 tests 目录是否被修改以确保测试用例未被意外更改。"
+            ]
+          },
+          "created_at": "2026-08-03T04:00:29.260663+00:00",
+          "created_by": "N2",
+          "input_refs": [
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "3241e5f9a367480ea503728d8a6f8cd8",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.review",
+          "artifact_type": "review",
+          "content": {
+            "evidence_refs": [
+              "N1.evidence@v1"
+            ],
+            "findings": [
+              "quicksort 函数在处理包含重复元素的输入时丢失元素。",
+              "过滤逻辑仅保留小于 pivot 的元素和大于 pivot 的元素，而等于 pivot 的元素被遗漏。",
+              "该问题导致测试用例失败，因为输入中的重复元素未被正确保留。"
+            ],
+            "mode": "root_cause_recommendation",
+            "recommendation": "接受该假设，建议在 quicksort 函数中添加对等于 pivot 的元素的处理逻辑，并验证修复是否通过所有测试用例。",
+            "risk_notes": [
+              "未处理等于 pivot 的元素可能导致数据丢失，影响程序的正确性。",
+              "修改 quicksort 函数可能引入其他潜在问题，需确保回归测试通过。",
+              "测试目录未被修改，需确保修复不会影响现有测试用例。"
+            ],
+            "target_artifact_ref": "N2.hypothesis@v1",
+            "verdict": "supported"
+          },
+          "created_at": "2026-08-03T04:01:12.548694+00:00",
+          "created_by": "N3",
+          "input_refs": [
+            "N2.hypothesis@v1",
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "460421ad5fb047d293e7f4e86fa02e88",
+          "version": 1
+        },
+        {
+          "artifact_id": "N4.patch",
+          "artifact_type": "patch_candidate",
+          "content": {
+            "based_on_hypothesis_refs": [
+              "N2.hypothesis@v1"
+            ],
+            "changed_files": [
+              "quicksort.py"
+            ],
+            "covered_root_causes": {
+              "N2.hypothesis@v1": "quicksort 函数未正确处理等于 pivot 的元素，导致重复元素丢失。"
+            },
+            "diff": "--- a/quicksort.py\n+++ b/quicksort.py\n@@ -4,5 +4,6 @@\n \n     pivot = arr[0]\n     lesser = quicksort([x for x in arr[1:] if x < pivot])\n+    equal = quicksort([x for x in arr[1:] if x == pivot])\n     greater = quicksort([x for x in arr[1:] if x > pivot])\n     return lesser + [pivot] + greater\n",
+            "diff_sha256": "ce2b55e6556395c746dda65dd42bb1fb32a9093dd4e04fb044a0003ca3044a4b",
+            "primary_hypothesis_ref": "N2.hypothesis@v1",
+            "protected_path_check": true,
+            "rationale": "添加了对等于 pivot 的元素的处理逻辑，确保重复元素被保留。",
+            "risk_notes": [
+              "修改 quicksort 函数可能引入其他潜在问题，需确保回归测试通过。",
+              "测试目录未被修改，确保修复不会影响现有测试用例。"
+            ],
+            "strategy": "minimal",
+            "workspace_id": "N4-6d36248cea"
+          },
+          "created_at": "2026-08-03T04:02:34.432405+00:00",
+          "created_by": "N4",
+          "input_refs": [
+            "N2.hypothesis@v1",
+            "N3.review@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "b7b36bb10b714b03b94153b181414eee",
+          "version": 1
+        },
+        {
+          "artifact_id": "N5.validation",
+          "artifact_type": "validation_result",
+          "content": {
+            "applied": true,
+            "changed_files": [
+              "quicksort.py"
+            ],
+            "changed_lines": 1,
+            "failure_class": "target_test_failure",
+            "passed": false,
+            "patch_ref": "N4.patch@v1",
+            "patch_sha256": "ce2b55e6556395c746dda65dd42bb1fb32a9093dd4e04fb044a0003ca3044a4b",
+            "protected_path_check": true,
+            "regression_test": {
+              "command": [
+                "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+                "-m",
+                "pytest",
+                "-q"
+              ],
+              "duration_ms": 616,
+              "exit_code": 1,
+              "output_tail": "..F.                                                                     [100%]\n=================================== FAILURES ===================================\n______________________ test_quicksort[values2-expected2] _______________________\n\nvalues = [3, 1, 4, 1, 5, 9, ...], expected = [1, 1, 2, 3, 4, 5, ...]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([], []),\n            ([1, 2, 6, 72, 7, 33, 4], [1, 2, 4, 6, 7, 33, 72]),\n            ([3, 1, 4, 1, 5, 9, 2, 6, 5], [1, 1, 2, 3, 4, 5, 5, 6, 9]),\n            ([5, 4, 3, 2, 1], [1, 2, 3, 4, 5]),\n        ],\n    )\n    def test_quicksort(values: list[int], expected: list[int]) -> None:\n>       assert quicksort(values) == expected\nE       assert [1, 2, 3, 4, 5, 6, ...] == [1, 1, 2, 3, 4, 5, ...]\nE         \nE         At index 1 diff: 2 != 1\nE         Right contains 2 more items, first extra item: 6\nE         Use -v to get more diff\n\ntests/test_quicksort.py:15: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_quicksort.py::test_quicksort[values2-expected2] - assert [1...\n",
+              "trace_id": "d4ba5f89536b44a29850a2c01d30db87"
+            },
+            "static_check": {
+              "command": [
+                "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+                "-m",
+                "ruff",
+                "check",
+                "."
+              ],
+              "duration_ms": 64,
+              "exit_code": 1,
+              "output_tail": "F841 Local variable `equal` is assigned to but never used\n --> quicksort.py:7:5\n  |\n5 |     pivot = arr[0]\n6 |     lesser = quicksort([x for x in arr[1:] if x < pivot])\n7 |     equal = quicksort([x for x in arr[1:] if x == pivot])\n  |     ^^^^^\n8 |     greater = quicksort([x for x in arr[1:] if x > pivot])\n9 |     return lesser + [pivot] + greater\n  |\nhelp: Remove assignment to unused variable `equal`\n\nFound 1 error.\nNo fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).\n",
+              "trace_id": "a52493cb1cb345d888b9b1678e3ad04f"
+            },
+            "target_test": {
+              "command": [
+                "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+                "-m",
+                "pytest",
+                "-q",
+                "tests/test_quicksort.py"
+              ],
+              "duration_ms": 566,
+              "exit_code": 1,
+              "output_tail": "..F.                                                                     [100%]\n=================================== FAILURES ===================================\n______________________ test_quicksort[values2-expected2] _______________________\n\nvalues = [3, 1, 4, 1, 5, 9, ...], expected = [1, 1, 2, 3, 4, 5, ...]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([], []),\n            ([1, 2, 6, 72, 7, 33, 4], [1, 2, 4, 6, 7, 33, 72]),\n            ([3, 1, 4, 1, 5, 9, 2, 6, 5], [1, 1, 2, 3, 4, 5, 5, 6, 9]),\n            ([5, 4, 3, 2, 1], [1, 2, 3, 4, 5]),\n        ],\n    )\n    def test_quicksort(values: list[int], expected: list[int]) -> None:\n>       assert quicksort(values) == expected\nE       assert [1, 2, 3, 4, 5, 6, ...] == [1, 1, 2, 3, 4, 5, ...]\nE         \nE         At index 1 diff: 2 != 1\nE         Right contains 2 more items, first extra item: 6\nE         Use -v to get more diff\n\ntests/test_quicksort.py:15: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_quicksort.py::test_quicksort[values2-expected2] - assert [1...\n",
+              "trace_id": "bf68366253174ad0be4fc6cf7b1c8b2b"
+            },
+            "tool_trace_ids": [
+              "66adc1c14a1c434d955af47cd217c942",
+              "bf68366253174ad0be4fc6cf7b1c8b2b",
+              "d4ba5f89536b44a29850a2c01d30db87",
+              "a52493cb1cb345d888b9b1678e3ad04f"
+            ],
+            "workspace_id": "N4-6d36248cea"
+          },
+          "created_at": "2026-08-03T04:02:52.966078+00:00",
+          "created_by": "N5",
+          "input_refs": [
+            "N4.patch@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "b0ca6acc288b4d04861a9388d73746c1",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_quicksort/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 1,
+        "accepted_review_count": 1,
+        "artifact_rejection_count": 0,
+        "hypothesis_accepted": true,
+        "isolated_worker_failure_count": 0,
+        "patch_bound_to_accepted_set": true,
+        "patch_validation_passed": false,
+        "recovery_attempted": false,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 0,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 0,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": 29,
+        "accepted_by_decision_id": "accept_qs_hypothesis_001",
+        "accepted_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "candidate_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {
+          "latest_root_cause_review_mode": "root_cause_recommendation"
+        },
+        "primary_ref": "N2.hypothesis@v1",
+        "review_refs": [
+          "N3.review@v1"
+        ],
+        "status": "accepted"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [],
+        "invalid_decisions": 2,
+        "parallel_overlap_pairs": 0,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 8,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 8
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T03:59:31.733879+00:00",
+          "created_by_decision_id": "init_inv_qs_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:00:01.974817+00:00",
+          "input_artifact_ids": [],
+          "mode": "failure_reproduction",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "定位 quicksort 函数源码，构造包含重复元素的输入用例以稳定复现元素丢失的失败现象，并提取关键执行路径证据。",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T03:59:31.766297+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 300.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T04:00:23.529714+00:00",
+          "created_by_decision_id": "diag_qs_root_cause_001",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:00:29.277476+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "data_flow",
+          "node_id": "N2",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "分析 quicksort 中元素过滤逻辑，确认等于 pivot 的元素被遗漏的根因，并制定修复方案。",
+          "output_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T04:00:23.540361+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T04:01:05.725642+00:00",
+          "created_by_decision_id": "rev_qs_root_cause_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:01:12.564787+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1",
+            "N1.evidence@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N3",
+          "node_type": "REVIEW_TASK",
+          "objective": "Evaluate the root cause hypothesis from N2 regarding the omission of elements equal to the pivot in quicksort, assess supporting evidence from N1, and recommend whether to accept the hypothesis and advance to patching.",
+          "output_artifact_ids": [
+            "N3.review@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T04:01:05.753207+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "PatchAgent",
+          "created_at": "2026-08-03T04:02:22.571333+00:00",
+          "created_by_decision_id": "create_patch_qs_fixed_001",
+          "critical": true,
+          "dependencies": [
+            "N3"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:02:34.450013+00:00",
+          "input_artifact_ids": [
+            "N2.hypothesis@v1",
+            "N3.review@v1"
+          ],
+          "mode": "minimal",
+          "node_id": "N4",
+          "node_type": "PATCH_TASK",
+          "objective": "Implement a minimal fix for quicksort to correctly handle elements equal to the pivot, ensuring duplicate elements are preserved without altering unrelated logic.",
+          "output_artifact_ids": [
+            "N4.patch@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T04:02:22.603494+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ValidationExecutor",
+          "created_at": "2026-08-03T04:02:51.668302+00:00",
+          "created_by_decision_id": "val_patch_qs_001",
+          "critical": true,
+          "dependencies": [
+            "N4"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:02:52.999618+00:00",
+          "input_artifact_ids": [
+            "N4.patch@v1"
+          ],
+          "mode": "deterministic",
+          "node_id": "N5",
+          "node_type": "VALIDATION_TASK",
+          "objective": "Run target tests and full regression suite to validate that the minimal patch correctly preserves duplicate elements without introducing regressions.",
+          "output_artifact_ids": [
+            "N5.validation@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T04:02:51.692579+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_quicksort/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": "N2.hypothesis@v1",
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "f2e8c281346579de87cb9051f38216e8ddc09e97585fe99b5d28956406b683f4",
+        "before_sha256": "f2e8c281346579de87cb9051f38216e8ddc09e97585fe99b5d28956406b683f4",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_quicksort",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_quicksort/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 10,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 18382,
+            "output_tokens": 1577
+          },
+          "qwen3.7-flash": {
+            "calls": 8,
+            "estimated_cost_cny": 0.026337,
+            "input_tokens": 43891,
+            "output_tokens": 21948
+          }
+        },
+        "duration_ms": 244448,
+        "estimated_api_cost_cny": 0.026337,
+        "input_tokens": 62273,
+        "model_calls": 18,
+        "output_tokens": 23525,
+        "supervisor_api_calls": 8,
+        "supervisor_policy_calls": 8,
+        "tool_calls": 11,
+        "total_tokens": 85798,
+        "worker_model_calls": 10
+      },
+      "validation": {
+        "changed_files": [
+          "quicksort.py"
+        ],
+        "passed_validation_count": 0,
+        "patch_applied": true,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 1
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    },
+    {
+      "artifacts": [
+        {
+          "artifact_id": "N1.evidence",
+          "artifact_type": "evidence",
+          "content": {
+            "claim": "sieve.py 文件中包含 sieve 函数的实现逻辑。",
+            "confidence": 1,
+            "content": "def sieve(max):\n    primes = []\n    for n in range(2, max + 1):\n        if any(n % p > 0 for p in primes):\n            primes.append(n)\n    return primes",
+            "missing_evidence": [],
+            "mode": "code_retrieval",
+            "observation_type": "direct",
+            "source": {
+              "line_end": 6,
+              "line_start": 1,
+              "path": "sieve.py"
+            },
+            "status": "verified",
+            "tool_trace_ids": [
+              "597b5ef528b44117bc8dc4c7f9b828e7",
+              "6caec3056cd84042b8de30dcd2673c7d",
+              "a194c2c00ed64fe0926b1822c9f4b34d",
+              "c3c6107484c945e2831b257bce619e24"
+            ]
+          },
+          "created_at": "2026-08-03T04:03:57.217600+00:00",
+          "created_by": "N1",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "a9df3f4276bd4c12b68de89dbcdf34ea",
+          "version": 1
+        },
+        {
+          "artifact_id": "N2.hypothesis",
+          "artifact_type": "hypothesis",
+          "content": {
+            "affected_symbols": [
+              "primes",
+              "sieve"
+            ],
+            "confidence": 0.95,
+            "counter_evidence": [],
+            "direct_cause": "在判断一个数是否为质数时，条件逻辑错误地使用了 `any(n % p > 0 for p in primes)`，导致非质数被错误地加入质数列表",
+            "missing_evidence": [],
+            "perspective": "control_flow",
+            "root_cause": "逻辑错误导致质数筛选算法未能正确识别质数",
+            "supporting_evidence": [
+              "N1.evidence@v1"
+            ],
+            "verification_plan": [
+              "验证当 max=2 时，函数返回 [2]",
+              "验证当 max=3 时，函数返回 [2, 3]",
+              "验证当 max=5 时，函数返回 [2, 3, 5]",
+              "验证当 max=10 时，函数返回 [2, 3, 5, 7]"
+            ]
+          },
+          "created_at": "2026-08-03T04:04:24.611682+00:00",
+          "created_by": "N2",
+          "input_refs": [
+            "N1.evidence@v1"
+          ],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "2d9b837441fc4f05bbe630495228cb88",
+          "version": 1
+        },
+        {
+          "artifact_id": "N3.rejection.a1",
+          "artifact_type": "artifact_rejection",
+          "content": {
+            "actual_artifact_refs": [],
+            "allowed_next_actions": [
+              "RETRY_TASK",
+              "CREATE_TASK",
+              "REQUEST_REPLAN"
+            ],
+            "attempt": 1,
+            "code": "WORKER_DIED",
+            "details": {},
+            "expected_artifact_type": "review",
+            "max_attempts": 2,
+            "node_id": "N3",
+            "origin": "collector",
+            "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+            "recommended_stage": "review",
+            "recoverable": true,
+            "terminal_status": "FAILED",
+            "workspace_id": ""
+          },
+          "created_at": "2026-08-03T04:05:54.638248+00:00",
+          "created_by": "N3",
+          "input_refs": [],
+          "status": "created",
+          "supersedes": null,
+          "trace_id": "f728fa4af9b847fbbd77322e718aeb44",
+          "version": 1
+        }
+      ],
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": true
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_sieve/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 0,
+        "artifact_rejection_count": 1,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 0,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": true,
+        "recovery_succeeded": false,
+        "replan_record_count": 0,
+        "retry_node_count": 1,
+        "root_cause_review_passed": false,
+        "worker_failure_count": 0,
+        "workspace_clean": true
+      },
+      "engine_status": "failed",
+      "hypothesis_resolution": {
+        "accepted_at_state_version": null,
+        "accepted_by_decision_id": null,
+        "accepted_refs": [],
+        "candidate_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "invalidation_reason": null,
+        "metadata": {},
+        "primary_ref": null,
+        "review_refs": [],
+        "status": "unresolved"
+      },
+      "mechanism": {
+        "challenge_nodes": 0,
+        "critique_induced_corrections": 0,
+        "execution_path": "standard",
+        "gate_records": [],
+        "invalid_decisions": 1,
+        "parallel_overlap_pairs": 0,
+        "replan_attempted": false,
+        "replan_recovered": false,
+        "route_usage": {
+          "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 5,
+          "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 5
+        },
+        "unnecessary_expansion": true,
+        "valid_challenges": 0
+      },
+      "nodes": [
+        {
+          "agent_type": "InvestigatorAgent",
+          "created_at": "2026-08-03T04:03:32.296723+00:00",
+          "created_by_decision_id": "init_invest_001",
+          "critical": true,
+          "dependencies": [],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:03:57.240783+00:00",
+          "input_artifact_ids": [],
+          "mode": "code_retrieval",
+          "node_id": "N1",
+          "node_type": "INVESTIGATION_TASK",
+          "objective": "检索 sieve 实现代码并定位上界处理逻辑，为后续失败复现做准备。",
+          "output_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T04:03:32.305961+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 60.0
+        },
+        {
+          "agent_type": "DiagnosticianAgent",
+          "created_at": "2026-08-03T04:04:18.966072+00:00",
+          "created_by_decision_id": "diag_create_001",
+          "critical": true,
+          "dependencies": [
+            "N1"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": "2026-08-03T04:04:24.634578+00:00",
+          "input_artifact_ids": [
+            "N1.evidence@v1"
+          ],
+          "mode": "control_flow",
+          "node_id": "N2",
+          "node_type": "DIAGNOSIS_TASK",
+          "objective": "Analyze the control and data flow of the sieve function to identify the logical flaw causing incorrect prime sequence generation for upper bounds >= 2.",
+          "output_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "retry_count": 0,
+          "started_at": "2026-08-03T04:04:18.989881+00:00",
+          "status": "SUCCEEDED",
+          "timeout_seconds": 120.0
+        },
+        {
+          "agent_type": "ReviewerAgent",
+          "created_at": "2026-08-03T04:05:54.584985+00:00",
+          "created_by_decision_id": "create_review_001",
+          "critical": true,
+          "dependencies": [
+            "N2"
+          ],
+          "dependency_policy": "all_succeeded",
+          "failure_reason": null,
+          "finished_at": null,
+          "input_artifact_ids": [
+            "N2.hypothesis@v1"
+          ],
+          "mode": "root_cause_recommendation",
+          "node_id": "N3",
+          "node_type": "REVIEW_TASK",
+          "objective": "Review the root cause hypothesis regarding the logic error in sieve.py and provide a recommendation for patch generation.",
+          "output_artifact_ids": [
+            "N3.rejection.a1@v1"
+          ],
+          "retry_count": 1,
+          "started_at": null,
+          "status": "READY",
+          "timeout_seconds": 120.0
+        }
+      ],
+      "protocol_version": "closed_loop_v1",
+      "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_sieve/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "selected_hypothesis_ref": null,
+      "selected_patch_ref": null,
+      "source_integrity": {
+        "after_sha256": "03b3627934834dc4f9965a24094833268b54b2ae664f9b1ead40484f883ea2f2",
+        "before_sha256": "03b3627934834dc4f9965a24094833268b54b2ae664f9b1ead40484f883ea2f2",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_sieve",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_sieve/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 6,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 9502,
+            "output_tokens": 921
+          },
+          "qwen3.7-flash": {
+            "calls": 5,
+            "estimated_cost_cny": 0.021169,
+            "input_tokens": 24321,
+            "output_tokens": 20381
+          }
+        },
+        "duration_ms": 196073,
+        "estimated_api_cost_cny": 0.021169,
+        "input_tokens": 33823,
+        "model_calls": 11,
+        "output_tokens": 21302,
+        "supervisor_api_calls": 5,
+        "supervisor_policy_calls": 4,
+        "tool_calls": 4,
+        "total_tokens": 55125,
+        "worker_model_calls": 6
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      },
+      "validation_ref": null,
+      "workflow_stage": "terminated"
+    }
+  ]
+}

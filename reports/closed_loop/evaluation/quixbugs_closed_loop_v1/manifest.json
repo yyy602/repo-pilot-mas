@@ -1,0 +1,128 @@
+{
+  "baseline_protocol": "phase6_v1",
+  "command": [
+    "scripts/run_closed_loop_final_evaluation.py",
+    "--split",
+    "test",
+    "--run-id",
+    "quixbugs_closed_loop_v1"
+  ],
+  "config_sha256": {
+    "closed_loop": "18304d1bc468eb46c61ec708ad9ac036468063678a59583de2d6baabbe131e6f",
+    "model": "3db198581be02799c484466cf0b405b47ea67e69be1702aa57041d79cefb7d03",
+    "phase6": "e2d1cf21668f78d418276138c744b6b047a858ebfda3dfb67839c6c86416e66e",
+    "runtime": "1878eb9a17941af87491b43cee6531563042206f3361fadf7acbcb8d75659377",
+    "suite": "c6a8cb2d6e6c396029e49b614786564a25d38f8153dba5cb30b826a452ed02a1",
+    "supervisor": "92d7c212f37c1c14c9931692402f117686e31f47f75c1a024c74039ac5476214"
+  },
+  "dataset": "QuixBugs Python",
+  "development_task_ids": [
+    "quixbugs_find_first_in_sorted",
+    "quixbugs_gcd",
+    "quixbugs_is_valid_parenthesization",
+    "quixbugs_max_sublist_sum",
+    "quixbugs_powerset"
+  ],
+  "evaluation_split": "test",
+  "execution_mode": "runtime",
+  "fail_fast": false,
+  "final_evaluation_executed": true,
+  "finished_at": "2026-08-03T04:06:31.275163+00:00",
+  "frozen_test_task_ids": [
+    "quixbugs_bucketsort",
+    "quixbugs_flatten",
+    "quixbugs_get_factors",
+    "quixbugs_hanoi",
+    "quixbugs_knapsack",
+    "quixbugs_lcs_length",
+    "quixbugs_lis",
+    "quixbugs_next_permutation",
+    "quixbugs_quicksort",
+    "quixbugs_sieve"
+  ],
+  "generation_temperature": 0.0,
+  "hybrid_limits": {
+    "max_input_tokens": 600000,
+    "max_output_tokens": 100000,
+    "max_patch_candidates": 2,
+    "max_runtime_seconds": 1200,
+    "max_supervisor_api_calls": 18,
+    "max_tool_calls": 120,
+    "max_worker_model_calls": 120
+  },
+  "phase": 8,
+  "pricing": {
+    "currency": "CNY",
+    "models": {
+      "qwen3.7-flash": [
+        {
+          "input_cny_per_million": 0.2,
+          "max_input_tokens": 32000,
+          "output_cny_per_million": 0.8
+        },
+        {
+          "input_cny_per_million": 0.6,
+          "max_input_tokens": 256000,
+          "output_cny_per_million": 2.4
+        },
+        {
+          "input_cny_per_million": 1.2,
+          "max_input_tokens": 1000000,
+          "output_cny_per_million": 4.8
+        }
+      ],
+      "qwen3.7-flash-2026-07-15": [
+        {
+          "input_cny_per_million": 0.2,
+          "max_input_tokens": 32000,
+          "output_cny_per_million": 0.8
+        },
+        {
+          "input_cny_per_million": 0.6,
+          "max_input_tokens": 256000,
+          "output_cny_per_million": 2.4
+        },
+        {
+          "input_cny_per_million": 1.2,
+          "max_input_tokens": 1000000,
+          "output_cny_per_million": 4.8
+        }
+      ],
+      "qwen3.7-max-2026-06-08": [
+        {
+          "input_cny_per_million": 12,
+          "max_input_tokens": 1000000,
+          "output_cny_per_million": 36
+        }
+      ]
+    },
+    "snapshot_date": "2026-08-02",
+    "source": "https://help.aliyun.com/zh/model-studio/model-pricing"
+  },
+  "protocol_version": "closed_loop_v1",
+  "python": "/home/user50305/.conda/envs/multi_agent/bin/python",
+  "repository_commit": "c1599cd2f2dc1aebd3f0d535f518ff5928c8466e",
+  "repository_fingerprint": "2601866b02e8e17c8f26053005b0a1c8fd3997c36a95d54acc61ee195b7f176c",
+  "require_human_approval": false,
+  "run_id": "quixbugs_closed_loop_v1",
+  "runtime_class": "repo_pilot_mas.orchestration.final_runtime.AsyncLangGraphRuntime",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_task_ids": [
+    "quixbugs_bucketsort",
+    "quixbugs_flatten",
+    "quixbugs_get_factors",
+    "quixbugs_hanoi",
+    "quixbugs_knapsack",
+    "quixbugs_lcs_length",
+    "quixbugs_lis",
+    "quixbugs_next_permutation",
+    "quixbugs_quicksort",
+    "quixbugs_sieve"
+  ],
+  "started_at": "2026-08-03T03:22:50.069040+00:00",
+  "suite_id": "quixbugs_python_phase6_v1",
+  "system_id": "closed_loop_dynamic",
+  "task_count": 10,
+  "upstream_commit": "4257f44b0ff1181dedaedee6a447e133219fcebf"
+}

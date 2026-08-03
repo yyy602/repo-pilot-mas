@@ -1,0 +1,289 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "sieve.py 文件中包含 sieve 函数的实现逻辑。",
+        "confidence": 1,
+        "content": "def sieve(max):\n    primes = []\n    for n in range(2, max + 1):\n        if any(n % p > 0 for p in primes):\n            primes.append(n)\n    return primes",
+        "missing_evidence": [],
+        "mode": "code_retrieval",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 6,
+          "line_start": 1,
+          "path": "sieve.py"
+        },
+        "status": "verified",
+        "tool_trace_ids": [
+          "597b5ef528b44117bc8dc4c7f9b828e7",
+          "6caec3056cd84042b8de30dcd2673c7d",
+          "a194c2c00ed64fe0926b1822c9f4b34d",
+          "c3c6107484c945e2831b257bce619e24"
+        ]
+      },
+      "created_at": "2026-08-03T04:03:57.217600+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "a9df3f4276bd4c12b68de89dbcdf34ea",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "primes",
+          "sieve"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "在判断一个数是否为质数时，条件逻辑错误地使用了 `any(n % p > 0 for p in primes)`，导致非质数被错误地加入质数列表",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "逻辑错误导致质数筛选算法未能正确识别质数",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "验证当 max=2 时，函数返回 [2]",
+          "验证当 max=3 时，函数返回 [2, 3]",
+          "验证当 max=5 时，函数返回 [2, 3, 5]",
+          "验证当 max=10 时，函数返回 [2, 3, 5, 7]"
+        ]
+      },
+      "created_at": "2026-08-03T04:04:24.611682+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "2d9b837441fc4f05bbe630495228cb88",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "WORKER_DIED",
+        "details": {},
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N3",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:WorkerAgentError:Reviewer 必须获得目标 Artifact 的直接 Evidence",
+        "recommended_stage": "review",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T04:05:54.638248+00:00",
+      "created_by": "N3",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "f728fa4af9b847fbbd77322e718aeb44",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 18,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_sieve/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 0,
+    "artifact_rejection_count": 1,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_record_count": 0,
+    "retry_node_count": 1,
+    "root_cause_review_passed": false,
+    "worker_failure_count": 0,
+    "workspace_clean": true
+  },
+  "engine_status": "failed",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [
+      "N2.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {},
+    "primary_ref": null,
+    "review_refs": [],
+    "status": "unresolved"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "standard",
+    "gate_records": [],
+    "invalid_decisions": 1,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": false,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 5,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 5
+    },
+    "unnecessary_expansion": true,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T04:03:32.296723+00:00",
+      "created_by_decision_id": "init_invest_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T04:03:57.240783+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "检索 sieve 实现代码并定位上界处理逻辑，为后续失败复现做准备。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T04:03:32.305961+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-03T04:04:18.966072+00:00",
+      "created_by_decision_id": "diag_create_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T04:04:24.634578+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "Analyze the control and data flow of the sieve function to identify the logical flaw causing incorrect prime sequence generation for upper bounds >= 2.",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-03T04:04:18.989881+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-03T04:05:54.584985+00:00",
+      "created_by_decision_id": "create_review_001",
+      "critical": true,
+      "dependencies": [
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": null,
+      "input_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N3",
+      "node_type": "REVIEW_TASK",
+      "objective": "Review the root cause hypothesis regarding the logic error in sieve.py and provide a recommendation for patch generation.",
+      "output_artifact_ids": [
+        "N3.rejection.a1@v1"
+      ],
+      "retry_count": 1,
+      "started_at": null,
+      "status": "READY",
+      "timeout_seconds": 120.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "OUTPUT_TOKEN_BUDGET_EXHAUSTED",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_sieve/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "03b3627934834dc4f9965a24094833268b54b2ae664f9b1ead40484f883ea2f2",
+    "before_sha256": "03b3627934834dc4f9965a24094833268b54b2ae664f9b1ead40484f883ea2f2",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_sieve",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/quixbugs_closed_loop_v1/tasks/quixbugs_sieve/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 6,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 9502,
+        "output_tokens": 921
+      },
+      "qwen3.7-flash": {
+        "calls": 5,
+        "estimated_cost_cny": 0.021169,
+        "input_tokens": 24321,
+        "output_tokens": 20381
+      }
+    },
+    "duration_ms": 196073,
+    "estimated_api_cost_cny": 0.021169,
+    "input_tokens": 33823,
+    "model_calls": 11,
+    "output_tokens": 21302,
+    "supervisor_api_calls": 5,
+    "supervisor_policy_calls": 4,
+    "tool_calls": 4,
+    "total_tokens": 55125,
+    "worker_model_calls": 6
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

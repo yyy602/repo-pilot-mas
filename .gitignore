@@ -264,6 +264,7 @@ reports/phase6/*
 !reports/phase6/trace_index.json
 !reports/phase6/demo_traces/
 !reports/phase6/demo_traces/**
+!reports/closed_loop/
 
 data/workspaces/
 data/cache/
