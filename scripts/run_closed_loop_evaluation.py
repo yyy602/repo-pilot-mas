@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from repo_pilot_mas.evaluation import aggregate_system_results, load_evaluation_suite
+from repo_pilot_mas.evaluation import load_evaluation_suite
 
 
 def save_json(path: Path, value: object) -> None:

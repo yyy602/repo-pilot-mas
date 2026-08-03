@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from repo_pilot_mas.orchestration import NodeStatus, NodeType, OrchestrationEngine, TaskNode, WorkerOutcome
+from repo_pilot_mas.orchestration import (
+    NodeStatus,
+    NodeType,
+    OrchestrationEngine,
+    TaskNode,
+    WorkerOutcome,
+)
 from repo_pilot_mas.orchestration.worker_recovery import collect_worker_outcome
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec
 

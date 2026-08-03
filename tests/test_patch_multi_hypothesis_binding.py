@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from repo_pilot_mas.agents.patch_agent import _hypothesis_binding
 from repo_pilot_mas.schemas import Artifact, ArtifactType
 
