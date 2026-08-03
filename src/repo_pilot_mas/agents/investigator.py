@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+import re
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from repo_pilot_mas.agents.worker_common import WorkerAgentError, worker_task_view
 from repo_pilot_mas.models import GenerationConfig, Message, ModelAdapter
@@ -38,6 +40,9 @@ _REQUIRED_TOOLS = {
     "evidence_completion": frozenset({"inspect_code", "run_tests"}),
     "regression_scope": frozenset({"find_references", "run_tests"}),
 }
+_FAILURE_TYPE_PATTERN = re.compile(
+    r"\b([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b"
+)
 
 
 class InvestigatorAgent:
@@ -75,8 +80,10 @@ class InvestigatorAgent:
                 "必须先调用工具取得证据；直接观察、推导和假设要明确区分。"
                 "所有工具 path 都必须是候选工作区相对路径，仓库根目录只能写 '.'，绝不能写绝对路径。"
                 "如果目标文件未知，先 list_files(path='.')，再 inspect_code。"
-                "source 行号必须来自工具输出，tool_trace_ids 必须引用成功工具结果的 trace_id。"
-                "最终 action.status=success，并在 action.artifact 返回 Evidence 内容。"
+                "source 行号必须来自工具输出，tool_trace_ids 必须引用当前上下文中的工具结果 trace_id。"
+                "failure_reproduction 模式下，目标测试以非零退出并产生明确失败输出表示缺陷复现成功，"
+                "此时仍应返回 action.status=success；只有工具调用或调查过程本身无法完成时才返回 failure。"
+                "最终在 action.artifact 返回 Evidence 内容。"
                 f"当前 mode={mode}。可用工具："
                 + json.dumps(tools.definitions_for_model(), ensure_ascii=False),
             ),
@@ -96,11 +103,33 @@ class InvestigatorAgent:
         result = loop.run(messages)
         if result.status != "completed" or result.final_action is None:
             raise WorkerAgentError(f"Investigator 未完成：{result.reason}")
-        if result.final_action["status"] != "success":
-            raise WorkerAgentError(f"Investigator 报告失败：{result.final_action['reason']}")
         if not _REQUIRED_TOOLS[mode].intersection(_called_tools(result.messages)):
             raise WorkerAgentError(f"Investigator mode={mode} 缺少必要工具证据")
+
         content = dict(result.final_action["artifact"])
+        if content.get("mode") != mode:
+            raise WorkerAgentError(
+                f"Investigator Artifact mode 不一致：expected={mode}, actual={content.get('mode')}"
+            )
+
+        reproduction: dict[str, Any] | None = None
+        if mode == "failure_reproduction":
+            reproduction = _reproduction_observation(result.messages)
+            if reproduction is None:
+                raise WorkerAgentError("failure_reproduction 缺少可解析的 run_tests 结果")
+            content.update(reproduction)
+            if (
+                result.final_action["status"] != "success"
+                and not reproduction["reproduction_succeeded"]
+            ):
+                raise WorkerAgentError(
+                    f"Investigator 报告失败：{result.final_action['reason']}"
+                )
+        elif result.final_action["status"] != "success":
+            raise WorkerAgentError(
+                f"Investigator 报告失败：{result.final_action['reason']}"
+            )
+
         artifact = Artifact(
             artifact_id=f"{node_id}.evidence",
             artifact_type=ArtifactType.EVIDENCE,
@@ -113,33 +142,91 @@ class InvestigatorAgent:
         ):
             raise WorkerAgentError("Evidence 引用了当前上下文中不存在的工具 trace_id")
         if self.trace_writer is not None:
-            self.trace_writer.write("worker_artifact_created", {"artifact": artifact.to_dict()})
+            if reproduction is not None and reproduction["reproduction_succeeded"]:
+                self.trace_writer.write(
+                    "bug_reproduction_confirmed",
+                    {
+                        "node_id": node_id,
+                        "failure_type": reproduction["failure_type"],
+                        "test_exit_code": reproduction["test_exit_code"],
+                        "failing_command": reproduction["failing_command"],
+                        "tool_trace_ids": list(content["tool_trace_ids"]),
+                    },
+                )
+            self.trace_writer.write(
+                "worker_artifact_created",
+                {"artifact": artifact.to_dict()},
+            )
         return artifact
 
 
-def _context_trace_ids(messages: Sequence[Message]) -> set[str]:
-    trace_ids: set[str] = set()
+def _reproduction_observation(messages: Sequence[Message]) -> dict[str, Any] | None:
+    for result in reversed(_tool_results(messages)):
+        if result.get("tool") != "run_tests":
+            continue
+        exit_code = result.get("exit_code")
+        command = result.get("command")
+        if not isinstance(exit_code, int) or isinstance(exit_code, bool):
+            return None
+        if not isinstance(command, Sequence) or isinstance(command, (str, bytes)):
+            return None
+        normalized_command = [str(item) for item in command if str(item)]
+        if not normalized_command:
+            return None
+        data = result.get("data")
+        data_mapping = data if isinstance(data, Mapping) else {}
+        error = result.get("error")
+        error_mapping = error if isinstance(error, Mapping) else {}
+        timed_out = bool(data_mapping.get("timed_out", False))
+        error_code = str(error_mapping.get("code", ""))
+        reproduction_succeeded = bool(
+            error_code == "TEST_FAILED" and exit_code != 0 and not timed_out
+        )
+        stdout = str(result.get("stdout", ""))
+        stderr = str(result.get("stderr", ""))
+        failure_output = "\n".join(
+            part for part in (stdout, stderr) if part
+        )[-4000:]
+        matches = _FAILURE_TYPE_PATTERN.findall(failure_output)
+        failure_type = matches[-1] if matches else (
+            error_code if reproduction_succeeded else ""
+        )
+        return {
+            "reproduction_attempted": True,
+            "reproduction_succeeded": reproduction_succeeded,
+            "test_exit_code": exit_code,
+            "failure_type": failure_type,
+            "failure_output": failure_output,
+            "failing_command": normalized_command,
+        }
+    return None
+
+
+def _tool_results(messages: Sequence[Message]) -> tuple[dict[str, Any], ...]:
+    results: list[dict[str, Any]] = []
     for message in messages:
         if message.role != "user" or not message.content.startswith("工具执行结果："):
             continue
         try:
-            result = json.loads(message.content.removeprefix("工具执行结果："))
+            value = json.loads(message.content.removeprefix("工具执行结果："))
         except json.JSONDecodeError:
             continue
-        if isinstance(result.get("trace_id"), str):
-            trace_ids.add(result["trace_id"])
-    return trace_ids
+        if isinstance(value, Mapping):
+            results.append(dict(value))
+    return tuple(results)
+
+
+def _context_trace_ids(messages: Sequence[Message]) -> set[str]:
+    return {
+        str(result["trace_id"])
+        for result in _tool_results(messages)
+        if isinstance(result.get("trace_id"), str)
+    }
 
 
 def _called_tools(messages: Sequence[Message]) -> set[str]:
-    tools: set[str] = set()
-    for message in messages:
-        if message.role != "user" or not message.content.startswith("工具执行结果："):
-            continue
-        try:
-            result = json.loads(message.content.removeprefix("工具执行结果："))
-        except json.JSONDecodeError:
-            continue
-        if isinstance(result.get("tool"), str):
-            tools.add(result["tool"])
-    return tools
+    return {
+        str(result["tool"])
+        for result in _tool_results(messages)
+        if isinstance(result.get("tool"), str)
+    }
