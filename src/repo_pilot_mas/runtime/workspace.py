@@ -42,7 +42,7 @@ class Workspace:
 
 
 class WorkspaceManager:
-    """Create one independent working copy per candidate patch."""
+    """Create and dispose one independent working copy per candidate patch."""
 
     def __init__(self, source_root: str | Path, workspace_root: str | Path) -> None:
         self.source_root = Path(source_root).expanduser().resolve(strict=True)
@@ -135,6 +135,38 @@ class WorkspaceManager:
             if workspace.baseline_root.is_dir() and not workspace.baseline_root.is_symlink():
                 _make_tree_read_only(workspace.baseline_root)
             raise
+        _remove_empty_directory(workspace.container_root.parent)
+
+    def discard(self, task_id: str, workspace_id: str) -> bool:
+        """Idempotently delete one managed workspace by identity."""
+
+        task_id = _validate_id(task_id, "task_id")
+        workspace_id = _validate_id(workspace_id, "workspace_id")
+        container_root = self.workspace_root / task_id / workspace_id
+        if not container_root.exists() and not container_root.is_symlink():
+            _remove_empty_directory(container_root.parent)
+            return False
+        workspace = self.open(task_id, workspace_id)
+        self.delete(workspace)
+        return True
+
+    def discard_task(self, task_id: str) -> tuple[str, ...]:
+        """Delete every remaining managed workspace for one terminated task."""
+
+        task_id = _validate_id(task_id, "task_id")
+        task_root = self.workspace_root / task_id
+        if not task_root.exists() and not task_root.is_symlink():
+            return ()
+        _require_real_directory(task_root, "workspace task directory")
+        workspace_ids: list[str] = []
+        for entry in sorted(task_root.iterdir(), key=lambda item: item.name):
+            if entry.is_symlink() or not entry.is_dir():
+                raise ValueError("workspace task directory contains an unsafe entry")
+            workspace_id = _validate_id(entry.name, "workspace_id")
+            self.discard(task_id, workspace_id)
+            workspace_ids.append(workspace_id)
+        _remove_empty_directory(task_root)
+        return tuple(workspace_ids)
 
 
 def validate_workspace(workspace: Workspace, *, require_worktree: bool = True) -> None:
@@ -192,7 +224,11 @@ def restore_workspace(workspace: Workspace) -> None:
 
 
 def _ignore_entries(_directory: str, names: list[str]) -> set[str]:
-    return {name for name in names if name in _IGNORE_NAMES or name.endswith((".pyc", ".pyo"))}
+    return {
+        name
+        for name in names
+        if name in _IGNORE_NAMES or name.endswith((".pyc", ".pyo"))
+    }
 
 
 def _validate_id(value: str, label: str) -> str:
@@ -221,9 +257,21 @@ def _require_real_directory(path: Path, label: str) -> None:
         raise ValueError(f"{label} contains a replaced symlink")
 
 
+def _remove_empty_directory(path: Path) -> None:
+    if not path.exists() or path.is_symlink() or not path.is_dir():
+        return
+    try:
+        path.rmdir()
+    except OSError:
+        pass
+
+
 def _tree_digest(root: Path) -> str:
     digest = hashlib.sha256()
-    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+    for path in sorted(
+        root.rglob("*"),
+        key=lambda item: item.relative_to(root).as_posix(),
+    ):
         relative = path.relative_to(root).as_posix().encode()
         if path.is_symlink():
             digest.update(b"L\0" + relative + b"\0" + os.readlink(path).encode())
@@ -243,7 +291,10 @@ def _make_tree_read_only(root: Path) -> None:
     for path in (root, *root.rglob("*")):
         if path.is_symlink():
             continue
-        path.chmod(path.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+        path.chmod(
+            path.stat().st_mode
+            & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+        )
 
 
 def _require_tree_read_only(root: Path) -> None:
