@@ -26,6 +26,15 @@ _EXPECTED_ARTIFACTS = {
     NodeType.VALIDATION_TASK: ArtifactType.VALIDATION_RESULT,
 }
 
+_NO_SAME_NODE_RETRY_CODES = frozenset(
+    {
+        "AGENT_INPUT_CONTRACT_VIOLATION",
+        "AGENT_TYPE_MISMATCH",
+        "UNSUPPORTED_WORKER_NODE",
+        "ARTIFACT_REJECTION_NODE_MISMATCH",
+    }
+)
+
 
 class ArtifactCollectionError(ValueError):
     """A recoverable Worker artifact policy or validation failure."""
@@ -36,6 +45,7 @@ class ArtifactCollectionError(ValueError):
         message: str,
         *,
         details: Mapping[str, Any] | None = None,
+        recoverable: bool = True,
         recommended_stage: str = "review",
         allowed_next_actions: Sequence[str] = (
             "RETRY_TASK",
@@ -46,6 +56,7 @@ class ArtifactCollectionError(ValueError):
         super().__init__(message)
         self.code = code
         self.details = dict(details or {})
+        self.recoverable = bool(recoverable)
         self.recommended_stage = recommended_stage
         self.allowed_next_actions = tuple(
             dict.fromkeys(str(item) for item in allowed_next_actions if str(item))
@@ -83,6 +94,12 @@ class WorkerCollectionResult:
         }
 
 
+def expected_artifact_type(node_type: NodeType | str) -> ArtifactType | None:
+    """Return the deterministic Artifact contract for a Worker node type."""
+
+    return _EXPECTED_ARTIFACTS.get(NodeType(node_type))
+
+
 def artifact_rejection(
     node_id: str,
     code: str,
@@ -108,6 +125,11 @@ def artifact_rejection(
 
     if attempt <= 0 or max_attempts <= 0 or attempt > max_attempts:
         raise ValueError("invalid Worker attempt range")
+    actions = tuple(
+        dict.fromkeys(str(item) for item in allowed_next_actions if str(item))
+    )
+    if not actions:
+        raise ValueError("artifact rejection requires allowed_next_actions")
     content = {
         "node_id": node_id,
         "code": code,
@@ -116,9 +138,7 @@ def artifact_rejection(
         "terminal_status": NodeStatus(terminal_status).value,
         "recoverable": bool(recoverable),
         "recommended_stage": recommended_stage,
-        "allowed_next_actions": list(
-            dict.fromkeys(str(item) for item in allowed_next_actions if str(item))
-        ),
+        "allowed_next_actions": list(actions),
         "attempt": attempt,
         "max_attempts": max_attempts,
         "expected_artifact_type": (
@@ -147,6 +167,13 @@ def rejection_outcome(
     attempt: int = 1,
     max_attempts: int = MAX_WORKER_ATTEMPTS,
     origin: str = "worker",
+    recoverable: bool = True,
+    recommended_stage: str = "review",
+    allowed_next_actions: Sequence[str] = (
+        "RETRY_TASK",
+        "CREATE_TASK",
+        "REQUEST_REPLAN",
+    ),
     expected_artifact_type: ArtifactType | None = None,
     actual_artifact_refs: Sequence[str] = (),
     workspace_id: str = "",
@@ -164,6 +191,9 @@ def rejection_outcome(
         max_attempts=max_attempts,
         origin=origin,
         terminal_status=status,
+        recoverable=recoverable,
+        recommended_stage=recommended_stage,
+        allowed_next_actions=allowed_next_actions,
         expected_artifact_type=expected_artifact_type,
         actual_artifact_refs=actual_artifact_refs,
         workspace_id=workspace_id,
@@ -316,6 +346,7 @@ def collect_worker_outcome(
                 str(rejection.content["code"]),
                 str(rejection.content["reason"]),
                 details={"provided_rejection": rejection},
+                recoverable=bool(rejection.content["recoverable"]),
                 recommended_stage=str(rejection.content["recommended_stage"]),
                 allowed_next_actions=tuple(
                     str(item) for item in rejection.content["allowed_next_actions"]
@@ -335,7 +366,7 @@ def collect_worker_outcome(
                 max_attempts=effective_max_attempts,
                 origin="collector",
                 terminal_status=NodeStatus.FAILED,
-                recoverable=attempt < effective_max_attempts,
+                recoverable=exc.recoverable,
                 recommended_stage=exc.recommended_stage,
                 allowed_next_actions=exc.allowed_next_actions,
                 expected_artifact_type=_EXPECTED_ARTIFACTS.get(node.node_type),
@@ -363,9 +394,19 @@ def collect_worker_outcome(
             artifact_refs=(rejection_ref,),
             reason=reason,
         )
+        code = str(rejection.content["code"])
+        recoverable = bool(rejection.content["recoverable"])
+        allowed_next_actions = tuple(
+            str(item) for item in rejection.content["allowed_next_actions"]
+        )
         retry_scheduled = False
         if (
-            terminal_status in {NodeStatus.FAILED, NodeStatus.TIMED_OUT}
+            _same_node_retry_allowed(
+                code,
+                terminal_status,
+                recoverable=recoverable,
+                allowed_next_actions=allowed_next_actions,
+            )
             and attempt < effective_max_attempts
             and node.retry_count < engine.budget.max_retries_per_node
         ):
@@ -380,8 +421,16 @@ def collect_worker_outcome(
             attempt=attempt,
             max_attempts=effective_max_attempts,
             details={
-                "code": str(rejection.content["code"]),
+                "code": code,
                 "reason": reason,
+                "recoverable": recoverable,
+                "allowed_next_actions": list(allowed_next_actions),
+                "recovery_class": _recovery_class(code),
+                "recovery_action": (
+                    "retry_same_node"
+                    if retry_scheduled
+                    else "return_to_supervisor"
+                ),
             },
         )
 
@@ -398,6 +447,7 @@ def collect_worker_outcome(
         refs,
         attempt=attempt,
         max_attempts=effective_max_attempts,
+        details={"recovery_class": "none", "recovery_action": "none"},
     )
 
 
@@ -411,6 +461,7 @@ def _preflight_success(
         raise ArtifactCollectionError(
             "UNSUPPORTED_WORKER_NODE",
             f"No Worker artifact contract exists for {node.node_type.value}",
+            allowed_next_actions=("CREATE_TASK", "REQUEST_REPLAN"),
         )
     if not artifacts:
         raise ArtifactCollectionError(
@@ -572,28 +623,109 @@ def _rejection_from_failed_outcome(
             raise ArtifactCollectionError(
                 "ARTIFACT_REJECTION_NODE_MISMATCH",
                 "Worker rejection record belongs to another node",
+                allowed_next_actions=("CREATE_TASK", "REQUEST_REPLAN"),
+            )
+        rejection_status = NodeStatus(str(rejection.content["terminal_status"]))
+        if rejection_status is not NodeStatus(outcome.status):
+            raise ArtifactCollectionError(
+                "ARTIFACT_REJECTION_STATUS_MISMATCH",
+                "Worker rejection terminal_status does not match outcome status",
             )
         return rejection
 
     status = NodeStatus(outcome.status)
-    code = "WORKER_TIMEOUT" if status is NodeStatus.TIMED_OUT else "WORKER_DIED"
-    reason = outcome.reason or (
+    raw_reason = outcome.reason or (
         "Worker timed out before producing a rejection"
         if status is NodeStatus.TIMED_OUT
         else "Worker terminated before producing a rejection"
     )
+    code = _failed_outcome_code(status, raw_reason)
+    no_same_node_retry = code in _NO_SAME_NODE_RETRY_CODES
+    actions = (
+        ("CREATE_TASK", "REQUEST_REPLAN")
+        if no_same_node_retry
+        else ("RETRY_TASK", "CREATE_TASK", "REQUEST_REPLAN")
+    )
     return artifact_rejection(
         node.node_id,
         code,
-        reason,
+        raw_reason,
         attempt=attempt,
         max_attempts=max_attempts,
         origin="collector",
         terminal_status=status,
-        recoverable=attempt < max_attempts,
-        recommended_stage="patch" if node.node_type is NodeType.PATCH_TASK else "review",
+        recoverable=True,
+        recommended_stage=_recommended_stage(node.node_type),
+        allowed_next_actions=actions,
         expected_artifact_type=_EXPECTED_ARTIFACTS.get(node.node_type),
+        details={
+            "raw_worker_reason": raw_reason,
+            "recovery_class": _recovery_class(code),
+        },
     )
+
+
+def _failed_outcome_code(status: NodeStatus, reason: str) -> str:
+    if status is NodeStatus.TIMED_OUT:
+        return "WORKER_TIMEOUT"
+    prefix = reason.partition(":")[0].strip()
+    if prefix in {
+        "AGENT_INPUT_CONTRACT_VIOLATION",
+        "AGENT_TYPE_MISMATCH",
+        "UNSUPPORTED_WORKER_NODE",
+    }:
+        return prefix
+    if prefix == "WORKER_EXECUTION_ERROR":
+        return "WORKER_EXECUTION_FAILED"
+    if prefix == "WORKER_AGENT_ERROR":
+        return "WORKER_AGENT_FAILED"
+    return "WORKER_EXECUTION_FAILED"
+
+
+def _same_node_retry_allowed(
+    code: str,
+    terminal_status: NodeStatus,
+    *,
+    recoverable: bool,
+    allowed_next_actions: Sequence[str],
+) -> bool:
+    if terminal_status not in {NodeStatus.FAILED, NodeStatus.TIMED_OUT}:
+        return False
+    if not recoverable or code in _NO_SAME_NODE_RETRY_CODES:
+        return False
+    return "RETRY_TASK" in set(allowed_next_actions)
+
+
+def _recovery_class(code: str) -> str:
+    if code == "AGENT_INPUT_CONTRACT_VIOLATION":
+        return "input_contract"
+    if code in {"AGENT_TYPE_MISMATCH", "UNSUPPORTED_WORKER_NODE"}:
+        return "dispatch_contract"
+    if code == "WORKER_TIMEOUT":
+        return "transient_timeout"
+    if code in {"WORKER_EXECUTION_FAILED", "WORKER_AGENT_FAILED"}:
+        return "worker_execution"
+    if code.startswith("ARTIFACT_"):
+        return "artifact_validation"
+    if code.startswith("PATCH_"):
+        return "patch_policy"
+    return "unknown"
+
+
+def _recommended_stage(node_type: NodeType) -> str:
+    if node_type is NodeType.INVESTIGATION_TASK:
+        return "investigation"
+    if node_type in {
+        NodeType.DIAGNOSIS_TASK,
+        NodeType.CHALLENGE_TASK,
+        NodeType.REBUTTAL_TASK,
+    }:
+        return "diagnosis"
+    if node_type is NodeType.REVIEW_TASK:
+        return "review"
+    if node_type in {NodeType.PATCH_TASK, NodeType.VALIDATION_TASK}:
+        return "patch"
+    return "review"
 
 
 def _commit_artifact(engine: Any, artifact: Artifact) -> str:
