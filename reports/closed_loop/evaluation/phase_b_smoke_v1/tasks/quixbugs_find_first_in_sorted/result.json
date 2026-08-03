@@ -1,0 +1,542 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N1",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:12:24.520139+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "dcb0f2b444f04ef9b28a8e961da71ce5",
+      "version": 1
+    },
+    {
+      "artifact_id": "N1.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N1",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:12:59.094565+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "10b9048e5a984cd399bbb9509d9bdf4f",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N2",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:13:29.375142+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "48937862b72946119eec711bff86a0f6",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N2",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:14:05.796812+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "055cf09831e345e3800d9372f885223d",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N3",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:14:47.566457+00:00",
+      "created_by": "N3",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "7155948ec2c64e5e88a2893836576ab7",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "replan_inv_006",
+        "failure_class": "reproduction_failure",
+        "from_stage": "investigation",
+        "reason": "Investigation tasks N1, N2, and N3 consistently fail during failure_reproduction due to a SchemaValidationError on $.reproduction_attempted, indicating a systemic worker payload mismatch. Evidence collection is completely blocked. Requesting a replan to reset the investigation phase and allow the engine to adjust the reproduction strategy and schema compliance.",
+        "remaining_replans": 0,
+        "target_stage": "investigation",
+        "trigger_refs": [
+          "N1.rejection.a1@v1",
+          "N1.rejection.a2@v1",
+          "N2.rejection.a1@v1",
+          "N2.rejection.a2@v1",
+          "N3.rejection.a1@v1"
+        ]
+      },
+      "created_at": "2026-08-03T14:15:07.304837+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N1.rejection.a1@v1",
+        "N1.rejection.a2@v1",
+        "N2.rejection.a1@v1",
+        "N2.rejection.a2@v1",
+        "N3.rejection.a1@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "1c0aec8020f9406fb358cabb2ca78ce7",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N3",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:15:21.057755+00:00",
+      "created_by": "N3",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "c35ee071bf8048c78706d843d4370472",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "WORKER_AGENT_FAILED",
+        "details": {
+          "raw_worker_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+          "recovery_class": "worker_execution"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-03T14:15:54.135425+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "f2bd6acf69e94c5db10a0e43adca9d09",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 18,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 18,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v1/tasks/quixbugs_find_first_in_sorted/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 0,
+    "artifact_rejection_count": 7,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 3,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_record_count": 1,
+    "retry_node_count": 4,
+    "root_cause_review_passed": false,
+    "worker_failure_count": 3,
+    "workspace_clean": true
+  },
+  "engine_status": "terminated",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [],
+    "invalidation_reason": null,
+    "metadata": {},
+    "primary_ref": null,
+    "review_refs": [],
+    "status": "unresolved"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 1,
+        "budget_effect": "Within token and node limits. +1 node, +1 task execution cost.",
+        "gate_name": "investigation_evidence_gap",
+        "reason": "N1 failed after 2 attempts due to worker schema validation error. New task created to gather reproducible evidence before proceeding to diagnosis.",
+        "trigger_artifact_refs": [
+          "N1.rejection.a2@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "Consumes 1 node slot, well within max_nodes=64.",
+        "gate_name": "dynamic_expansion",
+        "reason": "Worker schema validation failed on reproduction_attempted field for both N1 and N2 after max retries. Creating new investigation task to bypass previous execution context and ensure correct output contract.",
+        "trigger_artifact_refs": [
+          "N1.rejection.a2@v1",
+          "N2.rejection.a2@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 2,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": true,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 8,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_1": 8
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T14:12:10.254983+00:00",
+      "created_by_decision_id": "init_inv_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+      "finished_at": "2026-08-03T14:12:59.094816+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Reproduce out-of-bounds or incorrect search interval reduction in find_first_in_sorted when target is missing or at boundaries; collect failing test cases and stack traces.",
+      "output_artifact_ids": [
+        "N1.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-03T14:12:45.255920+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T14:13:14.343606+00:00",
+      "created_by_decision_id": "create_inv_003",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_terminal",
+      "failure_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+      "finished_at": "2026-08-03T14:14:05.797068+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Reproduce out-of-bounds or incorrect search interval reduction in find_first_in_sorted when target is missing or at boundaries; collect failing test cases and stack traces.",
+      "output_artifact_ids": [
+        "N2.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-03T14:13:50.839529+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T14:14:33.953281+00:00",
+      "created_by_decision_id": "create_inv_005",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "WORKER_AGENT_ERROR:SchemaValidationError:$.reproduction_attempted: additional property is not allowed",
+      "finished_at": "2026-08-03T14:15:21.058011+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N3",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Reproduce out-of-bounds or incorrect search interval reduction in find_first_in_sorted when target is missing or at boundaries; collect failing test cases and stack traces.",
+      "output_artifact_ids": [
+        "N3.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-03T14:15:07.336293+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-03T14:15:07.305408+00:00",
+      "created_by_decision_id": "replan_inv_006",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-03T14:15:07.305388+00:00",
+      "input_artifact_ids": [
+        "N1.rejection.a1@v1",
+        "N1.rejection.a2@v1",
+        "N2.rejection.a1@v1",
+        "N2.rejection.a2@v1",
+        "N3.rejection.a1@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N4",
+      "node_type": "REPLAN_TASK",
+      "objective": "Investigation tasks N1, N2, and N3 consistently fail during failure_reproduction due to a SchemaValidationError on $.reproduction_attempted, indicating a systemic worker payload mismatch. Evidence collection is completely blocked. Requesting a replan to reset the investigation phase and allow the engine to adjust the reproduction strategy and schema compliance.",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-03T14:15:40.452376+00:00",
+      "created_by_decision_id": "create_inv_007",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": null,
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N5",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Reproduce out-of-bounds or incorrect search interval reduction in find_first_in_sorted when target is missing or at boundaries; collect failing test cases and stack traces.",
+      "output_artifact_ids": [
+        "N5.rejection.a1@v1"
+      ],
+      "retry_count": 1,
+      "started_at": null,
+      "status": "READY",
+      "timeout_seconds": 120.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "Investigation tasks N1 through N5 consistently fail during failure_reproduction due to a systemic SchemaValidationError on the worker payload ($.reproduction_attempted). The single allowed replan has been exhausted (budget replans: 1/1), and no recoverable path remains to collect evidence or advance to diagnosis. Proceeding further would violate budget constraints and yield no progress.",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v1/tasks/quixbugs_find_first_in_sorted/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+    "before_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_find_first_in_sorted",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v1/tasks/quixbugs_find_first_in_sorted/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 14,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 20336,
+        "output_tokens": 2879
+      },
+      "qwen3.7-flash": {
+        "calls": 8,
+        "estimated_cost_cny": 0.029777,
+        "input_tokens": 42668,
+        "output_tokens": 26554
+      }
+    },
+    "duration_ms": 258007,
+    "estimated_api_cost_cny": 0.029777,
+    "input_tokens": 63004,
+    "model_calls": 24,
+    "output_tokens": 29433,
+    "supervisor_api_calls": 10,
+    "supervisor_policy_calls": 8,
+    "tool_calls": 7,
+    "total_tokens": 92437,
+    "worker_model_calls": 14
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}
