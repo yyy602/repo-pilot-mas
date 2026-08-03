@@ -5,18 +5,73 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import RunnableConfig, RunnableLambda
+from langgraph.graph import END, START, StateGraph
 
 from repo_pilot_mas.orchestration import langgraph_runtime as _base
+from repo_pilot_mas.orchestration.agent_contracts import (
+    AgentContractViolation,
+    validate_agent_input_contract,
+)
 from repo_pilot_mas.orchestration.closed_loop_engine import OrchestrationEngine
 from repo_pilot_mas.orchestration.engine import EngineStatus
-from repo_pilot_mas.orchestration.worker_recovery import collect_worker_outcome
+from repo_pilot_mas.orchestration.task_graph import NodeStatus, NodeType
+from repo_pilot_mas.orchestration.worker_recovery import (
+    MAX_WORKER_ATTEMPTS,
+    collect_worker_outcome,
+    expected_artifact_type,
+    rejection_outcome,
+)
 from repo_pilot_mas.runtime.trace import TraceWriter
 from repo_pilot_mas.schemas.artifact import ArtifactType
 
 
 class _ClosedLoopRuntimeMixin:
     """Closed-loop restore, collection, recovery, and workspace lifecycle hooks."""
+
+    def _build_graph(self) -> Any:
+        """Build the final graph with a pre-dispatch contract gate."""
+
+        builder = StateGraph(_base.RuntimeState)
+        builder.add_node("validate", self._validate_node)
+        builder.add_node("supervisor", self._supervisor_node)
+        builder.add_node("human_review", self._human_review_node)
+        builder.add_node("human_rejected", self._human_rejected_node)
+        builder.add_node("prepare_dispatch", self._prepare_dispatch_node)
+        builder.add_node(
+            "worker",
+            RunnableLambda(self._worker_node, afunc=self._aworker_node),
+        )
+        builder.add_node("collector", self._collector_node)
+        builder.add_edge(START, "validate")
+        builder.add_edge("validate", "supervisor")
+        builder.add_conditional_edges(
+            "supervisor",
+            self._route_after_supervisor,
+            {
+                "end": END,
+                "human_review": "human_review",
+                "prepare_dispatch": "prepare_dispatch",
+                "supervisor": "supervisor",
+            },
+        )
+        builder.add_conditional_edges(
+            "human_review",
+            self._route_after_human_review,
+            {"approved": "prepare_dispatch", "rejected": "human_rejected"},
+        )
+        builder.add_edge("human_rejected", END)
+        builder.add_conditional_edges(
+            "prepare_dispatch",
+            self._route_prepared_dispatch,
+            {"supervisor": "supervisor", "worker": "worker"},
+        )
+        builder.add_edge("worker", "collector")
+        builder.add_edge("collector", "supervisor")
+        return builder.compile(
+            checkpointer=self._checkpointer,
+            name="repo-pilot-supervisor-runtime",
+        )
 
     def _restore_engine(
         self,
@@ -54,6 +109,112 @@ class _ClosedLoopRuntimeMixin:
             if state.get("thread_id") != actual_thread_id:
                 raise ValueError("LangGraph state thread_id is inconsistent")
         return engine
+
+    def _prepare_dispatch_node(
+        self,
+        state: _base.RuntimeState,
+        config: RunnableConfig,
+    ) -> _base.RuntimeState:
+        """Reject invalid worker inputs before calling WorkerPool."""
+
+        engine = self._restore_engine(state, config)
+        ready_ids = list(_base._ready_node_ids(engine))[
+            : engine.budget.max_concurrent_nodes
+        ]
+        if not ready_ids:
+            raise RuntimeError("dispatcher was invoked without READY nodes")
+
+        dispatch_ids: list[str] = []
+        rejected_ids: list[str] = []
+        contract_results: dict[str, Any] = {}
+        for node_id in ready_ids:
+            node = engine.graph.get(node_id)
+            artifacts = [
+                engine.blackboard.artifacts.get(ref).to_dict()
+                for ref in node.input_artifact_ids
+            ]
+            try:
+                validate_agent_input_contract(
+                    node.agent_type,
+                    node.mode,
+                    artifacts,
+                )
+            except AgentContractViolation as exc:
+                engine.start_node(node_id)
+                max_attempts = max(
+                    1,
+                    min(
+                        MAX_WORKER_ATTEMPTS,
+                        int(engine.budget.max_retries_per_node) + 1,
+                    ),
+                )
+                outcome = rejection_outcome(
+                    node_id,
+                    AgentContractViolation.code,
+                    str(exc),
+                    status=NodeStatus.FAILED,
+                    attempt=node.retry_count + 1,
+                    max_attempts=max_attempts,
+                    origin="runtime",
+                    recoverable=True,
+                    recommended_stage=_contract_recovery_stage(node.node_type),
+                    allowed_next_actions=("CREATE_TASK", "REQUEST_REPLAN"),
+                    expected_artifact_type=expected_artifact_type(node.node_type),
+                    details={
+                        "agent_type": node.agent_type,
+                        "mode": node.mode,
+                        "input_artifact_refs": list(node.input_artifact_ids),
+                    },
+                )
+                collection = collect_worker_outcome(
+                    engine,
+                    outcome,
+                    max_attempts=max_attempts,
+                )
+                contract_results[node_id] = collection.to_dict()
+                rejected_ids.append(node_id)
+                continue
+            dispatch_ids.append(node_id)
+
+        for node_id in dispatch_ids:
+            engine.start_node(node_id)
+
+        dispatch_id = None
+        if dispatch_ids:
+            dispatch_id = (
+                f"{state['thread_id']}:{engine.state_version}:"
+                + ",".join(dispatch_ids)
+            )
+        event = self._event(
+            "workers_dispatched" if dispatch_ids else "worker_dispatch_skipped",
+            state,
+            engine,
+            dispatch_id=dispatch_id,
+            requested_node_ids=ready_ids,
+            node_ids=dispatch_ids,
+            contract_rejected_node_ids=rejected_ids,
+            contract_results=contract_results,
+        )
+        self._trace(event)
+        return {
+            "engine": _base._serialize_engine(engine),
+            "engine_state_version": engine.state_version,
+            "pending_worker_ids": dispatch_ids,
+            "dispatch_id": dispatch_id,
+            "human_approved": None,
+            "runtime_status": "running",
+            "last_event": event,
+        }
+
+    def _route_prepared_dispatch(
+        self,
+        state: _base.RuntimeState,
+    ) -> str | list[Any]:
+        """Dispatch valid nodes or return directly to Supervisor after rejections."""
+
+        if state.get("pending_worker_ids"):
+            return self._fan_out_workers(state)
+        return "supervisor"
 
     def _collector_node(
         self,
@@ -207,6 +368,22 @@ RuntimeState = _base.RuntimeState
 WorkerExecutor = _base.WorkerExecutor
 WorkerInput = _base.WorkerInput
 WorkerOutcome = _base.WorkerOutcome
+
+
+def _contract_recovery_stage(node_type: NodeType) -> str:
+    if node_type is NodeType.INVESTIGATION_TASK:
+        return "investigation"
+    if node_type in {
+        NodeType.DIAGNOSIS_TASK,
+        NodeType.CHALLENGE_TASK,
+        NodeType.REBUTTAL_TASK,
+    }:
+        return "diagnosis"
+    if node_type is NodeType.REVIEW_TASK:
+        return "review"
+    if node_type in {NodeType.PATCH_TASK, NodeType.VALIDATION_TASK}:
+        return "patch"
+    return "review"
 
 
 def restore_engine_from_runtime_state(
