@@ -117,10 +117,12 @@ class InvestigatorAgent:
             reproduction = _reproduction_observation(result.messages)
             if reproduction is None:
                 raise WorkerAgentError("failure_reproduction 缺少可解析的 run_tests 结果")
-            content.update(reproduction)
+            # Tool Observation is the source of truth. Replace any model-authored
+            # reproduction object instead of adding legacy top-level fields.
+            content["reproduction"] = reproduction
             if (
                 result.final_action["status"] != "success"
-                and not reproduction["reproduction_succeeded"]
+                and not reproduction["succeeded"]
             ):
                 raise WorkerAgentError(
                     f"Investigator 报告失败：{result.final_action['reason']}"
@@ -142,14 +144,14 @@ class InvestigatorAgent:
         ):
             raise WorkerAgentError("Evidence 引用了当前上下文中不存在的工具 trace_id")
         if self.trace_writer is not None:
-            if reproduction is not None and reproduction["reproduction_succeeded"]:
+            if reproduction is not None and reproduction["succeeded"]:
                 self.trace_writer.write(
                     "bug_reproduction_confirmed",
                     {
                         "node_id": node_id,
                         "failure_type": reproduction["failure_type"],
-                        "test_exit_code": reproduction["test_exit_code"],
-                        "failing_command": reproduction["failing_command"],
+                        "test_exit_code": reproduction["exit_code"],
+                        "failing_command": reproduction["command"],
                         "tool_trace_ids": list(content["tool_trace_ids"]),
                     },
                 )
@@ -192,12 +194,12 @@ def _reproduction_observation(messages: Sequence[Message]) -> dict[str, Any] | N
             error_code if reproduction_succeeded else ""
         )
         return {
-            "reproduction_attempted": True,
-            "reproduction_succeeded": reproduction_succeeded,
-            "test_exit_code": exit_code,
+            "attempted": True,
+            "succeeded": reproduction_succeeded,
+            "exit_code": exit_code,
             "failure_type": failure_type,
             "failure_output": failure_output,
-            "failing_command": normalized_command,
+            "command": normalized_command,
         }
     return None
 
