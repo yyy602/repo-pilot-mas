@@ -1,0 +1,17 @@
+protocol:
+  version: closed_loop_v1
+  system_id: closed_loop_dynamic
+  suite: data/quixbugs/phase6_suite.json
+  frozen_test_task_count: 10
+  baseline_protocol: phase6_v1
+  seed: 0
+
+reports:
+  root: reports/closed_loop/evaluation
+
+execution:
+  require_human_approval: false
+  fail_fast: false
+
+# 复用 Phase 6 中已经冻结的预算与定价，避免前后对比时改变资源上限。
+shared_phase6_config: configs/phase6.yaml
