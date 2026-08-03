@@ -32,6 +32,7 @@ _NO_SAME_NODE_RETRY_CODES = frozenset(
         "AGENT_TYPE_MISMATCH",
         "UNSUPPORTED_WORKER_NODE",
         "ARTIFACT_REJECTION_NODE_MISMATCH",
+        "ARTIFACT_SCHEMA_ERROR",
     }
 )
 
@@ -678,6 +679,9 @@ def _failed_outcome_code(status: NodeStatus, reason: str) -> str:
     if prefix == "WORKER_EXECUTION_ERROR":
         return "WORKER_EXECUTION_FAILED"
     if prefix == "WORKER_AGENT_ERROR":
+        error_type = reason.split(":", 2)[1].strip() if ":" in reason else ""
+        if error_type == "SchemaValidationError":
+            return "ARTIFACT_SCHEMA_ERROR"
         return "WORKER_AGENT_FAILED"
     return "WORKER_EXECUTION_FAILED"
 
