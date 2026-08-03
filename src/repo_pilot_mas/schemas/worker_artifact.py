@@ -33,6 +33,27 @@ _TEXTS = {"type": "array", "items": _TEXT}
 _NON_EMPTY_TEXTS = {"type": "array", "items": _TEXT, "minItems": 1}
 _CONFIDENCE = {"type": "number", "minimum": 0, "maximum": 1}
 
+_REPRODUCTION_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "attempted": {"type": "boolean"},
+        "succeeded": {"type": "boolean"},
+        "exit_code": {"type": "integer"},
+        "failure_type": _STRING,
+        "failure_output": {"type": "string"},
+        "command": {"type": "array", "items": _TEXT, "minItems": 1},
+    },
+    "required": [
+        "attempted",
+        "succeeded",
+        "exit_code",
+        "failure_type",
+        "failure_output",
+        "command",
+    ],
+    "additionalProperties": False,
+}
+
 EVIDENCE_CONTENT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -60,6 +81,7 @@ EVIDENCE_CONTENT_SCHEMA: dict[str, Any] = {
         },
         "tool_trace_ids": _NON_EMPTY_TEXTS,
         "missing_evidence": _TEXTS,
+        "reproduction": _REPRODUCTION_SCHEMA,
     },
     "required": [
         "mode",
