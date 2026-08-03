@@ -76,9 +76,18 @@ class PatchAgent:
     ) -> Artifact:
         if strategy not in PATCH_STRATEGIES:
             raise WorkerAgentError(f"不支持的 Patch strategy: {strategy}")
-        hypotheses = [item for item in artifacts if item.artifact_type is ArtifactType.HYPOTHESIS]
+        hypotheses = [
+            item
+            for item in artifacts
+            if item.artifact_type is ArtifactType.HYPOTHESIS
+        ]
         if not hypotheses:
             raise WorkerAgentError("PatchAgent 缺少 Hypothesis Artifact")
+        (
+            hypothesis_refs,
+            primary_hypothesis_ref,
+            covered_root_causes,
+        ) = _hypothesis_binding(hypotheses)
         prompt = (
             "你是 RepoPilot-MAS PatchAgent，只能为当前候选工作区提出一个精确文本替换。"
             "先用 inspect_code 读取真实代码；绝不能修改 protected_paths。"
@@ -86,6 +95,7 @@ class PatchAgent:
             "最终 action.artifact 的 file_path 必须是相对路径；old_text 必须逐字复制当前文件中"
             "唯一存在的最小片段，new_text 是替换后的片段。不要输出 Unified Diff。"
             "确定性控制器会把该替换转换成 Unified Diff，并通过受保护路径检查后应用。"
+            "补丁必须同时覆盖输入中的全部已接受根因，不能只处理 primary 根因。"
             + (
                 "Minimal 策略只做修复根因所需的最小改动，避免重构和接口变化。"
                 if strategy == "minimal"
@@ -112,7 +122,9 @@ class PatchAgent:
                         "node_id": node_id,
                         "strategy": strategy,
                         "objective": objective,
-                        "allowed_hypothesis_refs": [item.ref for item in hypotheses],
+                        "accepted_hypothesis_refs": list(hypothesis_refs),
+                        "primary_hypothesis_ref": primary_hypothesis_ref,
+                        "covered_root_causes": covered_root_causes,
                         "input_artifacts": [item.to_dict() for item in artifacts],
                     },
                     ensure_ascii=False,
@@ -138,7 +150,10 @@ class PatchAgent:
                         str(draft["old_text"]),
                         str(draft["new_text"]),
                     )
-                    applied = self.all_tools.invoke("apply_patch", {"patch_text": patch_text})
+                    applied = self.all_tools.invoke(
+                        "apply_patch",
+                        {"patch_text": patch_text},
+                    )
                     if applied.ok:
                         if self.trace_writer is not None:
                             self.trace_writer.write(
@@ -154,7 +169,11 @@ class PatchAgent:
                 except (OSError, ValueError) as exc:
                     failure = str(exc)
                 else:
-                    failure = applied.error.message if applied.error else "补丁应用失败"
+                    failure = (
+                        applied.error.message
+                        if applied.error
+                        else "补丁应用失败"
+                    )
             else:
                 failure = "尚未成功 inspect_code 并返回结构化文本替换"
             result = loop.run(
@@ -170,10 +189,15 @@ class PatchAgent:
         if result.status != "completed" or result.final_action is None:
             raise WorkerAgentError(f"PatchAgent 未完成：{result.reason}")
         if result.final_action["status"] != "success":
-            raise WorkerAgentError(f"PatchAgent 报告失败：{result.final_action['reason']}")
+            raise WorkerAgentError(
+                f"PatchAgent 报告失败：{result.final_action['reason']}"
+            )
         if draft is None or applied is None or not applied.ok:
             raise WorkerAgentError("PatchAgent 未能生成可应用的结构化文本替换")
-        collected = collect_diff(self.workspace, protected_paths=task.protected_paths)
+        collected = collect_diff(
+            self.workspace,
+            protected_paths=task.protected_paths,
+        )
         if not collected.ok or collected.data.get("is_clean"):
             code = collected.error.code if collected.error else "EMPTY_PATCH"
             raise WorkerAgentError(f"Patch 收集失败：{code}")
@@ -183,13 +207,17 @@ class PatchAgent:
         diff_text = str(collected.data["diff"])
         content = {
             "strategy": strategy,
-            "based_on_hypothesis": hypotheses[0].ref,
+            "based_on_hypothesis_refs": list(hypothesis_refs),
+            "primary_hypothesis_ref": primary_hypothesis_ref,
+            "covered_root_causes": covered_root_causes,
             "diff": diff_text,
             "diff_sha256": hashlib.sha256(diff_text.encode()).hexdigest(),
             "changed_files": files,
             "rationale": str(draft["rationale"]),
             "risk_notes": list(draft["risk_notes"]),
-            "protected_path_check": not collected.data["protected_path_violations"],
+            "protected_path_check": not collected.data[
+                "protected_path_violations"
+            ],
             "workspace_id": self.workspace.workspace_id,
         }
         refs = tuple(item.ref for item in artifacts)
@@ -206,7 +234,10 @@ class PatchAgent:
             allowed_input_refs=refs,
         )
         if self.trace_writer is not None:
-            self.trace_writer.write("worker_artifact_created", {"artifact": artifact.to_dict()})
+            self.trace_writer.write(
+                "worker_artifact_created",
+                {"artifact": artifact.to_dict()},
+            )
         return artifact
 
     @staticmethod
@@ -228,18 +259,38 @@ class PatchAgent:
         try:
             own_strategy, target_strategy = side_by_mode[mode]
         except KeyError as exc:
-            raise WorkerAgentError(f"不支持的 Patch critique mode: {mode}") from exc
+            raise WorkerAgentError(
+                f"不支持的 Patch critique mode: {mode}"
+            ) from exc
         patches = [
-            item for item in artifacts if item.artifact_type is ArtifactType.PATCH_CANDIDATE
+            item
+            for item in artifacts
+            if item.artifact_type is ArtifactType.PATCH_CANDIDATE
         ]
-        evidence = [item for item in artifacts if item.artifact_type is ArtifactType.EVIDENCE]
+        evidence = [
+            item
+            for item in artifacts
+            if item.artifact_type is ArtifactType.EVIDENCE
+        ]
         if len(patches) != 2 or not evidence:
-            raise WorkerAgentError("Patch 交叉审查需要两个 PatchCandidate 和直接 Evidence")
+            raise WorkerAgentError(
+                "Patch 交叉审查需要两个 PatchCandidate 和直接 Evidence"
+            )
         own = next(
-            (item for item in patches if item.content["strategy"] == own_strategy), None
+            (
+                item
+                for item in patches
+                if item.content["strategy"] == own_strategy
+            ),
+            None,
         )
         target = next(
-            (item for item in patches if item.content["strategy"] == target_strategy), None
+            (
+                item
+                for item in patches
+                if item.content["strategy"] == target_strategy
+            ),
+            None,
         )
         if own is None or target is None:
             raise WorkerAgentError("Patch 交叉审查缺少 Minimal 或 Robust 候选")
@@ -263,7 +314,10 @@ class PatchAgent:
                 )
                 + "evidence_refs 只能引用输入 Evidence；你只给审查意见，不选择 Patch。"
             ),
-            generation_config=generation_config or GenerationConfig(max_output_tokens=1024),
+            generation_config=(
+                generation_config
+                or GenerationConfig(max_output_tokens=1024)
+            ),
             trace_writer=trace_writer,
         )
         if review.content["target_artifact_ref"] != target.ref:
@@ -271,13 +325,43 @@ class PatchAgent:
         return review
 
 
+def _hypothesis_binding(
+    hypotheses: Sequence[Artifact],
+) -> tuple[tuple[str, ...], str, dict[str, str]]:
+    """Bind one Patch to every accepted root cause in deterministic input order."""
+
+    ordered: dict[str, Artifact] = {}
+    for artifact in hypotheses:
+        if artifact.artifact_type is not ArtifactType.HYPOTHESIS:
+            raise WorkerAgentError("Patch 根因绑定包含非 Hypothesis Artifact")
+        ordered.setdefault(artifact.ref, artifact)
+    if not ordered:
+        raise WorkerAgentError("Patch 根因绑定不能为空")
+
+    refs = tuple(ordered)
+    covered_root_causes: dict[str, str] = {}
+    for ref, artifact in ordered.items():
+        root_cause = str(artifact.content.get("root_cause", "")).strip()
+        if not root_cause:
+            raise WorkerAgentError(
+                f"Hypothesis {ref} 缺少可审计的 root_cause"
+            )
+        covered_root_causes[ref] = root_cause
+    return refs, refs[0], covered_root_causes
+
+
 def _successful_tools(messages: Sequence[Message]) -> set[str]:
     names: set[str] = set()
     for message in messages:
-        if message.role != "user" or not message.content.startswith("工具执行结果："):
+        if (
+            message.role != "user"
+            or not message.content.startswith("工具执行结果：")
+        ):
             continue
         try:
-            result = json.loads(message.content.removeprefix("工具执行结果："))
+            result = json.loads(
+                message.content.removeprefix("工具执行结果：")
+            )
         except json.JSONDecodeError:
             continue
         if result.get("ok") is True and isinstance(result.get("tool"), str):
@@ -299,7 +383,9 @@ def _replacement_diff(
     source = target.read_text(encoding="utf-8")
     occurrences = source.count(old_text)
     if occurrences != 1:
-        raise ValueError(f"old_text 必须在目标文件中唯一出现，实际为 {occurrences} 次")
+        raise ValueError(
+            f"old_text 必须在目标文件中唯一出现，实际为 {occurrences} 次"
+        )
     updated = source.replace(old_text, new_text, 1)
     relative = target.relative_to(workspace.root).as_posix()
     return "".join(
