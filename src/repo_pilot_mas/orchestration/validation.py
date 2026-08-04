@@ -35,6 +35,25 @@ class ValidationExecutor:
         if len(patches) != 1:
             raise ValueError("ValidationTask 必须且只能引用一个 PatchCandidate")
         patch = patches[0]
+        patch_reviews = [
+            item
+            for item in artifacts
+            if item.artifact_type is ArtifactType.REVIEW
+            and item.content.get("mode") == "patch_review"
+            and item.content.get("target_artifact_ref")
+            in {patch.ref, patch.artifact_id}
+        ]
+        if not patch_reviews:
+            raise ValueError(
+                "ValidationTask 必须引用目标 PatchCandidate 的 patch_review"
+            )
+        if any(
+            item.content.get("verdict")
+            not in {"approved", "compatible", "supported"}
+            for item in patch_reviews
+        ):
+            raise ValueError("ValidationTask 不能执行带阻塞 Patch Review 的补丁")
+
         manager = WorkspaceManager(task.repository_path, self.workspace_root)
         workspace = manager.open(task.task_id, str(patch.content["workspace_id"]))
 
@@ -82,6 +101,7 @@ class ValidationExecutor:
         changed_lines = _changed_lines(actual_diff)
         content = {
             "patch_ref": patch.ref,
+            "patch_review_refs": [item.ref for item in patch_reviews],
             "patch_sha256": str(patch.content["diff_sha256"]),
             "workspace_id": workspace.workspace_id,
             "applied": integrity_ok,
@@ -105,7 +125,7 @@ class ValidationExecutor:
             artifact_type=ArtifactType.VALIDATION_RESULT,
             created_by=node_id,
             content=content,
-            input_refs=(patch.ref,),
+            input_refs=(patch.ref, *(item.ref for item in patch_reviews)),
         )
         validate_worker_artifact(
             artifact,
