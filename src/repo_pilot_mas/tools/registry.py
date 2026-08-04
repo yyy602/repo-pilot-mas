@@ -21,6 +21,7 @@ from repo_pilot_mas.tools.search_code import search_code
 from repo_pilot_mas.tools.static_check import static_check
 
 ToolHandler = Callable[[Mapping[str, Any]], ToolResult]
+AttemptGuard = Callable[[], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +66,38 @@ class ToolRegistry:
         registry = ToolRegistry()
         for name in names:
             registry.register(self._tools[name])
+        return registry
+
+    def guarded(self, guard: AttemptGuard) -> ToolRegistry:
+        """Return a registry that checks one Worker attempt lease per invocation.
+
+        The guard intentionally runs immediately before the real handler. A timed-out
+        thread may finish an in-flight model call, but it cannot start another tool
+        call or mutate its workspace after the runtime revokes the attempt lease.
+        """
+
+        if not callable(guard):
+            raise TypeError("tool guard must be callable")
+        registry = ToolRegistry()
+        for name in self.names:
+            definition = self._tools[name]
+
+            def guarded_handler(
+                arguments: Mapping[str, Any],
+                *,
+                _handler: ToolHandler = definition.handler,
+            ) -> ToolResult:
+                guard()
+                return _handler(arguments)
+
+            registry.register(
+                ToolDefinition(
+                    definition.name,
+                    definition.description,
+                    definition.parameters,
+                    guarded_handler,
+                )
+            )
         return registry
 
     def invoke(self, name: str, arguments: Mapping[str, Any]) -> ToolResult:
