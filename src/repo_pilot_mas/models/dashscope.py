@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import threading
 import time
@@ -41,6 +42,7 @@ class DashScopeRouterConfig:
     api_key_envs: tuple[str, ...]
     max_retries_per_route: int = 1
     initial_backoff_seconds: float = 2.0
+    per_route_timeout_seconds: float = 30.0
     quota_exhausted_error_codes: tuple[str, ...] = ("AllocationQuota.FreeTierOnly",)
     quota_exhausted_message_patterns: tuple[str, ...] = ("Free allocated quota exceeded",)
     transient_error_codes: tuple[str, ...] = (
@@ -61,6 +63,11 @@ class DashScopeRouterConfig:
             raise ValueError("api_key_envs contains duplicates")
         if self.max_retries_per_route < 0 or self.initial_backoff_seconds < 0:
             raise ValueError("retry count and backoff must be non-negative")
+        if (
+            not math.isfinite(self.per_route_timeout_seconds)
+            or self.per_route_timeout_seconds <= 0
+        ):
+            raise ValueError("per_route_timeout_seconds must be positive")
 
     @property
     def routes(self) -> tuple[SupervisorRoute, ...]:
@@ -82,6 +89,9 @@ class DashScopeRouterConfig:
             api_key_envs=_strings(routing["api_key_envs"]),
             max_retries_per_route=int(failover.get("max_retries_per_route", 1)),
             initial_backoff_seconds=float(failover.get("initial_backoff_seconds", 2)),
+            per_route_timeout_seconds=float(
+                failover.get("per_route_timeout_seconds", 30)
+            ),
             quota_exhausted_error_codes=_strings(
                 failover.get("quota_exhausted_error_codes", ("AllocationQuota.FreeTierOnly",))
             ),
@@ -167,9 +177,10 @@ class SupervisorModelRouter(ModelAdapter):
         messages: Sequence[Message],
         config: GenerationConfig,
     ) -> RawGeneration:
-        deadline = time.perf_counter() + config.timeout_seconds
+        overall_deadline = time.perf_counter() + config.timeout_seconds
         request_count = 0
         transient_failures = 0
+        route_timeouts = 0
         for route in self.routes:
             with self._lock:
                 if route.key in self._exhausted_routes:
@@ -181,24 +192,48 @@ class SupervisorModelRouter(ModelAdapter):
                     f"required credential is missing: {route.api_key_env}",
                     details={"model_id": route.model_id, "api_key_env": route.api_key_env},
                 )
+
+            route_started = time.perf_counter()
+            route_deadline = min(
+                overall_deadline,
+                route_started + self.config.per_route_timeout_seconds,
+            )
             for retry_index in range(self.config.max_retries_per_route + 1):
-                remaining = deadline - time.perf_counter()
-                if remaining <= 0:
-                    raise ModelAdapterError(
-                        "MODEL_TIMEOUT",
-                        "supervisor route deadline was exhausted",
-                        attempts=request_count,
-                        details={"exhausted_routes": list(self.exhausted_routes)},
+                now = time.perf_counter()
+                overall_remaining = overall_deadline - now
+                if overall_remaining <= 0:
+                    raise self._timeout_error(
+                        request_count,
+                        route_timeouts,
+                        "supervisor overall deadline was exhausted",
                     )
+                route_remaining = route_deadline - now
+                if route_remaining <= 0:
+                    route_timeouts += 1
+                    self._trace_route(
+                        "supervisor_route_timeout",
+                        route,
+                        retry_index=retry_index,
+                        timeout_seconds=self.config.per_route_timeout_seconds,
+                        elapsed_ms=int((now - route_started) * 1000),
+                    )
+                    break
+
                 request_count += 1
-                self._trace_route("supervisor_route_attempt", route, retry_index=retry_index)
+                request_timeout = min(overall_remaining, route_remaining)
+                self._trace_route(
+                    "supervisor_route_attempt",
+                    route,
+                    retry_index=retry_index,
+                    timeout_seconds=request_timeout,
+                )
                 try:
                     response = self._requester(
                         self.config.base_url,
                         route,
                         api_key,
                         messages,
-                        replace(config, timeout_seconds=remaining),
+                        replace(config, timeout_seconds=request_timeout),
                     )
                 except DashScopeRequestError as exc:
                     if self._is_quota_exhausted(exc):
@@ -245,21 +280,49 @@ class SupervisorModelRouter(ModelAdapter):
                         error=exc,
                     )
                     if retry_index < self.config.max_retries_per_route:
-                        backoff = self.config.initial_backoff_seconds * (2**retry_index)
-                        self._sleeper(min(backoff, max(deadline - time.perf_counter(), 0)))
+                        self._sleep_within_deadlines(
+                            retry_index,
+                            route_deadline,
+                            overall_deadline,
+                        )
                         continue
                     break
-                except (OSError, TimeoutError) as exc:
+                except TimeoutError as exc:
+                    transient_failures += 1
+                    route_timeouts += 1
+                    self._trace_route(
+                        "supervisor_route_timeout",
+                        route,
+                        retry_index=retry_index,
+                        error=DashScopeRequestError(
+                            None,
+                            type(exc).__name__,
+                            str(exc),
+                        ),
+                        timeout_seconds=request_timeout,
+                        elapsed_ms=int(
+                            (time.perf_counter() - route_started) * 1000
+                        ),
+                    )
+                    break
+                except OSError as exc:
                     transient_failures += 1
                     self._trace_route(
                         "supervisor_route_transient_error",
                         route,
                         retry_index=retry_index,
-                        error=DashScopeRequestError(None, type(exc).__name__, str(exc)),
+                        error=DashScopeRequestError(
+                            None,
+                            type(exc).__name__,
+                            str(exc),
+                        ),
                     )
                     if retry_index < self.config.max_retries_per_route:
-                        backoff = self.config.initial_backoff_seconds * (2**retry_index)
-                        self._sleeper(min(backoff, max(deadline - time.perf_counter(), 0)))
+                        self._sleep_within_deadlines(
+                            retry_index,
+                            route_deadline,
+                            overall_deadline,
+                        )
                         continue
                     break
                 else:
@@ -268,6 +331,10 @@ class SupervisorModelRouter(ModelAdapter):
                         "api_key_env": route.api_key_env,
                         "request_id": response.request_id,
                         "route_attempts": request_count,
+                        "route_timeouts": route_timeouts,
+                        "per_route_timeout_seconds": (
+                            self.config.per_route_timeout_seconds
+                        ),
                     }
                     self._trace_route(
                         "supervisor_route_succeeded",
@@ -282,6 +349,13 @@ class SupervisorModelRouter(ModelAdapter):
                         model_id=route.model_id,
                         metadata=metadata,
                     )
+
+        if time.perf_counter() >= overall_deadline:
+            raise self._timeout_error(
+                request_count,
+                route_timeouts,
+                "supervisor overall deadline was exhausted",
+            )
 
         with self._lock:
             all_exhausted = len(self._exhausted_routes) == len(self.routes)
@@ -298,8 +372,40 @@ class SupervisorModelRouter(ModelAdapter):
             details={
                 "exhausted_routes": list(self.exhausted_routes),
                 "transient_failures": transient_failures,
+                "route_timeouts": route_timeouts,
+                "per_route_timeout_seconds": self.config.per_route_timeout_seconds,
             },
         )
+
+    def _timeout_error(
+        self,
+        request_count: int,
+        route_timeouts: int,
+        message: str,
+    ) -> ModelAdapterError:
+        return ModelAdapterError(
+            "MODEL_TIMEOUT",
+            message,
+            attempts=request_count,
+            details={
+                "exhausted_routes": list(self.exhausted_routes),
+                "route_timeouts": route_timeouts,
+                "per_route_timeout_seconds": self.config.per_route_timeout_seconds,
+            },
+        )
+
+    def _sleep_within_deadlines(
+        self,
+        retry_index: int,
+        route_deadline: float,
+        overall_deadline: float,
+    ) -> None:
+        backoff = self.config.initial_backoff_seconds * (2**retry_index)
+        remaining = max(
+            min(route_deadline, overall_deadline) - time.perf_counter(),
+            0,
+        )
+        self._sleeper(min(backoff, remaining))
 
     def _is_quota_exhausted(self, error: DashScopeRequestError) -> bool:
         if error.code in self.config.quota_exhausted_error_codes:
@@ -329,6 +435,8 @@ class SupervisorModelRouter(ModelAdapter):
         retry_index: int,
         error: DashScopeRequestError | None = None,
         request_id: str | None = None,
+        timeout_seconds: float | None = None,
+        elapsed_ms: int | None = None,
     ) -> None:
         if self.trace_writer is None:
             return
@@ -339,6 +447,10 @@ class SupervisorModelRouter(ModelAdapter):
             "retry_index": retry_index,
             "request_id": request_id or (error.request_id if error else None),
         }
+        if timeout_seconds is not None:
+            data["timeout_seconds"] = timeout_seconds
+        if elapsed_ms is not None:
+            data["elapsed_ms"] = elapsed_ms
         if error is not None:
             data.update(
                 http_status=error.status_code,
