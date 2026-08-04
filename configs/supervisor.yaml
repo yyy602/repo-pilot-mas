@@ -16,6 +16,7 @@ supervisor:
   failover:
     max_retries_per_route: 1
     initial_backoff_seconds: 2
+    per_route_timeout_seconds: 30
     quota_exhausted_error_codes:
       - AllocationQuota.FreeTierOnly
     quota_exhausted_message_patterns:
