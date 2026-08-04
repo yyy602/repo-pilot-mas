@@ -1,4 +1,4 @@
-"""Worker pool with GPU-slot locking, isolation, and deterministic validation."""
+"""Worker pool with GPU-slot locking, attempt leases, and isolated workspaces."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import hashlib
 import re
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +51,10 @@ _EXPECTED_ARTIFACTS = {
 _TRAILING_NUMBER = re.compile(r"(\d+)$")
 
 
+class WorkerAttemptRevokedError(RuntimeError):
+    """Raised when a timed-out or superseded Worker attempts more side effects."""
+
+
 class WorkerPool:
     """Execute one TaskNode in a fresh agent context and return only Artifact data."""
 
@@ -71,6 +75,8 @@ class WorkerPool:
         self.react_budget = react_budget
         self.generation_config = generation_config
         self._model_locks = tuple(threading.Lock() for _ in self.models)
+        self._attempt_lock = threading.Lock()
+        self._attempt_leases: dict[str, threading.Event] = {}
 
     def prepare(self) -> None:
         """Load model slots sequentially before the first concurrent dispatch."""
@@ -106,6 +112,11 @@ class WorkerPool:
     ) -> WorkerOutcome:
         task_spec = TaskSpec.from_dict(task)
         task_node = TaskNode.from_dict(node)
+        attempt = _attempt_number(node, task_node)
+        attempt_id = str(
+            node.get("attempt_id")
+            or _attempt_id(task_spec.task_id, task_node.node_id, attempt)
+        )
         input_artifacts = tuple(Artifact.from_dict(item) for item in artifacts)
         expected_agent = _expected_agent(task_node)
         if expected_agent is None:
@@ -121,10 +132,22 @@ class WorkerPool:
                 reason=f"AGENT_TYPE_MISMATCH:expected={expected_agent}",
             )
 
+        lease = self._register_attempt(attempt_id)
+        attempt_guard = lambda: self._assert_attempt_active(attempt_id)
         manager: WorkspaceManager | None = None
         workspace: Workspace | None = None
         retain_workspace = False
+        self._trace(
+            "worker_attempt_started",
+            {
+                "task_id": task_spec.task_id,
+                "node_id": task_node.node_id,
+                "attempt": attempt,
+                "attempt_id": attempt_id,
+            },
+        )
         try:
+            attempt_guard()
             if task_node.node_type in {
                 NodeType.INVESTIGATION_TASK,
                 NodeType.PATCH_TASK,
@@ -135,18 +158,25 @@ class WorkerPool:
                 )
                 workspace = manager.create(
                     task_spec.task_id,
-                    _workspace_id(task_node.node_id, task_node.created_at),
+                    _workspace_id(
+                        task_node.node_id,
+                        task_node.created_at,
+                        attempt,
+                    ),
                 )
                 self._trace(
                     "worker_workspace_created",
                     {
                         "node_id": task_node.node_id,
+                        "attempt": attempt,
+                        "attempt_id": attempt_id,
                         "workspace_id": workspace.workspace_id,
                         "workspace_root": str(workspace.root),
                         "baseline_digest": workspace.baseline_digest,
                     },
                 )
             if task_node.node_type is NodeType.VALIDATION_TASK:
+                attempt_guard()
                 outputs = (
                     ValidationExecutor(
                         str(self.workspace_root),
@@ -156,11 +186,14 @@ class WorkerPool:
             else:
                 slot = self._slot_for(task_node.node_id)
                 with self._model_locks[slot]:
+                    attempt_guard()
                     model_started = time.perf_counter()
                     self._trace(
                         "worker_model_slot_acquired",
                         {
                             "node_id": task_node.node_id,
+                            "attempt": attempt,
+                            "attempt_id": attempt_id,
                             "slot": slot,
                             "model_id": self.models[slot].model_id,
                             "device": getattr(self.models[slot], "device", None),
@@ -174,12 +207,15 @@ class WorkerPool:
                             task_node,
                             input_artifacts,
                             workspace,
+                            attempt_guard,
                         )
                     finally:
                         self._trace(
                             "worker_model_slot_released",
                             {
                                 "node_id": task_node.node_id,
+                                "attempt": attempt,
+                                "attempt_id": attempt_id,
                                 "slot": slot,
                                 "model_id": self.models[slot].model_id,
                                 "device": getattr(
@@ -193,6 +229,7 @@ class WorkerPool:
                                 ),
                             },
                         )
+            attempt_guard()
             expected_type = _EXPECTED_ARTIFACTS[task_node.node_type]
             available_refs = [item.ref for item in input_artifacts]
             if task_node.node_type is NodeType.REBUTTAL_TASK:
@@ -224,38 +261,69 @@ class WorkerPool:
                 if artifact.created_by != task_node.node_id:
                     raise ValueError("Worker Artifact created_by 与节点不一致")
                 available_refs.append(artifact.ref)
+            attempt_guard()
             retain_workspace = task_node.node_type is NodeType.PATCH_TASK
+            self._trace(
+                "worker_attempt_completed",
+                {
+                    "task_id": task_spec.task_id,
+                    "node_id": task_node.node_id,
+                    "attempt": attempt,
+                    "attempt_id": attempt_id,
+                    "status": NodeStatus.SUCCEEDED.value,
+                    "workspace_id": workspace.workspace_id if workspace else None,
+                },
+            )
             return WorkerOutcome(
                 task_node.node_id,
                 NodeStatus.SUCCEEDED,
                 outputs,
             )
         except Exception as exc:  # noqa: BLE001 - Worker isolation boundary
+            revoked = isinstance(exc, WorkerAttemptRevokedError) or lease.is_set()
+            code = "WORKER_ATTEMPT_REVOKED" if revoked else "WORKER_AGENT_ERROR"
             self._trace(
                 "worker_agent_failed",
                 {
                     "node_id": task_node.node_id,
+                    "attempt": attempt,
+                    "attempt_id": attempt_id,
                     "error_type": type(exc).__name__,
                     "message": str(exc),
                     "workspace_id": workspace.workspace_id if workspace else None,
+                    "attempt_revoked": revoked,
                 },
             )
             return WorkerOutcome(
                 task_node.node_id,
                 NodeStatus.FAILED,
-                reason=f"WORKER_AGENT_ERROR:{type(exc).__name__}:{exc}",
+                reason=f"{code}:{type(exc).__name__}:{exc}",
             )
         finally:
-            if manager is not None and workspace is not None and not retain_workspace:
-                manager.delete(workspace)
+            revoked = lease.is_set()
+            if manager is not None and workspace is not None and (
+                not retain_workspace or revoked
+            ):
+                deleted = manager.discard(
+                    task_spec.task_id,
+                    workspace.workspace_id,
+                )
                 self._trace(
                     "worker_workspace_deleted",
                     {
                         "node_id": task_node.node_id,
+                        "attempt": attempt,
+                        "attempt_id": attempt_id,
                         "workspace_id": workspace.workspace_id,
-                        "reason": "worker_not_returning_accepted_patch_candidate",
+                        "deleted": deleted,
+                        "reason": (
+                            "worker_attempt_revoked"
+                            if revoked
+                            else "worker_not_returning_accepted_patch_candidate"
+                        ),
                     },
                 )
+            self._release_attempt(attempt_id, lease)
 
     async def aexecute(
         self,
@@ -270,6 +338,40 @@ class WorkerPool:
             node=node,
             artifacts=artifacts,
         )
+
+    def revoke_attempt(
+        self,
+        *,
+        task: Mapping[str, Any],
+        node: Mapping[str, Any],
+        attempt_id: str | None = None,
+        reason: str = "runtime_timeout",
+    ) -> bool:
+        """Revoke one attempt so later tool calls and Artifact publication fail closed."""
+
+        task_spec = TaskSpec.from_dict(task)
+        task_node = TaskNode.from_dict(node)
+        attempt = _attempt_number(node, task_node)
+        identity = attempt_id or str(
+            node.get("attempt_id")
+            or _attempt_id(task_spec.task_id, task_node.node_id, attempt)
+        )
+        with self._attempt_lock:
+            lease = self._attempt_leases.setdefault(identity, threading.Event())
+            already_revoked = lease.is_set()
+            lease.set()
+        self._trace(
+            "worker_attempt_revoked",
+            {
+                "task_id": task_spec.task_id,
+                "node_id": task_node.node_id,
+                "attempt": attempt,
+                "attempt_id": identity,
+                "reason": reason,
+                "already_revoked": already_revoked,
+            },
+        )
+        return not already_revoked
 
     def discard_workspace(
         self,
@@ -302,9 +404,14 @@ class WorkerPool:
         task: Mapping[str, Any],
         reason: str = "task_terminal_cleanup",
     ) -> tuple[str, ...]:
-        """Release every retained Patch workspace for one terminal task."""
+        """Revoke active attempts and release every retained workspace for one task."""
 
         task_spec = TaskSpec.from_dict(task)
+        prefix = f"{task_spec.task_id}:"
+        with self._attempt_lock:
+            for attempt_id, lease in self._attempt_leases.items():
+                if attempt_id.startswith(prefix):
+                    lease.set()
         manager = WorkspaceManager(task_spec.repository_path, self.workspace_root)
         deleted = manager.discard_task(task_spec.task_id)
         self._trace(
@@ -324,12 +431,17 @@ class WorkerPool:
         node: TaskNode,
         artifacts: Sequence[Artifact],
         workspace: Workspace | None,
+        attempt_guard: Callable[[], None],
     ) -> tuple[Artifact, ...]:
+        attempt_guard()
         if node.node_type is NodeType.INVESTIGATION_TASK:
             assert workspace is not None
+            tools = build_workspace_tool_registry(task, workspace).guarded(
+                attempt_guard
+            )
             agent = InvestigatorAgent(
                 model,
-                build_workspace_tool_registry(task, workspace),
+                tools,
                 trace_writer=self.trace_writer,
                 budget=self.react_budget,
                 generation_config=self.generation_config,
@@ -408,10 +520,11 @@ class WorkerPool:
                 ),
             )
         assert node.node_type is NodeType.PATCH_TASK and workspace is not None
+        tools = build_workspace_tool_registry(task, workspace).guarded(attempt_guard)
         return (
             PatchAgent(
                 model,
-                build_workspace_tool_registry(task, workspace),
+                tools,
                 workspace,
                 trace_writer=self.trace_writer,
                 budget=self.react_budget,
@@ -425,6 +538,36 @@ class WorkerPool:
             ),
         )
 
+    def _register_attempt(self, attempt_id: str) -> threading.Event:
+        with self._attempt_lock:
+            lease = self._attempt_leases.get(attempt_id)
+            if lease is None:
+                lease = threading.Event()
+                self._attempt_leases[attempt_id] = lease
+            if lease.is_set():
+                raise WorkerAttemptRevokedError(
+                    f"Worker attempt is already revoked: {attempt_id}"
+                )
+            return lease
+
+    def _assert_attempt_active(self, attempt_id: str) -> None:
+        with self._attempt_lock:
+            lease = self._attempt_leases.get(attempt_id)
+            revoked = lease is None or lease.is_set()
+        if revoked:
+            raise WorkerAttemptRevokedError(
+                f"Worker attempt is no longer active: {attempt_id}"
+            )
+
+    def _release_attempt(
+        self,
+        attempt_id: str,
+        lease: threading.Event,
+    ) -> None:
+        with self._attempt_lock:
+            if self._attempt_leases.get(attempt_id) is lease:
+                self._attempt_leases.pop(attempt_id, None)
+
     def _slot_for(self, node_id: str) -> int:
         match = _TRAILING_NUMBER.search(node_id)
         if match is not None:
@@ -437,10 +580,27 @@ class WorkerPool:
             self.trace_writer.write(event_type, data)
 
 
-def _workspace_id(node_id: str, created_at: str) -> str:
-    digest = hashlib.sha256(f"{node_id}:{created_at}".encode()).hexdigest()[:10]
+def _attempt_number(node: Mapping[str, Any], task_node: TaskNode) -> int:
+    attempt = int(node.get("attempt", task_node.retry_count + 1))
+    expected = task_node.retry_count + 1
+    if attempt != expected or attempt <= 0:
+        raise ValueError(
+            f"Worker attempt does not match node retry state: "
+            f"attempt={attempt}, expected={expected}"
+        )
+    return attempt
+
+
+def _attempt_id(task_id: str, node_id: str, attempt: int) -> str:
+    return f"{task_id}:{node_id}:a{attempt}"
+
+
+def _workspace_id(node_id: str, created_at: str, attempt: int) -> str:
+    digest = hashlib.sha256(
+        f"{node_id}:{created_at}:attempt={attempt}".encode()
+    ).hexdigest()[:10]
     normalized = re.sub(r"[^A-Za-z0-9_.-]", "-", node_id).strip("-.") or "worker"
-    return f"{normalized[:32]}-{digest}"
+    return f"{normalized[:24]}-a{attempt}-{digest}"
 
 
 def _expected_agent(node: TaskNode) -> str | None:
