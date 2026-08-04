@@ -12,14 +12,14 @@
 | Worker 失败隔离率 | N/A |
 | Recovery 成功率 | N/A |
 | Workspace 清理率 | 100.0% |
-| 平均 Token | 18628.0 |
-| 平均时延(ms) | 182840.0 |
+| 平均 Token | 18645.0 |
+| 平均时延(ms) | 198348.0 |
 
 ## 逐任务结果
 
 | 任务 | 状态 | 根因接受 | 审查通过 | Patch通过 | Recovery | Token | 时延(ms) |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| quixbugs_find_first_in_sorted | failed | 否 | 否 | 否 | N/A | 18628 | 182840 |
+| quixbugs_find_first_in_sorted | failed | 否 | 否 | 否 | N/A | 18645 | 198348 |
 
 ## 失败任务
 
