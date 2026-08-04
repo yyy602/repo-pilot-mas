@@ -1,10 +1,25 @@
 {
-  "acceptance_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/acceptance.json",
+  "dry_run": false,
+  "failures_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/failures",
+  "final_report": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/final_report.md",
   "full_run": false,
+  "gates": {
+    "budget_outcomes_fail_closed": true,
+    "every_task_has_result": true,
+    "every_task_has_trace": true,
+    "failures_are_included": true,
+    "final_runtime_entrypoint": true,
+    "frozen_test_set_has_expected_tasks": true,
+    "selected_task_count_complete": true,
+    "source_repositories_unchanged": true,
+    "terminal_workspaces_cleaned": true
+  },
+  "manifest_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/manifest.json",
   "passed": true,
   "phase": 8,
+  "results_csv": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/task_results.csv",
+  "results_json": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/task_results.json",
   "run_id": "phase_b_smoke_v3",
-  "split": "development",
   "summary": {
     "artifact_rejection_count": 0,
     "average_latency_ms": 182840.0,
@@ -51,5 +66,6 @@
     "worker_failure_count": 0,
     "worker_failure_isolation_rate": null,
     "workspace_cleanup_rate": 1.0
-  }
+  },
+  "summary_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_b_smoke_v3/summary.json"
 }
