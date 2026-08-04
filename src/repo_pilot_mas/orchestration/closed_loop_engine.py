@@ -57,6 +57,19 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
     def snapshot(self) -> dict[str, Any]:
         snapshot = super().snapshot()
         resolution = self.blackboard.hypothesis_resolution
+        confirmed_reproduction_refs = self._confirmed_failure_reproduction_refs()
+        task_snapshot = snapshot.get("task", {})
+        snapshot["task"] = {
+            **(dict(task_snapshot) if isinstance(task_snapshot, Mapping) else {}),
+            "failing_tests": list(self.task.failing_tests),
+            "test_command": list(self.task.test_command),
+            "target_files": list(self.task.target_files),
+            "max_runtime_seconds": self.task.max_runtime_seconds,
+            "requires_failure_reproduction": bool(self.task.failing_tests),
+            "confirmed_failure_reproduction_refs": list(
+                confirmed_reproduction_refs
+            ),
+        }
         snapshot["selections"] = {
             "hypothesis_ref": resolution.primary_ref,
             "hypothesis_refs": list(resolution.accepted_refs),
@@ -153,6 +166,60 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
         if decision.action is DecisionAction.ACCEPT_HYPOTHESIS:
             self._validate_hypothesis_acceptance(decision)
         elif decision.action is DecisionAction.CREATE_TASK:
+            confirmed_reproduction_refs = set(
+                self._confirmed_failure_reproduction_refs()
+            )
+            diagnosis_requests = tuple(
+                request
+                for request in decision.create_tasks
+                if NodeType(request.node_type) is NodeType.DIAGNOSIS_TASK
+            )
+            if self.task.failing_tests and diagnosis_requests:
+                existing_evidence_refs = tuple(
+                    artifact.ref
+                    for artifact in self.blackboard.artifacts.latest_values()
+                    if artifact.artifact_type is ArtifactType.EVIDENCE
+                )
+                if not confirmed_reproduction_refs:
+                    raise DecisionPolicyViolation(
+                        "FAILURE_REPRODUCTION_REQUIRED",
+                        "Diagnosis requires a successful failure_reproduction Evidence "
+                        "when the task declares failing_tests",
+                        recommended_stage=(
+                            legacy_engine.WorkflowStage.INVESTIGATION.value
+                        ),
+                        allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                        trigger_artifact_refs=existing_evidence_refs,
+                        details={
+                            "failing_tests": list(self.task.failing_tests),
+                            "test_command": list(self.task.test_command),
+                            "required_investigator_mode": "failure_reproduction",
+                        },
+                    )
+                for request in diagnosis_requests:
+                    if not confirmed_reproduction_refs.intersection(
+                        request.input_artifact_ids
+                    ):
+                        raise DecisionPolicyViolation(
+                            "FAILURE_REPRODUCTION_INPUT_REQUIRED",
+                            "DiagnosisTask inputs must include a confirmed "
+                            "failure_reproduction Evidence",
+                            recommended_stage=(
+                                legacy_engine.WorkflowStage.INVESTIGATION.value
+                            ),
+                            allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                            trigger_artifact_refs=tuple(
+                                sorted(confirmed_reproduction_refs)
+                            ),
+                            details={
+                                "confirmed_failure_reproduction_refs": sorted(
+                                    confirmed_reproduction_refs
+                                ),
+                                "actual_input_artifact_ids": list(
+                                    request.input_artifact_ids
+                                ),
+                            },
+                        )
             for request in decision.create_tasks:
                 if NodeType(request.node_type) is NodeType.PATCH_TASK:
                     self._validate_patch_eligibility(request)
@@ -191,6 +258,24 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                 self.blackboard.invalidate_hypotheses(reason)
             mutated.extend(self._cancel_active_patch_path(reason))
         return tuple(dict.fromkeys(mutated))
+
+    def _confirmed_failure_reproduction_refs(self) -> tuple[str, ...]:
+        confirmed: list[str] = []
+        for artifact in self.blackboard.artifacts.latest_values():
+            if (
+                artifact.artifact_type is not ArtifactType.EVIDENCE
+                or artifact.content.get("mode") != "failure_reproduction"
+            ):
+                continue
+            reproduction = artifact.content.get("reproduction")
+            if not isinstance(reproduction, Mapping):
+                continue
+            if (
+                reproduction.get("attempted") is True
+                and reproduction.get("succeeded") is True
+            ):
+                confirmed.append(artifact.ref)
+        return tuple(confirmed)
 
     def _validate_hypothesis_acceptance(
         self,
