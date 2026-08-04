@@ -10,13 +10,41 @@ import repo_pilot_mas.orchestration.engine as legacy_engine
 from repo_pilot_mas.orchestration.policy_violation import DecisionPolicyViolation
 from repo_pilot_mas.orchestration.task_graph import NodeStatus, NodeType
 from repo_pilot_mas.schemas.artifact import Artifact, ArtifactType
-from repo_pilot_mas.schemas.hypothesis_resolution import HypothesisResolutionStatus
+from repo_pilot_mas.schemas.hypothesis_resolution import (
+    HypothesisResolution,
+    HypothesisResolutionStatus,
+)
 from repo_pilot_mas.schemas.supervisor_decision import DecisionAction, SupervisorDecision
 
 _ROOT_CAUSE_REVIEW_MODES = frozenset(
     {"hypothesis_comparison", "root_cause_recommendation"}
 )
 _ACCEPTABLE_ROOT_CAUSE_VERDICTS = frozenset({"approved", "compatible", "supported"})
+_BLOCKING_REVIEW_VERDICTS = frozenset(
+    {"needs_more_evidence", "changes_requested", "conflict", "unsupported"}
+)
+_BLOCKING_RESOLUTION_POLICY = {
+    HypothesisResolutionStatus.NEEDS_EVIDENCE: (
+        "HYPOTHESIS_NEEDS_EVIDENCE",
+        legacy_engine.WorkflowStage.INVESTIGATION.value,
+    ),
+    HypothesisResolutionStatus.NEEDS_REVISION: (
+        "HYPOTHESIS_NEEDS_REVISION",
+        legacy_engine.WorkflowStage.DIAGNOSIS.value,
+    ),
+    HypothesisResolutionStatus.CONFLICT: (
+        "HYPOTHESIS_CONFLICTING",
+        legacy_engine.WorkflowStage.REVIEW.value,
+    ),
+    HypothesisResolutionStatus.REJECTED: (
+        "HYPOTHESIS_REJECTED",
+        legacy_engine.WorkflowStage.DIAGNOSIS.value,
+    ),
+    HypothesisResolutionStatus.INVALIDATED: (
+        "HYPOTHESIS_NOT_RESOLVED",
+        legacy_engine.WorkflowStage.REVIEW.value,
+    ),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +107,68 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
             "validation_ref": self.blackboard.validation_ref,
         }
         return snapshot
+
+    def add_artifact(self, artifact: Artifact) -> str:
+        """Add an Artifact and synchronize Phase C review state deterministically."""
+
+        previous_status = self.blackboard.hypothesis_resolution.status
+        ref = super().add_artifact(artifact)
+
+        if (
+            artifact.artifact_type is ArtifactType.HYPOTHESIS
+            and previous_status in _BLOCKING_RESOLUTION_POLICY
+        ):
+            candidate_refs = tuple(
+                item.ref
+                for item in self.blackboard.artifacts.latest_values()
+                if item.artifact_type is ArtifactType.HYPOTHESIS
+            )
+            self.blackboard.hypothesis_resolution = HypothesisResolution.unresolved(
+                candidate_refs
+            )
+            self.blackboard.selected_hypothesis_ref = None
+            self.blackboard.selected_patch_ref = None
+            self.blackboard.validation_ref = None
+            self.blackboard.bump()
+            self._trace(
+                "hypothesis_resolution_reset",
+                {
+                    "trigger_hypothesis_ref": ref,
+                    "previous_status": previous_status.value,
+                    "hypothesis_resolution": (
+                        self.blackboard.hypothesis_resolution.to_dict()
+                    ),
+                    "state_version": self.state_version,
+                },
+            )
+            return ref
+
+        if (
+            artifact.artifact_type is ArtifactType.REVIEW
+            and artifact.content.get("mode") in _ROOT_CAUSE_REVIEW_MODES
+        ):
+            resolution = self.blackboard.hypothesis_resolution
+            cancelled = ()
+            if resolution.status in _BLOCKING_RESOLUTION_POLICY:
+                cancelled = self._cancel_active_patch_path(
+                    f"root-cause Review {artifact.ref} set resolution to "
+                    f"{resolution.status.value}"
+                )
+            self._trace(
+                "hypothesis_resolution_updated",
+                {
+                    "review_ref": artifact.ref,
+                    "review_mode": artifact.content.get("mode"),
+                    "verdict": artifact.content.get("verdict"),
+                    "target_hypothesis_refs": sorted(
+                        self._review_target_refs(artifact)
+                    ),
+                    "cancelled_node_ids": list(cancelled),
+                    "hypothesis_resolution": resolution.to_dict(),
+                    "state_version": self.state_version,
+                },
+            )
+        return ref
 
     def apply_decision(self, decision: SupervisorDecision) -> DecisionResult:
         if self.status is not legacy_engine.EngineStatus.ACTIVE:
@@ -221,8 +311,19 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                             },
                         )
             for request in decision.create_tasks:
-                if NodeType(request.node_type) is NodeType.PATCH_TASK:
+                node_type = NodeType(request.node_type)
+                if node_type is NodeType.PATCH_TASK:
                     self._validate_patch_eligibility(request)
+                elif node_type is NodeType.VALIDATION_TASK:
+                    self._validate_validation_eligibility(request)
+        elif decision.action in {
+            DecisionAction.SELECT_PATCH,
+            DecisionAction.FINALIZE_TASK,
+        }:
+            self._validate_patch_review_for_selection(
+                str(decision.patch_ref),
+                str(decision.validation_ref),
+            )
 
     def _execute_decision(self, decision: SupervisorDecision) -> tuple[str, ...]:
         if decision.action is DecisionAction.ACCEPT_HYPOTHESIS:
@@ -235,6 +336,21 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                 primary_ref=primary,
                 review_refs=tuple(artifact.ref for artifact in reviews),
                 decision_id=decision.decision_id,
+            )
+            self._trace(
+                "hypothesis_resolution_accepted",
+                {
+                    "decision_id": decision.decision_id,
+                    "accepted_hypothesis_refs": [
+                        artifact.ref for artifact in hypotheses
+                    ],
+                    "primary_hypothesis_ref": primary,
+                    "review_refs": [artifact.ref for artifact in reviews],
+                    "hypothesis_resolution": (
+                        self.blackboard.hypothesis_resolution.to_dict()
+                    ),
+                    "state_version": self.state_version,
+                },
             )
             return ()
 
@@ -281,6 +397,32 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
         self,
         decision: SupervisorDecision,
     ) -> tuple[tuple[Artifact, ...], tuple[Artifact, ...]]:
+        resolution = self.blackboard.hypothesis_resolution
+        if resolution.status is HypothesisResolutionStatus.ACCEPTED:
+            raise DecisionPolicyViolation(
+                "HYPOTHESIS_ALREADY_ACCEPTED",
+                "The current Hypothesis resolution is already accepted",
+                recommended_stage=legacy_engine.WorkflowStage.PATCH.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=resolution.accepted_refs,
+            )
+        if resolution.status in _BLOCKING_RESOLUTION_POLICY:
+            code, stage = _BLOCKING_RESOLUTION_POLICY[resolution.status]
+            raise DecisionPolicyViolation(
+                code,
+                f"Hypothesis resolution is blocked by status {resolution.status.value}",
+                recommended_stage=stage,
+                allowed_next_actions=(
+                    "CREATE_TASK",
+                    "REQUEST_REPLAN",
+                    "TERMINATE_TASK",
+                ),
+                trigger_artifact_refs=resolution.review_refs or resolution.candidate_refs,
+                details={
+                    "hypothesis_resolution": resolution.to_dict(),
+                },
+            )
+
         hypotheses = self._canonical_artifacts(
             decision.hypothesis_refs,
             ArtifactType.HYPOTHESIS,
@@ -324,6 +466,20 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
             ArtifactType.REVIEW,
             stale_code="HYPOTHESIS_REVIEW_STALE",
         )
+        observed_reviews = set(resolution.review_refs)
+        if observed_reviews and not {item.ref for item in reviews}.issubset(
+            observed_reviews
+        ):
+            raise DecisionPolicyViolation(
+                "HYPOTHESIS_REVIEW_STATE_STALE",
+                "ACCEPT_HYPOTHESIS cites Reviews not represented by the current "
+                "Hypothesis resolution",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(item.ref for item in reviews),
+                details={"observed_review_refs": sorted(observed_reviews)},
+            )
+
         covered_refs: set[str] = set()
         for review in reviews:
             covered_refs.update(self._validate_root_cause_review(review))
@@ -511,6 +667,154 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                     "actual_review_refs": sorted(actual_review_refs),
                 },
             )
+
+    def _validate_validation_eligibility(self, request: Any) -> None:
+        resolution = self.blackboard.hypothesis_resolution
+        if resolution.status is not HypothesisResolutionStatus.ACCEPTED:
+            raise DecisionPolicyViolation(
+                "HYPOTHESIS_NOT_RESOLVED",
+                "ValidationTask requires an accepted Hypothesis resolution",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=resolution.candidate_refs,
+                details={"hypothesis_resolution_status": resolution.status.value},
+            )
+
+        inputs = tuple(
+            self.blackboard.artifacts.get(str(ref))
+            for ref in request.input_artifact_ids
+        )
+        patches = tuple(
+            item
+            for item in inputs
+            if item.artifact_type is ArtifactType.PATCH_CANDIDATE
+        )
+        if len(patches) != 1:
+            raise DecisionPolicyViolation(
+                "VALIDATION_PATCH_BINDING_INVALID",
+                "ValidationTask must contain exactly one PatchCandidate",
+                recommended_stage=legacy_engine.WorkflowStage.PATCH.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(item.ref for item in patches),
+                details={"patch_candidate_count": len(patches)},
+            )
+        patch = patches[0]
+
+        based_on = patch.content.get("based_on_hypothesis_refs")
+        if isinstance(based_on, Sequence) and not isinstance(based_on, (str, bytes)):
+            actual_hypotheses = {str(item) for item in based_on}
+            expected_hypotheses = set(resolution.accepted_refs)
+            if actual_hypotheses != expected_hypotheses:
+                raise DecisionPolicyViolation(
+                    "PATCH_HYPOTHESIS_BINDING_MISMATCH",
+                    "PatchCandidate is not bound to the accepted Hypothesis set",
+                    recommended_stage=legacy_engine.WorkflowStage.PATCH.value,
+                    allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                    trigger_artifact_refs=(patch.ref,),
+                    details={
+                        "expected_hypothesis_refs": sorted(expected_hypotheses),
+                        "actual_hypothesis_refs": sorted(actual_hypotheses),
+                    },
+                )
+
+        reviews = self._matching_patch_reviews(patch, inputs)
+        if not reviews:
+            raise DecisionPolicyViolation(
+                "PATCH_REVIEW_REQUIRED",
+                "ValidationTask requires a patch_review targeting its PatchCandidate",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=(patch.ref,),
+            )
+        blocking = tuple(
+            review
+            for review in reviews
+            if review.content.get("verdict") in _BLOCKING_REVIEW_VERDICTS
+        )
+        if blocking:
+            raise DecisionPolicyViolation(
+                "PATCH_REVIEW_BLOCKING",
+                "ValidationTask cannot use a PatchCandidate with a blocking Review",
+                recommended_stage=legacy_engine.WorkflowStage.PATCH.value,
+                allowed_next_actions=("CREATE_TASK", "REQUEST_REPLAN", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(item.ref for item in blocking),
+                details={
+                    "blocking_verdicts": {
+                        item.ref: item.content.get("verdict") for item in blocking
+                    }
+                },
+            )
+        accepted = tuple(
+            review
+            for review in reviews
+            if review.content.get("verdict") in _ACCEPTABLE_ROOT_CAUSE_VERDICTS
+        )
+        if not accepted:
+            raise DecisionPolicyViolation(
+                "PATCH_REVIEW_REQUIRED",
+                "ValidationTask requires a non-blocking patch_review",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(item.ref for item in reviews),
+            )
+
+    def _validate_patch_review_for_selection(
+        self,
+        patch_ref: str,
+        validation_ref: str,
+    ) -> None:
+        patch = self.blackboard.artifacts.get(patch_ref)
+        validation = self.blackboard.artifacts.get(validation_ref)
+        reviews = self._matching_patch_reviews(
+            patch,
+            self.blackboard.artifacts.latest_values(),
+        )
+        if not reviews:
+            raise DecisionPolicyViolation(
+                "PATCH_REVIEW_REQUIRED",
+                "Patch selection requires a patch_review targeting the selected PatchCandidate",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=(patch.ref, validation.ref),
+            )
+        blocking = tuple(
+            item
+            for item in reviews
+            if item.content.get("verdict") in _BLOCKING_REVIEW_VERDICTS
+        )
+        if blocking:
+            raise DecisionPolicyViolation(
+                "PATCH_REVIEW_BLOCKING",
+                "The selected PatchCandidate has an unresolved blocking Review",
+                recommended_stage=legacy_engine.WorkflowStage.PATCH.value,
+                allowed_next_actions=("CREATE_TASK", "REQUEST_REPLAN", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(item.ref for item in blocking),
+            )
+        if not any(
+            item.content.get("verdict") in _ACCEPTABLE_ROOT_CAUSE_VERDICTS
+            for item in reviews
+        ):
+            raise DecisionPolicyViolation(
+                "PATCH_REVIEW_REQUIRED",
+                "The selected PatchCandidate lacks an acceptable patch_review",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(item.ref for item in reviews),
+            )
+
+    def _matching_patch_reviews(
+        self,
+        patch: Artifact,
+        artifacts: Sequence[Artifact],
+    ) -> tuple[Artifact, ...]:
+        return tuple(
+            item
+            for item in artifacts
+            if item.artifact_type is ArtifactType.REVIEW
+            and item.content.get("mode") == "patch_review"
+            and item.content.get("target_artifact_ref")
+            in {patch.ref, patch.artifact_id}
+        )
 
     def _canonical_artifacts(
         self,
