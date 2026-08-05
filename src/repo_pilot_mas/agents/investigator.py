@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from typing import Any
 
 from repo_pilot_mas.agents.worker_common import WorkerAgentError, worker_task_view
@@ -71,7 +72,7 @@ class InvestigatorAgent:
             budget=self.budget,
             generation_config=self.generation_config,
             trace_writer=self.trace_writer,
-            final_payload_schema=EVIDENCE_CONTENT_SCHEMA,
+            final_payload_schema=_investigator_payload_schema(mode),
         )
         messages = (
             Message(
@@ -81,6 +82,8 @@ class InvestigatorAgent:
                 "所有工具 path 都必须是候选工作区相对路径，仓库根目录只能写 '.'，绝不能写绝对路径。"
                 "如果目标文件未知，先 list_files(path='.')，再 inspect_code。"
                 "source 行号必须来自工具输出，tool_trace_ids 必须引用当前上下文中的工具结果 trace_id。"
+                "模型输出不得包含 reproduction；该字段仅在 failure_reproduction 模式下由 Agent "
+                "根据真实 run_tests Observation 注入。"
                 "failure_reproduction 模式下，目标测试以非零退出并产生明确失败输出表示缺陷复现成功，"
                 "此时仍应返回 action.status=success；只有工具调用或调查过程本身无法完成时才返回 failure。"
                 "最终在 action.artifact 返回 Evidence 内容。"
@@ -107,6 +110,10 @@ class InvestigatorAgent:
             raise WorkerAgentError(f"Investigator mode={mode} 缺少必要工具证据")
 
         content = dict(result.final_action["artifact"])
+        # The model-facing schema no longer advertises reproduction, but accepts
+        # unknown fields so stale model behavior does not fail inside ReactLoop.
+        # Discard any model-authored value before strict Artifact validation.
+        content.pop("reproduction", None)
         if content.get("mode") != mode:
             raise WorkerAgentError(
                 f"Investigator Artifact mode 不一致：expected={mode}, actual={content.get('mode')}"
@@ -117,8 +124,8 @@ class InvestigatorAgent:
             reproduction = _reproduction_observation(result.messages)
             if reproduction is None:
                 raise WorkerAgentError("failure_reproduction 缺少可解析的 run_tests 结果")
-            # Tool Observation is the source of truth. Replace any model-authored
-            # reproduction object instead of adding legacy top-level fields.
+            # Tool Observation is the source of truth. Never trust a
+            # model-authored reproduction object.
             content["reproduction"] = reproduction
             if (
                 result.final_action["status"] != "success"
@@ -160,6 +167,27 @@ class InvestigatorAgent:
                 {"artifact": artifact.to_dict()},
             )
         return artifact
+
+
+def _investigator_payload_schema(mode: str) -> dict[str, Any]:
+    """Return the model-facing Evidence schema for one Investigator mode.
+
+    ``reproduction`` is intentionally omitted because it is deterministic data
+    derived from ``run_tests``. ``additionalProperties`` remains permissive only
+    at the model boundary so an older model response containing reproduction can
+    be normalized before the final strict Artifact validation.
+    """
+
+    if mode not in INVESTIGATOR_MODES:
+        raise ValueError(f"unsupported Investigator mode: {mode}")
+    schema = deepcopy(EVIDENCE_CONTENT_SCHEMA)
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        raise TypeError("Evidence schema properties must be a dictionary")
+    properties["mode"] = {"const": mode}
+    properties.pop("reproduction", None)
+    schema["additionalProperties"] = True
+    return schema
 
 
 def _reproduction_observation(messages: Sequence[Message]) -> dict[str, Any] | None:
