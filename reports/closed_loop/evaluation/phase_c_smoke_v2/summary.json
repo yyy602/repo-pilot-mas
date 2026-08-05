@@ -1,0 +1,47 @@
+{
+  "artifact_rejection_count": 2,
+  "average_latency_ms": 214126.0,
+  "average_tokens": 26050.0,
+  "budget_violations": 0,
+  "estimated_api_cost_cny": 0.0,
+  "estimated_api_cost_per_solved_cny": null,
+  "failed": 1,
+  "hypothesis_accept_rate": 0.0,
+  "isolated_worker_failure_count": 1,
+  "median_latency_ms": 214126,
+  "patch_apply_rate": 0.0,
+  "patch_binding_rate": 0.0,
+  "patch_success_rate": 0.0,
+  "recovery_attempted_tasks": 1,
+  "recovery_succeeded_tasks": 0,
+  "recovery_success_rate": 0.0,
+  "regression_pass_rate": 0.0,
+  "review_pass_rate": 0.0,
+  "route_distribution": {
+    "standard": 1
+  },
+  "schema_version": 1,
+  "solved": 0,
+  "source_integrity_violations": 0,
+  "syntax_valid_rate": 0.0,
+  "system_id": "closed_loop_dynamic",
+  "target_test_pass_rate": 0.0,
+  "task_count": 1,
+  "task_resolution_rate": 0.0,
+  "task_result_paths": [
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/phase_c_smoke_v2/tasks/quixbugs_find_first_in_sorted/result.json"
+  ],
+  "totals": {
+    "duration_ms": 214126,
+    "input_tokens": 21994,
+    "model_calls": 15,
+    "output_tokens": 4056,
+    "supervisor_api_calls": 5,
+    "tool_calls": 5,
+    "total_tokens": 26050,
+    "worker_model_calls": 10
+  },
+  "worker_failure_count": 1,
+  "worker_failure_isolation_rate": 1.0,
+  "workspace_cleanup_rate": 1.0
+}
