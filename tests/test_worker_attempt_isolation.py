@@ -123,9 +123,11 @@ def _retry_engine(tmp_path: Path, task_id: str) -> OrchestrationEngine:
             content={"summary": "direct evidence"},
         )
     )
+    node_id = engine._next_node_id()
+    assert node_id == "N1"
     engine.graph.add_node(
         TaskNode(
-            node_id="N1",
+            node_id=node_id,
             node_type=NodeType.DIAGNOSIS_TASK,
             agent_type="DiagnosticianAgent",
             mode="control_flow",
@@ -135,7 +137,7 @@ def _retry_engine(tmp_path: Path, task_id: str) -> OrchestrationEngine:
             retry_count=1,
         )
     )
-    assert engine.graph.get("N1").status is NodeStatus.READY
+    assert engine.graph.get(node_id).status is NodeStatus.READY
     return engine
 
 
