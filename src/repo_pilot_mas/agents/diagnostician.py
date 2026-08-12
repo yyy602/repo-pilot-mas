@@ -74,8 +74,13 @@ class DiagnosticianAgent:
     ) -> Artifact:
         if perspective not in DIAGNOSIS_PERSPECTIVES:
             raise WorkerAgentError(f"不支持的诊断视角: {perspective}")
-        if not artifacts or any(item.artifact_type is not ArtifactType.EVIDENCE for item in artifacts):
-            raise WorkerAgentError("第一轮 Diagnostician 只能读取 Evidence Artifact")
+        if not artifacts or any(
+            item.artifact_type is not ArtifactType.EVIDENCE for item in artifacts
+        ):
+            raise WorkerAgentError(
+                "Diagnostician control_flow/data_flow 只能读取 Evidence Artifact",
+                code="AGENT_INPUT_CONTRACT_VIOLATION",
+            )
         focus = (
             "控制流、边界条件、异常路径和运行行为"
             if perspective == "control_flow"

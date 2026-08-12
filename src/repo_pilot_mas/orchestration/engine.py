@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -233,9 +234,12 @@ class OrchestrationEngine:
         self.trace_writer = trace_writer
         self.status = EngineStatus.ACTIVE
         self.termination_reason: str | None = None
+        self.termination_code: str | None = None
+        self.termination_stage: str | None = None
         self._node_sequence = _next_node_sequence(self.graph.nodes)
         self._processed_decision_ids: set[str] = set()
         self._decision_fingerprints: set[str] = set()
+        self._rejected_decision_fingerprints: set[str] = set()
         self._no_progress_decisions = 0
         self._decision_count = 0
         self.last_supervisor_call: dict[str, Any] | None = None
@@ -253,6 +257,11 @@ class OrchestrationEngine:
                 "protected_paths": list(self.task.protected_paths),
             },
             "engine_status": self.status.value,
+            "termination": {
+                "code": self.termination_code,
+                "stage": self.termination_stage,
+                "message": self.termination_reason,
+            },
             "workflow_stage": self.blackboard.workflow_stage,
             "execution_path_class": classify_execution_path(self.graph.nodes).value,
             "state_version": self.state_version,
@@ -288,7 +297,54 @@ class OrchestrationEngine:
                     else None
                 ),
             },
+            "recovery": self._replan_recovery_state(),
             "budget": self.budget.to_dict(),
+        }
+
+    def _replan_recovery_state(self) -> dict[str, Any]:
+        nodes = list(self.graph.nodes)
+        replan_indexes = [
+            index
+            for index, node in enumerate(nodes)
+            if node.node_type is NodeType.REPLAN_TASK
+        ]
+        if not replan_indexes:
+            return {
+                "pending_replan": False,
+                "remaining_replans": self.budget.max_replans - self.budget.replans,
+            }
+        replan_index = replan_indexes[-1]
+        records = [
+            artifact
+            for artifact in self.blackboard.artifacts.latest_values()
+            if artifact.artifact_type is ArtifactType.REPLAN_RECORD
+        ]
+        if not records:
+            return {
+                "pending_replan": False,
+                "remaining_replans": self.budget.max_replans - self.budget.replans,
+            }
+        record = records[-1]
+        target_stage = str(record.content.get("target_stage", ""))
+        target_node_type = {
+            WorkflowStage.INVESTIGATION.value: NodeType.INVESTIGATION_TASK,
+            WorkflowStage.DIAGNOSIS.value: NodeType.DIAGNOSIS_TASK,
+            WorkflowStage.PATCH.value: NodeType.PATCH_TASK,
+        }.get(target_stage)
+        recovery_started = target_node_type is not None and any(
+            node.node_type is target_node_type for node in nodes[replan_index + 1 :]
+        )
+        return {
+            "pending_replan": target_node_type is not None and not recovery_started,
+            "target_stage": target_stage,
+            "target_node_type": target_node_type.value if target_node_type else None,
+            "replan_ref": record.ref,
+            "trigger_refs": list(record.content.get("trigger_refs", ())),
+            "remaining_replans": self.budget.max_replans - self.budget.replans,
+            "semantics": (
+                "remaining_replans only limits new REQUEST_REPLAN actions; "
+                "an approved pending replan must still create its target recovery node"
+            ),
         }
 
     def run_supervisor(self, supervisor: Any) -> DecisionResult:
@@ -527,9 +583,14 @@ class OrchestrationEngine:
             "budget": self.budget.to_dict(),
             "status": self.status.value,
             "termination_reason": self.termination_reason,
+            "termination_code": self.termination_code,
+            "termination_stage": self.termination_stage,
             "node_sequence": self._node_sequence,
             "processed_decision_ids": sorted(self._processed_decision_ids),
             "decision_fingerprints": sorted(self._decision_fingerprints),
+            "rejected_decision_fingerprints": sorted(
+                self._rejected_decision_fingerprints
+            ),
             "no_progress_decisions": self._no_progress_decisions,
             "decision_count": self._decision_count,
             "last_supervisor_call": self.last_supervisor_call,
@@ -559,12 +620,26 @@ class OrchestrationEngine:
             raise ValueError("checkpoint state versions are inconsistent")
         engine.status = EngineStatus(str(task_state["status"]))
         engine.termination_reason = task_state.get("termination_reason")
+        engine.termination_code = task_state.get("termination_code")
+        engine.termination_stage = task_state.get("termination_stage")
+        if engine.status is not EngineStatus.ACTIVE and not engine.termination_code:
+            legacy_reason = str(engine.termination_reason or "")
+            engine.termination_code = (
+                legacy_reason
+                if re.fullmatch(r"[A-Z][A-Z0-9_]*", legacy_reason)
+                else "SUPERVISOR_TERMINATED"
+            )
+        if engine.status is not EngineStatus.ACTIVE and not engine.termination_stage:
+            engine.termination_stage = engine.blackboard.workflow_stage
         saved_sequence = int(task_state.get("node_sequence", engine._node_sequence))
         if saved_sequence < _next_node_sequence(engine.graph.nodes):
             raise ValueError("checkpoint node sequence would reuse an existing node_id")
         engine._node_sequence = saved_sequence
         engine._processed_decision_ids = set(task_state.get("processed_decision_ids", ()))
         engine._decision_fingerprints = set(task_state.get("decision_fingerprints", ()))
+        engine._rejected_decision_fingerprints = set(
+            task_state.get("rejected_decision_fingerprints", ())
+        )
         engine._no_progress_decisions = int(task_state.get("no_progress_decisions", 0))
         engine._decision_count = int(task_state.get("decision_count", 0))
         last_call = task_state.get("last_supervisor_call")
@@ -572,6 +647,17 @@ class OrchestrationEngine:
         return engine
 
     def _validate_decision(self, decision: SupervisorDecision) -> None:
+        recovery = self._replan_recovery_state()
+        if recovery.get("pending_replan"):
+            target_node_type = str(recovery["target_node_type"])
+            if decision.action is not DecisionAction.CREATE_TASK or any(
+                request.node_type != target_node_type
+                for request in decision.create_tasks
+            ):
+                raise ValueError(
+                    "pending replan must create its target recovery node before any "
+                    "new replan or termination"
+                )
         for ref in decision.evidence_refs:
             self.blackboard.artifacts.get(ref)
         if decision.action is DecisionAction.CREATE_TASK:
@@ -790,11 +876,17 @@ class OrchestrationEngine:
             self.blackboard.set_patch(str(decision.patch_ref), str(decision.validation_ref))
             if self.blackboard.workflow_stage != WorkflowStage.FINALIZATION.value:
                 self._change_stage(WorkflowStage.FINALIZATION.value)
-            self.blackboard.set_stage(WorkflowStage.COMPLETED.value)
-            self.status = EngineStatus.SUCCEEDED
-            self.termination_reason = "VALIDATION_PASSED"
+            self._terminate(
+                EngineStatus.SUCCEEDED,
+                "VALIDATION_PASSED",
+                code="VALIDATION_PASSED",
+            )
         elif decision.action is DecisionAction.TERMINATE_TASK:
-            self._terminate(EngineStatus.TERMINATED, decision.reason)
+            self._terminate(
+                EngineStatus.TERMINATED,
+                decision.reason,
+                code="SUPERVISOR_TERMINATED",
+            )
         return tuple(dict.fromkeys(mutated))
 
     def _task_node(self, request: Any, *, node_id: str, decision_id: str) -> TaskNode:
@@ -924,14 +1016,29 @@ class OrchestrationEngine:
             return "OUTPUT_TOKEN_BUDGET_EXHAUSTED"
         return None
 
-    def _terminate(self, status: EngineStatus, reason: str) -> None:
+    def _terminate(
+        self,
+        status: EngineStatus,
+        reason: str,
+        *,
+        code: str | None = None,
+    ) -> None:
+        source_stage = self.blackboard.workflow_stage
         self.status = status
         self.termination_reason = reason
+        self.termination_code = code or reason
+        self.termination_stage = source_stage
         target_stage = WorkflowStage.COMPLETED if status is EngineStatus.SUCCEEDED else WorkflowStage.TERMINATED
         self.blackboard.set_stage(target_stage.value)
         self._trace(
             "engine_terminated",
-            {"status": status.value, "reason": reason, "state_version": self.state_version},
+            {
+                "status": status.value,
+                "code": self.termination_code,
+                "stage": source_stage,
+                "reason": reason,
+                "state_version": self.state_version,
+            },
         )
 
     def _reject(

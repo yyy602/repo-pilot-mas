@@ -1,8 +1,10 @@
-# Phase 6 验收报告
+# Phase 6 验收报告（历史正式运行 v1）
 
 ## 1. 验收结论
 
 Phase 6 已于 2026-08-02 完成。正式运行 `phase6_quixbugs_final_v1` 生成 5 个系统 × 10 个冻结任务共 50 个结果；独立审计的 15 项门禁全部通过。
+
+本报告只描述 2026-08-02 的历史 v1 冻结运行。`agent/hypothesis-patch-closed-loop` 分支正在进行闭环加固 v2；v2 必须重新通过 Development、冻结身份、Frozen Test 和独立审计，不能沿用本报告的“已完成”结论。
 
 这里的“通过”表示评测过程完整、预算与安全语义正确、结果可追溯，不表示所有修复任务成功。50 个结果中 22 个成功、28 个失败；失败均保留在分母中。
 
@@ -80,3 +82,16 @@ git diff --check
 - “重规划提高恢复率”；
 - “达到 SWE-bench、SWE-Gym、Java 或生产级效果”；
 - “并行显著降低时延”。
+
+## 8. 闭环加固 v2 的重新验收状态
+
+截至 2026-08-12，加固实现已通过 239 项 pytest、Ruff、compileall 与 `git diff --check`，并经过多轮真实 API development pilot。过程中发现和修复的问题均属于 RepoPilot-MAS 框架流程，包括 Supervisor Schema、Gate、Artifact 引用、输入契约、逻辑任务重试、路由终态和独立审计处理，详见 `docs/Phase6_真实问题复盘与排障.md`。
+
+最新诊断运行 `dev_repair_v2_routes_classified` 的结果为：
+
+- 两个账号 × 三个模型共六个 Supervisor 路由全部返回上游免费额度耗尽；
+- 系统只执行一次 Supervisor 策略调用和六次真实路由尝试，随后以 `SUPERVISOR_ROUTES_EXHAUSTED` 失败关闭，并在实际结果中记录 `failure_class=provider_quota_exhausted`；
+- 业务结果为 0/1 solved，Workspace Cleanup Rate 为 100%，Source Integrity Violations 为 0；
+- 单任务 `acceptance.json` 的通过只代表运行协议与安全门成立，不代表修复成功或具备冻结资格。
+
+因此，v2 当前结论是“实现与本地回归完成，正式重新验收被外部 API 配额阻塞”，不是“Phase 6 v2 已验收完成”。恢复可用配额后，必须依次执行完整 5 任务 Development、冻结代码/配置/Prompt/路由身份、一次性 10 任务 Frozen Test、独立审计；任何一步失败都应继续保留为失败结果。逐项完成证据和剩余门禁见 `docs/Phase6_闭环加固v2完成性审计.md`。

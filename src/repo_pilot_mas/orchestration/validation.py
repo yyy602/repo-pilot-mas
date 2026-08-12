@@ -80,16 +80,15 @@ class ValidationExecutor:
         )
         static = static_check(
             workspace.root,
+            run_ruff=False,
             timeout_seconds=min(task.max_runtime_seconds, 60.0),
         )
         for result in (diff_result, target, regression, static):
             self._trace_tool(node_id, result)
 
         failure_class = "none"
-        if not integrity_ok:
-            failure_class = "patch_integrity_failure"
-        elif not protected_ok:
-            failure_class = "protected_path_violation"
+        if not integrity_ok or not protected_ok:
+            failure_class = "patch_apply_failure"
         elif not target.ok:
             failure_class = "target_test_failure"
         elif not regression.ok:
@@ -97,6 +96,8 @@ class ValidationExecutor:
         elif not static.ok:
             failure_class = "syntax_failure"
         passed = failure_class == "none"
+        recommended_stage = "completed" if passed else "patch"
+        invalidated_refs = [] if passed else [patch.ref]
         changed_files = [str(item["path"]) for item in diff_result.data.get("files", ())]
         changed_lines = _changed_lines(actual_diff)
         content = {
@@ -113,6 +114,9 @@ class ValidationExecutor:
             "changed_lines": changed_lines,
             "passed": passed,
             "failure_class": failure_class,
+            "recommended_stage": recommended_stage,
+            "invalidated_refs": invalidated_refs,
+            "recoverable": not passed,
             "tool_trace_ids": [
                 diff_result.trace_id,
                 target.trace_id,
@@ -133,6 +137,20 @@ class ValidationExecutor:
             allowed_input_refs=tuple(item.ref for item in artifacts),
         )
         if self.trace_writer is not None:
+            self.trace_writer.write(
+                "validation_replan_classified",
+                {
+                    "node_id": node_id,
+                    "validation_ref": artifact.ref,
+                    "patch_ref": patch.ref,
+                    "passed": passed,
+                    "failure_class": failure_class,
+                    "recommended_stage": recommended_stage,
+                    "invalidated_refs": invalidated_refs,
+                    "recoverable": not passed,
+                },
+                trace_id=artifact.trace_id,
+            )
             self.trace_writer.write(
                 "worker_artifact_created",
                 {"artifact": artifact.to_dict(), "executor": "deterministic_validation"},

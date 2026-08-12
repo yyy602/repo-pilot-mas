@@ -5,7 +5,7 @@
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
 > 计划版本：v2.5
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0～Phase 6 已全部完成；当前进入维护与扩展阶段
+> 当前进度：Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 实现完成，等待 API 配额恢复后重新验收
 
 ---
 
@@ -1511,7 +1511,7 @@ LangGraph 运行时验收：
 
 ### Phase 6：评测、观测与简历交付
 
-**状态：已完成（2026-08-02）。**
+**状态：历史基线 v1 已完成（2026-08-02）；闭环加固 v2 已完成实现，重新验收受 Supervisor API 配额阻塞（2026-08-12）。**
 
 **目标：把系统整理为可复现、可对照和可写入简历的项目。**
 
@@ -1537,7 +1537,7 @@ LangGraph 运行时验收：
 - [x] README 明确失败任务、当前限制和环境要求；
 - [x] 简历表述只使用真实结果，并明确数据规模、单 seed 和等价成本。
 
-完成证据：
+历史基线 v1 完成证据：
 
 - 正式运行 ID 为 `phase6_quixbugs_final_v1`；
 - Local Single-Agent、Fixed Hybrid、Dynamic Hybrid 分别完成 1/10、2/10、7/10；
@@ -1549,7 +1549,16 @@ LangGraph 运行时验收：
 - 真实运行有效 Challenge 为 0、重规划 3 次且恢复 0 次，这些限制已写入 README 和简历说明。
 - 在 `multi_agent` 环境执行全量 130 项 pytest 全绿，Ruff 与 `git diff --check` 通过，凭据泄漏扫描无命中。
 
-设计、验收、框架问题复盘和面试材料分别见 `docs/Phase6_评测观测与简历交付.md`、`docs/Phase6_验收报告.md`、`docs/Phase6_真实问题复盘与排障.md` 与 `docs/Phase6_面试讲解.md`。
+设计、验收、闭环加固完成性审计、框架问题复盘和面试材料分别见 `docs/Phase6_评测观测与简历交付.md`、`docs/Phase6_验收报告.md`、`docs/Phase6_闭环加固v2完成性审计.md`、`docs/Phase6_真实问题复盘与排障.md` 与 `docs/Phase6_面试讲解.md`。
+
+闭环加固 v2 当前状态：
+
+- 已完成预算唯一事实源、失败复现语义、Agent 输入契约、Retry 分类、阶段化最小 Schema、Evidence/Reviewer Gate、Patch 语义与绑定门、Validation 定向回退、Snapshot 压缩、结构化终态和冻结身份校验；
+- 当前运行时在 `/home/user50305/.conda/envs/multi_agent/bin/python` 下通过 239 项 pytest、Ruff、compileall 与 `git diff --check`；正式预冻结还要求运行时代码已提交，dirty tree 不得绑定旧 HEAD commit；
+- 多轮真实 API development pilot 已验证约束确实参与运行，并形成框架问题 Trace，而非只依赖 fixture；
+- 最新一次诊断运行 `dev_repair_v2_routes_classified` 中，六个配置路由均返回上游免费额度耗尽。系统一次策略调用、六次真实路由尝试后立即失败关闭，实际结果记录 `code=SUPERVISOR_ROUTES_EXHAUSTED`、`failure_class=provider_quota_exhausted`，工作区清理率为 100%，源码完整性违规为 0；
+- 该运行的单任务 Protocol Acceptance 通过不代表业务任务成功：实际 solved 为 0/1，也不满足冻结资格；
+- 完整 5 任务 Development、冻结身份写入、一次性 10 任务 Frozen Test 和独立最终审计仍待可用 API 配额恢复后执行。完成这四步前，不得把闭环加固 v2 标记为验收完成，也不得用它替换历史 v1 的简历数字。
 
 ---
 

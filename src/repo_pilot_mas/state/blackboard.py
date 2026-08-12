@@ -136,6 +136,11 @@ class Blackboard:
         return self.state_version
 
     def add_artifact(self, artifact: Artifact) -> str:
+        if (
+            artifact.artifact_type is ArtifactType.REVIEW
+            and str(artifact.content.get("mode", "")) in _ROOT_CAUSE_REVIEW_MODES
+        ):
+            self._review_target_refs(artifact)
         ref = self.artifacts.add(artifact)
         self._update_hypothesis_resolution_for_artifact(artifact)
         self.bump()

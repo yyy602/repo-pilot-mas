@@ -149,6 +149,7 @@ class SupervisorModelRouter(ModelAdapter):
         self._requester = requester or _request_dashscope
         self._sleeper = sleeper
         self._exhausted_routes: set[str] = set()
+        self._structured_rejected_routes: set[str] = set()
         self._lock = threading.Lock()
 
     @property
@@ -172,6 +173,39 @@ class SupervisorModelRouter(ModelAdapter):
         with self._lock:
             self._exhausted_routes = restored
 
+    def begin_structured_recovery(self) -> None:
+        """Reset temporary format rejections for one Supervisor decision."""
+
+        with self._lock:
+            self._structured_rejected_routes.clear()
+
+    def reject_structured_response(
+        self,
+        model_id: str,
+        metadata: Mapping[str, Any],
+        reason: str,
+    ) -> None:
+        """Move one malformed route behind the remaining routes temporarily."""
+
+        api_key_env = str(metadata.get("api_key_env", ""))
+        key = f"{model_id}|{api_key_env}"
+        known = {route.key for route in self.routes}
+        if key not in known:
+            return
+        with self._lock:
+            self._structured_rejected_routes.add(key)
+        route = next(route for route in self.routes if route.key == key)
+        self._trace_route(
+            "supervisor_route_format_rejected",
+            route,
+            retry_index=0,
+            error=DashScopeRequestError(
+                None,
+                "STRUCTURED_OUTPUT_ERROR",
+                reason,
+            ),
+        )
+
     def _generate_once(
         self,
         messages: Sequence[Message],
@@ -183,7 +217,10 @@ class SupervisorModelRouter(ModelAdapter):
         route_timeouts = 0
         for route in self.routes:
             with self._lock:
-                if route.key in self._exhausted_routes:
+                if (
+                    route.key in self._exhausted_routes
+                    or route.key in self._structured_rejected_routes
+                ):
                     continue
             api_key = os.environ.get(route.api_key_env)
             if not api_key:
@@ -359,6 +396,23 @@ class SupervisorModelRouter(ModelAdapter):
 
         with self._lock:
             all_exhausted = len(self._exhausted_routes) == len(self.routes)
+            eligible_routes = {
+                route.key
+                for route in self.routes
+                if route.key not in self._exhausted_routes
+            }
+            all_format_rejected = bool(
+                eligible_routes
+                and eligible_routes.issubset(self._structured_rejected_routes)
+            )
+            structured_rejected_routes = sorted(self._structured_rejected_routes)
+        if all_format_rejected:
+            raise ModelAdapterError(
+                "STRUCTURED_OUTPUT_ERROR",
+                "all eligible supervisor routes returned invalid structured output",
+                attempts=request_count,
+                details={"structured_rejected_routes": structured_rejected_routes},
+            )
         code = "SUPERVISOR_ROUTES_EXHAUSTED" if all_exhausted else "SUPERVISOR_ROUTES_UNAVAILABLE"
         message = (
             "all configured supervisor routes have exhausted their free quota"
@@ -484,6 +538,7 @@ def create_supervisor_model_router(
         max_output_tokens=int(generation_value.get("max_output_tokens", 2048)),
         timeout_seconds=float(generation_value.get("timeout_seconds", 120)),
         max_retries=int(generation_value.get("max_format_repairs", 1)),
+        enable_thinking=generation_value.get("enable_thinking"),
     )
     return (
         SupervisorModelRouter(
@@ -510,6 +565,8 @@ def _request_dashscope(
         "temperature": config.temperature,
         "max_tokens": config.max_output_tokens,
     }
+    if config.enable_thinking is not None:
+        payload["enable_thinking"] = config.enable_thinking
     if config.stop:
         payload["stop"] = list(config.stop)
     request = urllib.request.Request(

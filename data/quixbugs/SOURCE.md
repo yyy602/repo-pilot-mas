@@ -1,6 +1,7 @@
 # QuixBugs 数据来源
 
-本目录包含 Phase 2 使用的 5 个开发任务，以及 Phase 6 冻结的 10 个未使用测试任务。
+本目录包含 Phase 2 使用的 5 个开发任务、Phase 6 冻结的 10 个未使用测试任务，
+以及闭环扩展评测使用的 5 个公开任务。
 
 - 上游仓库：https://github.com/jkoppel/QuixBugs
 - 固定提交：`4257f44b0ff1181dedaedee6a447e133219fcebf`

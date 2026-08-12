@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_to_base",
+  "repository_path": "../to_base",
+  "issue": "to_base 按低位到高位拼接数字，导致多位进制表示被反向输出。",
+  "failing_tests": ["tests/test_to_base.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["to_base.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "reversed_digit_order"}
+}

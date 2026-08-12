@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Sequence
 
 from repo_pilot_mas.agents.worker_common import WorkerAgentError, generate_artifact
@@ -47,10 +48,37 @@ class ReviewerAgent:
         )
         if not evidence:
             raise WorkerAgentError("Reviewer 必须获得目标 Artifact 的直接 Evidence")
+        hypotheses = tuple(
+            item
+            for item in artifacts
+            if item.artifact_type is ArtifactType.HYPOTHESIS
+        )
 
         target = None
         if mode == "patch_review":
             target = _validate_patch_review_inputs(artifacts)
+        elif mode == "root_cause_recommendation":
+            if len(hypotheses) != 1:
+                raise WorkerAgentError(
+                    "root_cause_recommendation 必须且只能审查一个 Hypothesis"
+                )
+            target = hypotheses[0]
+        elif mode == "hypothesis_comparison" and len(hypotheses) < 2:
+            raise WorkerAgentError(
+                "hypothesis_comparison 必须比较至少两个 Hypothesis"
+            )
+
+        normalization: dict[str, str] = {}
+
+        def normalize_review(content: dict[str, object]) -> dict[str, object]:
+            if (
+                content.get("verdict") in _ACCEPTABLE_REVIEW_VERDICTS
+                and not _review_quality_complete(content)
+            ):
+                normalization["original_verdict"] = str(content["verdict"])
+                content["verdict"] = "needs_more_evidence"
+                normalization["normalized_verdict"] = "needs_more_evidence"
+            return content
 
         review = generate_artifact(
             self.model,
@@ -60,12 +88,56 @@ class ReviewerAgent:
             objective=objective,
             artifacts=artifacts,
             artifact_type=ArtifactType.REVIEW,
-            content_schema=REVIEW_CONTENT_SCHEMA,
-            system_prompt=_review_prompt(mode, target),
+            content_schema=_review_content_schema(
+                mode,
+                target=target,
+                evidence=evidence,
+                hypotheses=hypotheses,
+            ),
+            system_prompt=_review_prompt(mode, target, hypotheses),
             generation_config=self.generation_config,
             trace_writer=self.trace_writer,
+            content_transform=normalize_review,
         )
-        _validate_review_output(review, mode, evidence, target)
+        _validate_review_output(review, mode, evidence, target, hypotheses)
+
+        if self.trace_writer is not None:
+            if normalization:
+                self.trace_writer.write(
+                    "review_verdict_normalized",
+                    {
+                        "node_id": node_id,
+                        "review_ref": review.ref,
+                        "mode": mode,
+                        **normalization,
+                        "reason": "acceptable verdict did not satisfy quality gate",
+                    },
+                    trace_id=review.trace_id,
+                )
+            self.trace_writer.write(
+                "review_independent_verification",
+                {
+                    "node_id": node_id,
+                    "review_ref": review.ref,
+                    "mode": mode,
+                    "verdict": review.content["verdict"],
+                    "failure_explained": review.content["failure_explained"],
+                    "causal_chain_complete": review.content[
+                        "causal_chain_complete"
+                    ],
+                    "alternative_causes": list(review.content["alternative_causes"]),
+                    "counterexample_checked": review.content[
+                        "counterexample_checked"
+                    ],
+                    "verification_steps_executed": list(
+                        review.content["verification_steps_executed"]
+                    ),
+                    "remaining_uncertainty": list(
+                        review.content["remaining_uncertainty"]
+                    ),
+                },
+                trace_id=review.trace_id,
+            )
 
         if mode == "patch_review" and self.trace_writer is not None:
             assert target is not None
@@ -87,6 +159,19 @@ class ReviewerAgent:
                 trace_id=review.trace_id,
             )
         return review
+
+
+def _review_quality_complete(content: dict[str, object]) -> bool:
+    return bool(
+        content.get("failure_explained") is True
+        and content.get("causal_chain_complete") is True
+        and (
+            content.get("alternative_causes")
+            or content.get("counterexample_checked") is True
+        )
+        and content.get("verification_steps_executed")
+        and not content.get("remaining_uncertainty")
+    )
 
 
 def _validate_patch_review_inputs(
@@ -125,6 +210,7 @@ def _validate_review_output(
     mode: str,
     evidence: Sequence[Artifact],
     target: Artifact | None,
+    hypotheses: Sequence[Artifact],
 ) -> None:
     if review.content.get("mode") != mode:
         raise WorkerAgentError(
@@ -143,15 +229,94 @@ def _validate_review_output(
         raise WorkerAgentError(
             "patch_review 的 target_artifact_ref 必须指向唯一 PatchCandidate"
         )
+    if (
+        mode == "evidence_review"
+        and review.content.get("target_artifact_ref") not in allowed_evidence_refs
+    ):
+        raise WorkerAgentError(
+            "evidence_review 的 target_artifact_ref 必须指向输入 Evidence",
+            code="ARTIFACT_SCHEMA_ERROR",
+        )
+    if mode == "hypothesis_comparison":
+        expected = {item.ref for item in hypotheses}
+        actual = {
+            str(item) for item in review.content.get("target_artifact_refs", ())
+        }
+        if actual != expected:
+            raise WorkerAgentError(
+                "hypothesis_comparison 必须在 target_artifact_refs 覆盖全部候选 Hypothesis",
+                code="ARTIFACT_SCHEMA_ERROR",
+            )
+        if review.content.get("target_artifact_ref") not in expected:
+            raise WorkerAgentError(
+                "hypothesis_comparison 的推荐目标必须是候选 Hypothesis",
+                code="ARTIFACT_SCHEMA_ERROR",
+            )
 
 
-def _review_prompt(mode: str, target: Artifact | None) -> str:
+def _review_content_schema(
+    mode: str,
+    *,
+    target: Artifact | None,
+    evidence: Sequence[Artifact],
+    hypotheses: Sequence[Artifact],
+) -> dict[str, object]:
+    schema = copy.deepcopy(REVIEW_CONTENT_SCHEMA)
+    properties = schema["properties"]
+    properties["mode"] = {"const": mode}
+    properties["evidence_refs"] = {
+        "type": "array",
+        "items": {"type": "string", "enum": [item.ref for item in evidence]},
+        "minItems": 1,
+        "uniqueItems": True,
+    }
+    if target is not None:
+        properties["target_artifact_ref"] = {"const": target.ref}
+    if mode == "evidence_review":
+        properties["target_artifact_ref"] = {
+            "type": "string",
+            "enum": [item.ref for item in evidence],
+        }
+    if mode == "hypothesis_comparison":
+        refs = [item.ref for item in hypotheses]
+        properties["target_artifact_ref"] = {
+            "type": "string",
+            "enum": refs,
+        }
+        properties["target_artifact_refs"] = {
+            "type": "array",
+            "items": {"type": "string", "enum": refs},
+            "minItems": len(refs),
+            "maxItems": len(refs),
+            "uniqueItems": True,
+        }
+        schema["required"].append("target_artifact_refs")
+    return schema
+
+
+def _review_prompt(
+    mode: str,
+    target: Artifact | None,
+    hypotheses: Sequence[Artifact],
+) -> str:
     common = (
         "你是 RepoPilot-MAS ReviewerAgent，只提供审查建议，不决定路由、根因接受或 Patch 选择。"
         "target_artifact_ref 必须指向给定目标，evidence_refs 必须逐项引用给定的直接 Evidence。"
         "结论不得超出直接证据；说明发现、风险和建议。"
+        "必须独立填写 failure_explained、causal_chain_complete、alternative_causes、"
+        "counterexample_checked、verification_steps_executed 和 remaining_uncertainty。"
+        "只有真实失败得到解释、因果链完整、至少检查一个替代原因或反例、至少执行一项"
+        "verification plan 且无剩余关键不确定性时，才可给 supported/approved/compatible。"
         f"mode 必须为 {mode}。"
     )
+    if mode == "hypothesis_comparison":
+        refs = "、".join(item.ref for item in hypotheses)
+        return (
+            common
+            + f"本次必须完整比较这些 Hypothesis：{refs}。target_artifact_refs 必须逐项且仅包含"
+            "上述全部引用；target_artifact_ref 必须指向你最终推荐的其中一个 Hypothesis，禁止"
+            "指向 Evidence。"
+        )
     if mode != "patch_review":
         return common
     assert target is not None

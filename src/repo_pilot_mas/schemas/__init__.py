@@ -11,7 +11,9 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     DecisionAction,
     GateRecord,
     SupervisorDecision,
+    additional_investigation_required,
     supervisor_decision_schema,
+    supervisor_decision_schema_for_state,
 )
 from repo_pilot_mas.schemas.task import TaskSpec
 from repo_pilot_mas.schemas.tool_result import ToolError, ToolResult
@@ -42,6 +44,8 @@ __all__ = [
     "TaskSpec",
     "ToolError",
     "ToolResult",
+    "additional_investigation_required",
     "supervisor_decision_schema",
+    "supervisor_decision_schema_for_state",
     "validate_worker_artifact",
 ]

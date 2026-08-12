@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from repo_pilot_mas.agents.investigator import _investigator_payload_schema
 from repo_pilot_mas.schemas.json_schema import validate_json_schema
 
@@ -13,7 +11,11 @@ def test_code_retrieval_schema_does_not_require_reproduction() -> None:
     validate_json_schema(
         {
             "mode": "code_retrieval",
+            "evidence_kind": "source",
             "claim": "located source code",
+            "supports_claims": ["located source code"],
+            "contradicts_claims": [],
+            "verified": True,
             "source": {"path": "target.py", "line_start": 1, "line_end": 3},
             "content": "source",
             "observation_type": "direct",
@@ -33,7 +35,11 @@ def test_failure_reproduction_schema_is_only_runtime_injected() -> None:
     validate_json_schema(
         {
             "mode": "failure_reproduction",
+            "evidence_kind": "reproduction",
             "claim": "test reproduced failure",
+            "supports_claims": ["test reproduced failure"],
+            "contradicts_claims": [],
+            "verified": True,
             "source": {"path": "target.py", "line_start": 1, "line_end": 3},
             "content": "IndexError",
             "observation_type": "direct",

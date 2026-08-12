@@ -36,6 +36,7 @@ from repo_pilot_mas.evaluation_budget import (
 )
 from repo_pilot_mas.final_evaluation import (
     aggregate_closed_loop_results,
+    build_artifact_ref,
     closed_loop_task_mechanism,
     save_json,
     write_closed_loop_final_report,
@@ -57,6 +58,40 @@ from repo_pilot_mas.runtime import TraceWriter
 from repo_pilot_mas.schemas import TaskSpec
 
 _SYSTEM_ID = "closed_loop_dynamic"
+_PHASE = 6
+_FRAMEWORK_FAILURE_CLASSES = frozenset(
+    {
+        "budget_exhausted",
+        "contract_failure",
+        "evaluation_integrity_failure",
+        "orchestration_failure",
+        "provider_quota_exhausted",
+        "provider_unavailable",
+        "runner_error",
+    }
+)
+_RUNTIME_FINGERPRINT_PREFIXES = (
+    "configs/",
+    "data/",
+    "scripts/",
+    "src/",
+    "tests/",
+)
+_RUNTIME_STATUS_PATHS = (
+    "pyproject.toml",
+    "configs",
+    "data",
+    "scripts",
+    "src",
+    "tests",
+)
+_REQUIRED_PREFLIGHT_CHECKS = {
+    "pytest": "pytest",
+    "ruff": "ruff check",
+    "compileall": "compileall",
+    "diff": "git diff --check",
+    "runtime_tree": "git status --short",
+}
 
 
 def _mapping(value: Mapping[str, Any], key: str) -> dict[str, Any]:
@@ -90,15 +125,153 @@ def _repository_fingerprint(root: Path) -> str:
         line for line in completed.stdout.splitlines() if line
     ):
         path = root / relative
-        if not path.is_file() or relative.startswith("reports/"):
+        if not path.is_file() or not (
+            relative == "pyproject.toml"
+            or relative.startswith(_RUNTIME_FINGERPRINT_PREFIXES)
+        ):
             continue
         digest.update(relative.encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()
 
 
+def _runtime_tree_is_clean(root: Path) -> bool:
+    """Require every executable evaluation input to come from the recorded HEAD."""
+
+    completed = subprocess.run(
+        [
+            "git",
+            "status",
+            "--short",
+            "--untracked-files=all",
+            "--",
+            *_RUNTIME_STATUS_PATHS,
+        ],
+        cwd=root,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return not completed.stdout.strip()
+
+
 def _file_sha256(path: str | Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _text_sha256(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _load_json_mapping(path: str | Path) -> dict[str, Any]:
+    value = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(value, Mapping):
+        raise TypeError(f"JSON 根节点必须是 mapping：{path}")
+    return dict(value)
+
+
+def pre_freeze_record_gates(
+    record: Mapping[str, Any],
+    repository_fingerprint: str,
+    *,
+    runtime_tree_clean: bool = False,
+) -> dict[str, bool]:
+    """Validate the code checks required before a complete Development run."""
+
+    checks = record.get("checks", ())
+    valid_checks = (
+        checks
+        if isinstance(checks, Sequence) and not isinstance(checks, (str, bytes))
+        else ()
+    )
+    successful_checks = [
+        item
+        for item in valid_checks
+        if isinstance(item, Mapping) and item.get("exit_code") == 0
+    ]
+    successful_commands = [str(item.get("command", "")) for item in successful_checks]
+    recorded_runtime_clean = any(
+        _REQUIRED_PREFLIGHT_CHECKS["runtime_tree"]
+        in str(item.get("command", ""))
+        and item.get("result") == "clean"
+        for item in successful_checks
+    )
+    return {
+        "preflight_declared_passed": record.get("passed") is True,
+        "preflight_repository_fingerprint_matches": (
+            record.get("repository_fingerprint") == repository_fingerprint
+        ),
+        **{
+            f"preflight_{name}_passed": any(
+                marker in command for command in successful_commands
+            )
+            for name, marker in _REQUIRED_PREFLIGHT_CHECKS.items()
+            if name != "runtime_tree"
+        },
+        "preflight_runtime_tree_clean": (
+            runtime_tree_clean and recorded_runtime_clean
+        ),
+    }
+
+
+def verify_frozen_identity(
+    development_manifest: Mapping[str, Any],
+    development_acceptance: Mapping[str, Any],
+    current_identity: Mapping[str, Any],
+) -> dict[str, bool]:
+    """Verify that a full Test run uses the accepted Development identity."""
+
+    preflight = development_manifest.get("pre_freeze_verification", {})
+    preflight_gates = (
+        preflight.get("verification_gates", {})
+        if isinstance(preflight, Mapping)
+        else {}
+    )
+    preflight_passed = bool(
+        isinstance(preflight, Mapping)
+        and preflight.get("passed") is True
+        and preflight.get("repository_fingerprint")
+        == development_manifest.get("repository_fingerprint")
+        and isinstance(preflight_gates, Mapping)
+        and set(preflight_gates)
+        == set(pre_freeze_record_gates({}, "", runtime_tree_clean=False))
+        and all(preflight_gates.values())
+    )
+
+    return {
+        "freeze_phase_is_6": int(development_manifest.get("phase", -1)) == _PHASE,
+        "freeze_is_full_development": (
+            development_manifest.get("evaluation_split") == "development"
+            and development_manifest.get("execution_mode") == "runtime"
+            and development_manifest.get("final_evaluation_executed") is True
+            and development_acceptance.get("passed") is True
+            and development_acceptance.get("full_development_run") is True
+        ),
+        "freeze_repository_fingerprint_matches": (
+            development_manifest.get("repository_fingerprint")
+            == current_identity.get("repository_fingerprint")
+        ),
+        "freeze_repository_commit_matches": (
+            development_manifest.get("repository_commit")
+            == current_identity.get("repository_commit")
+        ),
+        "freeze_runtime_tree_clean": (
+            current_identity.get("runtime_tree_clean") is True
+        ),
+        "freeze_config_sha256_matches": (
+            development_manifest.get("config_sha256")
+            == current_identity.get("config_sha256")
+        ),
+        "freeze_supervisor_prompt_matches": (
+            development_manifest.get("supervisor_prompt_sha256")
+            == current_identity.get("supervisor_prompt_sha256")
+        ),
+        "freeze_model_routing_matches": (
+            development_manifest.get("model_routing")
+            == current_identity.get("model_routing")
+        ),
+        "freeze_preflight_verification_passed": preflight_passed,
+    }
 
 
 def _within_budget(
@@ -115,9 +288,182 @@ def _within_budget(
         <= int(limits["max_output_tokens"])
         and int(usage.get("supervisor_api_calls", 0))
         <= int(limits["max_supervisor_api_calls"])
+        and int(usage.get("supervisor_policy_calls", 0))
+        <= int(limits["max_supervisor_decisions"])
         and int(usage.get("worker_model_calls", 0))
         <= int(limits["max_worker_model_calls"])
     )
+
+
+def development_acceptance_gates(
+    results: Sequence[Mapping[str, Any]],
+    summary: Mapping[str, Any],
+    limits: Mapping[str, Any],
+    *,
+    expected_task_count: int,
+) -> dict[str, bool]:
+    """Return the frozen pre-Test gates for one complete Development run."""
+
+    return {
+        "development_solved_at_least_4_of_5": (
+            expected_task_count == 5
+            and len(results) == expected_task_count
+            and int(summary.get("solved", 0)) >= 4
+        ),
+        "framework_runner_errors_zero": all(
+            not str(item.get("reason", "")).startswith("RUNNER_ERROR:")
+            for item in results
+        ),
+        "framework_terminal_errors_zero": all(
+            str(item.get("termination", {}).get("failure_class", ""))
+            not in _FRAMEWORK_FAILURE_CLASSES
+            for item in results
+        ),
+        "reviewer_input_contract_errors_zero": (
+            int(summary.get("contract_rejection_count", 0)) == 0
+        ),
+        "budget_accounting_contradictions_zero": all(
+            bool(item.get("budget", {}).get("within_budget", False))
+            == _within_budget(item.get("usage", {}), limits)
+            for item in results
+        ),
+        "supervisor_snapshots_compacted": (
+            int(summary.get("supervisor_snapshot_count", 0)) > 0
+            and float(
+                summary.get("supervisor_snapshot_reduction_ratio", 0.0)
+                or 0.0
+            )
+            >= 0.2
+        ),
+        "supervisor_routes_traced": all(
+            sum(
+                int(count)
+                for count in item.get("closed_loop", {})
+                .get("route_attempts_by_model", {})
+                .values()
+            )
+            > 0
+            and sum(
+                int(count)
+                for count in item.get("closed_loop", {})
+                .get("route_successes_by_model", {})
+                .values()
+            )
+            > 0
+            for item in results
+        ),
+        "terminal_reasons_structured": all(
+            all(
+                str(item.get("termination", {}).get(field, "")).strip()
+                for field in ("code", "stage", "failure_class")
+            )
+            for item in results
+        ),
+    }
+
+
+def frozen_test_acceptance_gates(
+    results: Sequence[Mapping[str, Any]],
+    *,
+    expected_task_count: int,
+) -> dict[str, bool]:
+    """Return gates specific to one complete, immutable Frozen Test run."""
+
+    failure_classes = [
+        str(item.get("termination", {}).get("failure_class", ""))
+        for item in results
+    ]
+    return {
+        "frozen_test_result_count_complete": (
+            expected_task_count > 0
+            and len(results) == expected_task_count
+        ),
+        "frozen_test_runner_errors_zero": all(
+            failure_class != "runner_error"
+            for failure_class in failure_classes
+        ),
+        "frozen_test_not_uniform_framework_failure": not (
+            failure_classes
+            and all(
+                failure_class in _FRAMEWORK_FAILURE_CLASSES
+                for failure_class in failure_classes
+            )
+        ),
+        "frozen_test_supervisor_routes_traced": all(
+            sum(
+                int(count)
+                for count in item.get("closed_loop", {})
+                .get("route_attempts_by_model", {})
+                .values()
+            )
+            > 0
+            and sum(
+                int(count)
+                for count in item.get("closed_loop", {})
+                .get("route_successes_by_model", {})
+                .values()
+            )
+            > 0
+            for item in results
+        ),
+        "frozen_test_terminal_reasons_structured": all(
+            all(
+                str(item.get("termination", {}).get(field, "")).strip()
+                for field in ("code", "stage", "failure_class")
+            )
+            for item in results
+        ),
+    }
+
+
+def _terminal_failure_class(
+    *,
+    engine_status: str,
+    termination_code: str,
+    artifacts: Sequence[Mapping[str, Any]],
+) -> str:
+    if engine_status == EngineStatus.SUCCEEDED.value:
+        return "none"
+    if termination_code.startswith("RUNNER_ERROR"):
+        return "runner_error"
+    if (
+        termination_code.endswith("BUDGET_EXHAUSTED")
+        or termination_code == "BUDGET_VIOLATION"
+    ):
+        return "budget_exhausted"
+    if termination_code in {"SOURCE_REPOSITORY_MUTATED", "WORKSPACE_LEAK"}:
+        return "evaluation_integrity_failure"
+    if termination_code == "SUPERVISOR_ROUTES_EXHAUSTED":
+        return "provider_quota_exhausted"
+    if termination_code == "SUPERVISOR_ROUTES_UNAVAILABLE":
+        return "provider_unavailable"
+    for item in reversed(artifacts):
+        if item.get("artifact_type") not in {
+            "validation_result",
+            "replan_record",
+        }:
+            continue
+        content = item.get("content", {})
+        failure_class = (
+            str(content.get("failure_class", ""))
+            if isinstance(content, Mapping)
+            else ""
+        )
+        if failure_class and failure_class != "none":
+            return failure_class
+    if termination_code == "SUPERVISOR_TERMINATED":
+        return "task_terminated"
+    return "orchestration_failure"
+
+
+def _formal_evaluation_executed(
+    *,
+    full_run: bool,
+    full_development_run: bool,
+) -> bool:
+    """Return whether a complete Development or Frozen Test really ran."""
+
+    return bool(full_run or full_development_run)
 
 
 def _validation_metrics(
@@ -212,6 +558,8 @@ def _usage_metrics(
         "total_tokens": (
             supervisor_usage["total_tokens"] + worker_usage["total_tokens"]
         ),
+        "supervisor_tokens": supervisor_usage["total_tokens"],
+        "worker_tokens": worker_usage["total_tokens"],
         "duration_ms": duration_ms,
         "estimated_api_cost_cny": supervisor_usage["estimated_cost_cny"],
         "by_model": {
@@ -249,6 +597,17 @@ def _successful_result(
         item.to_dict() for item in restored.blackboard.artifacts.values()
     ]
     nodes = [item.to_dict() for item in restored.graph.nodes]
+    metric_trace = TraceWriter(trace_path)
+    for item in artifacts:
+        metric_trace.write(
+            "metric_artifact_ref_built",
+            {
+                "artifact_id": item["artifact_id"],
+                "version": item["version"],
+                "artifact_ref": build_artifact_ref(item),
+                "artifact_type": item["artifact_type"],
+            },
+        )
     events = read_trace(trace_path)
     traced = trace_metrics(events)
     usage = _usage_metrics(
@@ -278,6 +637,7 @@ def _successful_result(
         resolution,
         engine_succeeded=restored.status is EngineStatus.SUCCEEDED,
         workspace_clean=workspace_clean,
+        recovery_metrics=traced,
     )
     within_budget = _within_budget(usage, limits)
     source_unchanged = source_digest_before == source_digest_after
@@ -288,12 +648,27 @@ def _successful_result(
         and workspace_clean
     )
     reason = restored.termination_reason or restored.status.value
+    termination_code = restored.termination_code or "UNKNOWN_TERMINATION"
+    termination_stage = restored.termination_stage or restored.blackboard.workflow_stage
     if not source_unchanged:
         reason = "SOURCE_REPOSITORY_MUTATED"
+        termination_code = reason
     elif not workspace_clean:
         reason = "WORKSPACE_LEAK"
+        termination_code = reason
     elif not within_budget:
         reason = "BUDGET_VIOLATION"
+        termination_code = reason
+    termination = {
+        "code": termination_code,
+        "stage": termination_stage,
+        "message": reason,
+        "failure_class": _terminal_failure_class(
+            engine_status=restored.status.value,
+            termination_code=termination_code,
+            artifacts=artifacts,
+        ),
+    }
 
     result_path = task_root / "result.json"
     result = {
@@ -304,6 +679,7 @@ def _successful_result(
         "seed": seed,
         "status": "succeeded" if succeeded else "failed",
         "reason": reason,
+        "termination": termination,
         "engine_status": restored.status.value,
         "workflow_stage": restored.blackboard.workflow_stage,
         "hypothesis_resolution": resolution,
@@ -377,6 +753,12 @@ def _error_result(
         "seed": seed,
         "status": "failed",
         "reason": f"RUNNER_ERROR:{type(exc).__name__}:{exc}",
+        "termination": {
+            "code": "RUNNER_ERROR",
+            "stage": "runner",
+            "message": f"{type(exc).__name__}:{exc}",
+            "failure_class": "runner_error",
+        },
         "validation": {
             "patch_applied": False,
             "target_test_passed": False,
@@ -476,6 +858,8 @@ async def _run_tasks(
         supervisor_config,
         raw_log_dir=run_root / "initial_raw_model_responses" / "supervisor",
     )
+    supervisor_values = _mapping(load_yaml(supervisor_config), "supervisor")
+    supervisor_recovery = _mapping(supervisor_values, "recovery")
     orchestration = _mapping(runtime_config, "orchestration")
     langgraph = _mapping(runtime_config, "langgraph")
     react = _mapping(phase6_config, "worker_react")
@@ -518,6 +902,12 @@ async def _run_tasks(
                 generation_config=supervisor_generation,
                 trace_writer=trace,
                 system_prompt=DYNAMIC_SUPERVISOR_PROMPT,
+                additional_schema_retries=int(
+                    supervisor_recovery.get("additional_schema_retries", 1)
+                ),
+                safe_fallback_enabled=bool(
+                    supervisor_recovery.get("safe_fallback_enabled", True)
+                ),
             )
             pool = WorkerPool(
                 worker_models,
@@ -689,11 +1079,11 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         args.report_root or str(reports["root"])
     ).expanduser().resolve(strict=False)
     run_root = report_root / run_id
-    run_root.mkdir(parents=True, exist_ok=False)
 
     shared_phase6_path = str(config["shared_phase6_config"])
     phase6_config = load_yaml(shared_phase6_path)
     model_config = load_yaml(args.model_config)
+    supervisor_config = load_yaml(args.supervisor_config)
     runtime_config = load_yaml(args.runtime_config)
     limits = _mapping(phase6_config, "hybrid_limits")
     effective_budget_values = effective_engine_budget(
@@ -706,10 +1096,88 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         execution.get("require_human_approval", False)
     )
     fail_fast = bool(args.fail_fast or execution.get("fail_fast", False))
+    config_sha256 = {
+        "closed_loop": _file_sha256(args.config),
+        "phase6": _file_sha256(shared_phase6_path),
+        "model": _file_sha256(args.model_config),
+        "supervisor": _file_sha256(args.supervisor_config),
+        "runtime": _file_sha256(args.runtime_config),
+        "suite": _file_sha256(suite_path),
+    }
+    model_routing = _mapping(
+        _mapping(supervisor_config, "supervisor"),
+        "routing",
+    )
+    current_identity = {
+        "repository_commit": _git_commit(repo_root),
+        "repository_fingerprint": _repository_fingerprint(repo_root),
+        "runtime_tree_clean": _runtime_tree_is_clean(repo_root),
+        "config_sha256": config_sha256,
+        "supervisor_prompt_sha256": _text_sha256(DYNAMIC_SUPERVISOR_PROMPT),
+        "model_routing": model_routing,
+    }
+    pre_freeze_verification: dict[str, Any] | None = None
+    if (
+        args.split == "development"
+        and not args.task_id
+        and not args.dry_run
+    ):
+        if not args.verification_record:
+            raise ValueError(
+                "完整 Development 必须提供 --verification-record"
+            )
+        verification_path = Path(args.verification_record).expanduser().resolve()
+        pre_freeze_verification = _load_json_mapping(verification_path)
+        verification_gates = pre_freeze_record_gates(
+            pre_freeze_verification,
+            str(current_identity["repository_fingerprint"]),
+            runtime_tree_clean=bool(current_identity["runtime_tree_clean"]),
+        )
+        if not all(verification_gates.values()):
+            failed = [
+                name for name, passed in verification_gates.items() if not passed
+            ]
+            raise ValueError(f"冻结前代码验收记录无效：{failed}")
+        pre_freeze_verification = {
+            **pre_freeze_verification,
+            "record_path": str(verification_path),
+            "record_sha256": _file_sha256(verification_path),
+            "verification_gates": verification_gates,
+        }
+    freeze_verification: dict[str, Any] | None = None
+    if args.split == "test" and not args.task_id and not args.dry_run:
+        if not args.freeze_manifest:
+            raise ValueError("完整 Frozen Test 必须提供 --freeze-manifest")
+        freeze_path = Path(args.freeze_manifest).expanduser().resolve()
+        development_manifest = _load_json_mapping(freeze_path)
+        development_acceptance = _load_json_mapping(
+            freeze_path.with_name("acceptance.json")
+        )
+        freeze_gates = verify_frozen_identity(
+            development_manifest,
+            development_acceptance,
+            current_identity,
+        )
+        if not all(freeze_gates.values()):
+            failed = [name for name, passed in freeze_gates.items() if not passed]
+            raise ValueError(f"冻结身份校验失败：{failed}")
+        freeze_verification = {
+            "development_manifest": str(freeze_path),
+            "development_manifest_sha256": _file_sha256(freeze_path),
+            "development_acceptance": str(
+                freeze_path.with_name("acceptance.json")
+            ),
+            "development_acceptance_sha256": _file_sha256(
+                freeze_path.with_name("acceptance.json")
+            ),
+            "gates": freeze_gates,
+        }
+
+    run_root.mkdir(parents=True, exist_ok=False)
 
     manifest = {
         "schema_version": 1,
-        "phase": 8,
+        "phase": _PHASE,
         "run_id": run_id,
         "protocol_version": str(protocol["version"]),
         "baseline_protocol": str(protocol["baseline_protocol"]),
@@ -737,16 +1205,19 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
             f"{AsyncLangGraphRuntime.__module__}."
             f"{AsyncLangGraphRuntime.__name__}"
         ),
-        "repository_commit": _git_commit(repo_root),
-        "repository_fingerprint": _repository_fingerprint(repo_root),
-        "config_sha256": {
-            "closed_loop": _file_sha256(args.config),
-            "phase6": _file_sha256(shared_phase6_path),
-            "model": _file_sha256(args.model_config),
-            "supervisor": _file_sha256(args.supervisor_config),
-            "runtime": _file_sha256(args.runtime_config),
-            "suite": _file_sha256(suite_path),
-        },
+        "repository_commit": current_identity["repository_commit"],
+        "repository_fingerprint": current_identity["repository_fingerprint"],
+        "repository_fingerprint_scope": [
+            "pyproject.toml",
+            *_RUNTIME_FINGERPRINT_PREFIXES,
+        ],
+        "supervisor_prompt_sha256": current_identity[
+            "supervisor_prompt_sha256"
+        ],
+        "model_routing": current_identity["model_routing"],
+        "config_sha256": current_identity["config_sha256"],
+        "pre_freeze_verification": pre_freeze_verification,
+        "freeze_verification": freeze_verification,
         "python": sys.executable,
         "command": list(sys.argv),
         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -763,7 +1234,7 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         )
         save_json(run_root / "manifest.json", manifest)
         acceptance = {
-            "phase": 8,
+            "phase": _PHASE,
             "run_id": run_id,
             "passed": True,
             "full_run": False,
@@ -804,6 +1275,11 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         and not args.task_id
         and len(selected_tasks) == expected_test_count
     )
+    full_development_run = bool(
+        args.split == "development"
+        and not args.task_id
+        and len(selected_tasks) == len(suite.development_tasks)
+    )
     gates = {
         "final_runtime_entrypoint": (
             AsyncLangGraphRuntime.__module__
@@ -834,17 +1310,41 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
             summary["task_count"] == len(selected_tasks)
         ),
     }
+    if full_run:
+        gates["frozen_identity_verified"] = bool(
+            freeze_verification
+            and all(freeze_verification["gates"].values())
+        )
+        gates.update(
+            frozen_test_acceptance_gates(
+                results,
+                expected_task_count=expected_test_count,
+            )
+        )
+    if full_development_run:
+        gates.update(
+            development_acceptance_gates(
+                results,
+                summary,
+                limits,
+                expected_task_count=len(suite.development_tasks),
+            )
+        )
     passed = all(gates.values())
     manifest.update(
         finished_at=datetime.now(timezone.utc).isoformat(),
-        final_evaluation_executed=full_run,
+        final_evaluation_executed=_formal_evaluation_executed(
+            full_run=full_run,
+            full_development_run=full_development_run,
+        ),
     )
     save_json(run_root / "manifest.json", manifest)
     acceptance = {
-        "phase": 8,
+        "phase": _PHASE,
         "run_id": run_id,
         "passed": passed,
         "full_run": full_run,
+        "full_development_run": full_development_run,
         "dry_run": False,
         "gates": gates,
         "summary": summary,
@@ -859,7 +1359,7 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     save_json(
         report_root / "latest_summary.json",
         {
-            "phase": 8,
+            "phase": _PHASE,
             "run_id": run_id,
             "passed": passed,
             "full_run": full_run,
@@ -890,6 +1390,14 @@ def main() -> int:
         default="configs/supervisor.yaml",
     )
     parser.add_argument("--runtime-config", default="configs/runtime.yaml")
+    parser.add_argument(
+        "--freeze-manifest",
+        help="完整 Frozen Test 对应的已通过 Development manifest.json",
+    )
+    parser.add_argument(
+        "--verification-record",
+        help="完整 Development 对应的冻结前代码验收 JSON",
+    )
     parser.add_argument("--report-root")
     parser.add_argument("--run-id")
     parser.add_argument("--dry-run", action="store_true")

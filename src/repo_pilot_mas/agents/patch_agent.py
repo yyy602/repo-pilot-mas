@@ -14,15 +14,15 @@ from repo_pilot_mas.agents.worker_common import (
 )
 from repo_pilot_mas.models import GenerationConfig, Message, ModelAdapter
 from repo_pilot_mas.orchestration.react_loop import ReactBudget, ReactLoop
-from repo_pilot_mas.runtime import TraceWriter, Workspace
+from repo_pilot_mas.runtime import TraceWriter, Workspace, restore_workspace
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec
 from repo_pilot_mas.schemas.worker_artifact import (
     PATCH_STRATEGIES,
     REVIEW_CONTENT_SCHEMA,
     validate_worker_artifact,
 )
-from repo_pilot_mas.tools import collect_diff
-from repo_pilot_mas.tools.registry import ToolRegistry
+from repo_pilot_mas.tools import collect_diff, run_tests, static_check
+from repo_pilot_mas.tools.registry import ToolRegistry, task_test_command
 
 _PATCH_DRAFT_SCHEMA = {
     "type": "object",
@@ -135,7 +135,8 @@ class PatchAgent:
         result = loop.run(history)
         applied = None
         draft = None
-        for _ in range(3):
+        target_precheck = None
+        for attempt_index in range(3):
             if (
                 result.status == "completed"
                 and result.final_action is not None
@@ -154,7 +155,13 @@ class PatchAgent:
                         "apply_patch",
                         {"patch_text": patch_text},
                     )
-                    if applied.ok:
+                    if not applied.ok:
+                        failure = (
+                            applied.error.message
+                            if applied.error
+                            else "补丁应用失败"
+                        )
+                    else:
                         if self.trace_writer is not None:
                             self.trace_writer.write(
                                 "tool_call",
@@ -165,17 +172,60 @@ class PatchAgent:
                                 },
                                 trace_id=applied.trace_id,
                             )
-                        break
+                        if not task.failing_tests:
+                            break
+                        target_precheck = run_tests(
+                            self.workspace.root,
+                            command=task_test_command(task, target=True),
+                            timeout_seconds=min(
+                                float(task.max_runtime_seconds),
+                                60.0,
+                            ),
+                        )
+                        if self.trace_writer is not None:
+                            self.trace_writer.write(
+                                "tool_call",
+                                {
+                                    "phase": "patch_target_precheck",
+                                    "node_id": node_id,
+                                    "attempt": attempt_index + 1,
+                                    "tool": "run_tests",
+                                    "result": target_precheck.to_dict(),
+                                },
+                                trace_id=target_precheck.trace_id,
+                            )
+                            self.trace_writer.write(
+                                "patch_target_precheck_completed",
+                                {
+                                    "node_id": node_id,
+                                    "attempt": attempt_index + 1,
+                                    "workspace_id": self.workspace.workspace_id,
+                                    "result": target_precheck.to_dict(),
+                                },
+                                trace_id=target_precheck.trace_id,
+                            )
+                        if target_precheck.ok:
+                            break
+                        output = "\n".join(
+                            part
+                            for part in (
+                                target_precheck.stdout,
+                                target_precheck.stderr,
+                            )
+                            if part
+                        )[-4000:]
+                        failure = (
+                            "目标测试仍失败，必须根据真实输出修改根因对应逻辑，"
+                            f"不能重复相同替换：{output}"
+                        )
+                        restore_workspace(self.workspace)
+                        applied = None
                 except (OSError, ValueError) as exc:
                     failure = str(exc)
-                else:
-                    failure = (
-                        applied.error.message
-                        if applied.error
-                        else "补丁应用失败"
-                    )
             else:
                 failure = "尚未成功 inspect_code 并返回结构化文本替换"
+            if attempt_index == 2:
+                break
             result = loop.run(
                 (
                     *result.messages,
@@ -205,6 +255,67 @@ class PatchAgent:
             raise WorkerAgentError("Patch diff 超出可审计大小限制")
         files = [str(item["path"]) for item in collected.data["files"]]
         diff_text = str(collected.data["diff"])
+        protected_ok = not collected.data["protected_path_violations"]
+        precheck = static_check(
+            self.workspace.root,
+            run_ruff=False,
+            timeout_seconds=task.max_runtime_seconds,
+        )
+        precheck_output = "\n".join(
+            part for part in (precheck.stdout, precheck.stderr) if part
+        )[-4000:]
+        static_result = {
+            "ok": precheck.ok,
+            "trace_id": precheck.trace_id,
+            "exit_code": int(
+                precheck.exit_code
+                if precheck.exit_code is not None
+                else (0 if precheck.ok else 1)
+            ),
+            "output_tail": precheck_output,
+        }
+        if self.trace_writer is not None:
+            self.trace_writer.write(
+                "tool_call",
+                {
+                    "phase": "patch_precheck",
+                    "node_id": node_id,
+                    "result": precheck.to_dict(),
+                },
+                trace_id=precheck.trace_id,
+            )
+            self.trace_writer.write(
+                "patch_precheck_completed",
+                {
+                    "node_id": node_id,
+                    "workspace_id": self.workspace.workspace_id,
+                    "ok": precheck.ok,
+                    "protected_path_check": protected_ok,
+                    "accepted_hypothesis_refs": list(hypothesis_refs),
+                    "primary_hypothesis_ref": primary_hypothesis_ref,
+                    "trace_id": precheck.trace_id,
+                },
+                trace_id=precheck.trace_id,
+            )
+        if not protected_ok:
+            raise WorkerAgentError(
+                "Patch 修改了受保护路径",
+                code="ARTIFACT_SCHEMA_ERROR",
+            )
+        if not precheck.ok:
+            raise WorkerAgentError(
+                "Patch 最小语义预检查失败",
+                code="TOOL_EXECUTION_ERROR",
+            )
+        pre_patch_behavior = "；".join(
+            str(item.content.get("direct_cause") or item.content.get("root_cause"))
+            for item in hypotheses
+        )
+        failure_input_walkthrough = "；".join(
+            f"{item.ref}: {item.content.get('root_cause')} -> "
+            f"{item.content.get('direct_cause')}"
+            for item in hypotheses
+        )
         content = {
             "strategy": strategy,
             "based_on_hypothesis_refs": list(hypothesis_refs),
@@ -214,10 +325,41 @@ class PatchAgent:
             "diff_sha256": hashlib.sha256(diff_text.encode()).hexdigest(),
             "changed_files": files,
             "rationale": str(draft["rationale"]),
+            "semantic_rationale": str(draft["rationale"]),
+            "pre_patch_behavior": pre_patch_behavior,
+            "post_patch_expected_behavior": (
+                f"应用 {strategy} 替换后，{draft['rationale']}，失败输入不再触发直接原因"
+            ),
+            "failure_input_walkthrough": failure_input_walkthrough,
+            "precheck_command": (
+                list(target_precheck.command)
+                if target_precheck is not None
+                and target_precheck.command is not None
+                else ["static_check", ".", "--no-ruff"]
+            ),
+            "precheck_result": (
+                {
+                    "ok": target_precheck.ok,
+                    "trace_id": target_precheck.trace_id,
+                    "exit_code": int(
+                        target_precheck.exit_code
+                        if target_precheck.exit_code is not None
+                        else (0 if target_precheck.ok else 1)
+                    ),
+                    "output_tail": "\n".join(
+                        part
+                        for part in (
+                            target_precheck.stdout,
+                            target_precheck.stderr,
+                        )
+                        if part
+                    )[-4000:],
+                }
+                if target_precheck is not None
+                else static_result
+            ),
             "risk_notes": list(draft["risk_notes"]),
-            "protected_path_check": not collected.data[
-                "protected_path_violations"
-            ],
+            "protected_path_check": protected_ok,
             "workspace_id": self.workspace.workspace_id,
         }
         refs = tuple(item.ref for item in artifacts)

@@ -27,6 +27,17 @@ def test_phase6_suite_freezes_ten_unseen_tasks() -> None:
         task.task_id for task in suite.test_tasks
     )
     assert {task.metadata["dataset"] for task in suite.test_tasks} == {"quixbugs"}
+    assert set(suite.development_task_ids) == {
+        "quixbugs_find_first_in_sorted",
+        "quixbugs_gcd",
+        "quixbugs_is_valid_parenthesization",
+        "quixbugs_bucketsort",
+        "quixbugs_flatten",
+    }
+    assert {
+        "quixbugs_max_sublist_sum",
+        "quixbugs_powerset",
+    }.issubset(task.task_id for task in suite.test_tasks)
 
 
 def test_fixed_pipeline_starts_two_investigators_then_two_diagnosticians() -> None:

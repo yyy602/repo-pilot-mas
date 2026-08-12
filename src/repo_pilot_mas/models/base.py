@@ -39,6 +39,7 @@ class GenerationConfig:
     stop: tuple[str, ...] = ()
     timeout_seconds: float = 120.0
     max_retries: int = 1
+    enable_thinking: bool | None = None
 
     def __post_init__(self) -> None:
         if not 0 <= self.temperature <= 2:
@@ -49,6 +50,11 @@ class GenerationConfig:
             raise ValueError("timeout_seconds must be positive")
         if self.max_retries < 0:
             raise ValueError("max_retries must be non-negative")
+        if self.enable_thinking is not None and not isinstance(
+            self.enable_thinking,
+            bool,
+        ):
+            raise TypeError("enable_thinking must be a boolean or None")
         object.__setattr__(self, "stop", tuple(str(item) for item in self.stop))
 
 
@@ -210,6 +216,11 @@ class ModelAdapter(ABC):
                 )
             except (ValueError, SchemaValidationError) as exc:
                 last_error = str(exc)
+                self.reject_structured_response(
+                    response_model_id,
+                    raw.metadata,
+                    last_error,
+                )
                 if attempt > active_config.max_retries:
                     break
                 active_messages += (
@@ -245,6 +256,19 @@ class ModelAdapter(ABC):
 
     def close(self) -> None:
         """Release provider resources; stateless adapters need no action."""
+
+    def begin_structured_recovery(self) -> None:
+        """Start one bounded structured-output recovery sequence."""
+
+    def reject_structured_response(
+        self,
+        model_id: str,
+        metadata: Mapping[str, Any],
+        reason: str,
+    ) -> None:
+        """Notify adapters that one route returned semantically invalid JSON."""
+
+        del model_id, metadata, reason
 
     @abstractmethod
     def _generate_once(

@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_levenshtein",
+  "repository_path": "../levenshtein",
+  "issue": "levenshtein 对相同前缀错误增加编辑次数，导致距离被系统性高估。",
+  "failing_tests": ["tests/test_levenshtein.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["levenshtein.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "wrong_equal_branch_cost"}
+}

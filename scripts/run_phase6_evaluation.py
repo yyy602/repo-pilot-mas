@@ -37,6 +37,7 @@ from repo_pilot_mas.evaluation import (
     trace_metrics,
     tree_digest,
 )
+from repo_pilot_mas.evaluation_budget import effective_engine_budget
 from repo_pilot_mas.models import (
     create_model_adapter,
     create_supervisor_model_router,
@@ -100,6 +101,8 @@ def _within_budget(usage: Mapping[str, Any], limits: Mapping[str, Any], *, hybri
     if hybrid:
         return bool(
             int(usage.get("supervisor_api_calls", 0)) <= int(limits["max_supervisor_api_calls"])
+            and int(usage.get("supervisor_policy_calls", 0))
+            <= int(limits["max_supervisor_decisions"])
             and int(usage.get("worker_model_calls", 0)) <= int(limits["max_worker_model_calls"])
         )
     return int(usage.get("model_calls", 0)) <= int(limits["max_model_calls"])
@@ -429,6 +432,8 @@ async def _run_hybrid_system(
         supervisor_config,
         raw_log_dir=system_root / "initial_raw_model_responses" / "supervisor",
     )
+    supervisor_values = _mapping(load_yaml(supervisor_config), "supervisor")
+    supervisor_recovery = _mapping(supervisor_values, "recovery")
     orchestration = _mapping(runtime_config, "orchestration")
     langgraph = _mapping(runtime_config, "langgraph")
     react = _mapping(phase6_config, "worker_react")
@@ -459,6 +464,12 @@ async def _run_hybrid_system(
                     DYNAMIC_SUPERVISOR_PROMPT,
                     system_id,
                 ),
+                additional_schema_retries=int(
+                    supervisor_recovery.get("additional_schema_retries", 1)
+                ),
+                safe_fallback_enabled=bool(
+                    supervisor_recovery.get("safe_fallback_enabled", True)
+                ),
             )
         pool = WorkerPool(
             worker_models,
@@ -467,11 +478,7 @@ async def _run_hybrid_system(
             react_budget=ReactBudget(**react),
             generation_config=worker_generation,
         )
-        budget_values = dict(orchestration)
-        budget_values.update(
-            max_supervisor_calls=int(limits["max_supervisor_api_calls"]),
-            max_runtime_seconds=float(limits["max_runtime_seconds"]),
-        )
+        budget_values = effective_engine_budget(orchestration, limits)
         engine = OrchestrationEngine(
             task,
             budget=EngineBudget(**budget_values),

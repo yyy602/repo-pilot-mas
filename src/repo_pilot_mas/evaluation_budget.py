@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 _EVALUATION_TO_ENGINE_KEYS = {
-    "max_supervisor_api_calls": "max_supervisor_calls",
+    "max_supervisor_decisions": "max_supervisor_calls",
     "max_tool_calls": "max_tool_calls",
     "max_input_tokens": "max_input_tokens",
     "max_output_tokens": "max_output_tokens",

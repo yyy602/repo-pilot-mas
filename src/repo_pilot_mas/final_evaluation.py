@@ -37,13 +37,14 @@ def closed_loop_task_mechanism(
     *,
     engine_succeeded: bool,
     workspace_clean: bool,
+    recovery_metrics: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Derive auditable closed-loop mechanism metrics for one task."""
 
     artifact_by_ref = {
-        str(item.get("artifact_ref", "")): item
+        build_artifact_ref(item): item
         for item in artifacts
-        if item.get("artifact_ref")
+        if _has_artifact_identity(item)
     }
     accepted_refs = _unique_strings(
         hypothesis_resolution.get("accepted_refs", ())
@@ -62,15 +63,44 @@ def closed_loop_task_mechanism(
             for ref in review_refs
         )
     )
+    accepted_hypotheses = [artifact_by_ref.get(ref) for ref in accepted_refs]
+    supporting_evidence_refs = _unique_strings(
+        tuple(
+            ref
+            for hypothesis in accepted_hypotheses
+            if hypothesis is not None
+            for ref in _content(hypothesis).get("supporting_evidence", ())
+        )
+    )
+    review_evidence_refs = {
+        str(ref)
+        for ref in review_refs
+        if artifact_by_ref.get(ref) is not None
+        for ref in _content(artifact_by_ref[ref]).get("evidence_refs", ())
+    }
+    evidence_gate_passed = bool(
+        hypothesis_accepted
+        and supporting_evidence_refs
+        and set(supporting_evidence_refs).issubset(review_evidence_refs)
+        and all(
+            (evidence := artifact_by_ref.get(ref)) is not None
+            and evidence.get("artifact_type") == "evidence"
+            and _content(evidence).get("verified") is True
+            and bool(_content(evidence).get("tool_trace_ids"))
+            for ref in supporting_evidence_refs
+        )
+    )
 
     patch_candidates = [
         item
         for item in artifacts
         if item.get("artifact_type") == "patch_candidate"
     ]
-    patch_bound_to_accepted_set = any(
-        _patch_refs(item) == accepted_refs for item in patch_candidates
-    ) if accepted_refs else False
+    patch_bound_to_accepted_set = (
+        any(_same_ref_set(_patch_refs(item), accepted_refs) for item in patch_candidates)
+        if accepted_refs
+        else False
+    )
     validations = [
         item
         for item in artifacts
@@ -101,22 +131,61 @@ def closed_loop_task_mechanism(
     )
     retry_nodes = sum(int(item.get("retry_count", 0)) > 0 for item in nodes)
     recovery_attempted = bool(rejection_items or replan_records or retry_nodes)
+    recovery = dict(recovery_metrics or {})
+    contract_rejections = sum(
+        _content(item).get("code") == "AGENT_INPUT_CONTRACT_VIOLATION"
+        for item in rejection_items
+    )
 
     return {
         "hypothesis_accepted": hypothesis_accepted,
+        "evidence_gate_passed": evidence_gate_passed,
         "accepted_hypothesis_count": len(accepted_refs),
         "root_cause_review_passed": root_cause_review_passed,
         "accepted_review_count": len(review_refs),
         "patch_bound_to_accepted_set": patch_bound_to_accepted_set,
         "patch_validation_passed": patch_validation_passed,
+        "validation_passed": patch_validation_passed,
         "artifact_rejection_count": len(rejection_items),
         "worker_failure_count": len(failed_worker_ids),
         "isolated_worker_failure_count": len(isolated_worker_ids),
         "replan_record_count": replan_records,
         "retry_node_count": retry_nodes,
+        "worker_retry_count": sum(int(item.get("retry_count", 0)) for item in nodes),
+        "contract_rejection_count": int(
+            recovery.get("contract_rejection_count", contract_rejections)
+        ),
+        "node_rebuild_count": int(recovery.get("node_rebuild_count", 0)),
+        "supervisor_format_repair_count": int(
+            recovery.get("supervisor_format_repair_count", 0)
+        ),
+        "supervisor_snapshot_count": int(
+            recovery.get("supervisor_snapshot_count", 0)
+        ),
+        "supervisor_snapshot_original_chars": int(
+            recovery.get("supervisor_snapshot_original_chars", 0)
+        ),
+        "supervisor_snapshot_compact_chars": int(
+            recovery.get("supervisor_snapshot_compact_chars", 0)
+        ),
+        "supervisor_snapshot_reduction_ratio": recovery.get(
+            "supervisor_snapshot_reduction_ratio"
+        ),
+        "replan_attempt_count": replan_records,
+        "replan_succeeded": bool(replan_records and engine_succeeded),
         "recovery_attempted": recovery_attempted,
         "recovery_succeeded": bool(recovery_attempted and engine_succeeded),
         "workspace_clean": bool(workspace_clean),
+        "route_attempts_by_model": dict(
+            recovery.get("route_attempts_by_model", {})
+        ),
+        "route_successes_by_model": dict(
+            recovery.get("route_successes_by_model", {})
+        ),
+        "route_exhausted_by_model": dict(
+            recovery.get("route_exhausted_by_model", {})
+        ),
+        "latency_by_stage": dict(recovery.get("latency_by_stage", {})),
     }
 
 
@@ -180,6 +249,26 @@ def aggregate_closed_loop_results(
         str(item.get("mechanism", {}).get("execution_path", "unknown"))
         for item in results
     )
+    termination_codes = Counter(
+        str(item.get("termination", {}).get("code", "missing"))
+        for item in results
+    )
+    termination_stages = Counter(
+        str(item.get("termination", {}).get("stage", "missing"))
+        for item in results
+    )
+    termination_failure_classes = Counter(
+        str(item.get("termination", {}).get("failure_class", "missing"))
+        for item in results
+    )
+    snapshot_original_chars = _closed_loop_sum(
+        results,
+        "supervisor_snapshot_original_chars",
+    )
+    snapshot_compact_chars = _closed_loop_sum(
+        results,
+        "supervisor_snapshot_compact_chars",
+    )
 
     return {
         "schema_version": 1,
@@ -202,6 +291,10 @@ def aggregate_closed_loop_results(
             results,
             "hypothesis_accepted",
         ),
+        "evidence_gate_pass_rate": _closed_loop_rate(
+            results,
+            "evidence_gate_passed",
+        ),
         "review_pass_rate": _closed_loop_rate(
             results,
             "root_cause_review_passed",
@@ -214,6 +307,10 @@ def aggregate_closed_loop_results(
             results,
             "patch_validation_passed",
         ),
+        "validation_pass_rate": _closed_loop_rate(
+            results,
+            "validation_passed",
+        ),
         "worker_failure_count": worker_failures,
         "isolated_worker_failure_count": isolated_failures,
         "worker_failure_isolation_rate": (
@@ -225,6 +322,11 @@ def aggregate_closed_loop_results(
             recovery_successes / recovery_attempts
             if recovery_attempts
             else None
+        ),
+        "termination_codes": dict(sorted(termination_codes.items())),
+        "termination_stages": dict(sorted(termination_stages.items())),
+        "termination_failure_classes": dict(
+            sorted(termination_failure_classes.items())
         ),
         "workspace_cleanup_rate": _closed_loop_rate(
             results,
@@ -239,6 +341,54 @@ def aggregate_closed_loop_results(
             )
             for item in results
         ),
+        "worker_retry_count": _closed_loop_sum(results, "worker_retry_count"),
+        "contract_rejection_count": _closed_loop_sum(
+            results,
+            "contract_rejection_count",
+        ),
+        "node_rebuild_count": _closed_loop_sum(results, "node_rebuild_count"),
+        "supervisor_format_repair_count": _closed_loop_sum(
+            results,
+            "supervisor_format_repair_count",
+        ),
+        "supervisor_snapshot_count": _closed_loop_sum(
+            results,
+            "supervisor_snapshot_count",
+        ),
+        "supervisor_snapshot_original_chars": snapshot_original_chars,
+        "supervisor_snapshot_compact_chars": snapshot_compact_chars,
+        "supervisor_snapshot_reduction_ratio": (
+            1.0 - snapshot_compact_chars / snapshot_original_chars
+            if snapshot_original_chars
+            else None
+        ),
+        "replan_attempt_count": _closed_loop_sum(results, "replan_attempt_count"),
+        "replan_success_rate": _conditional_closed_loop_rate(
+            results,
+            attempted="replan_attempt_count",
+            succeeded="replan_succeeded",
+        ),
+        "route_attempts_by_model": _merge_counters(
+            results,
+            "route_attempts_by_model",
+        ),
+        "route_successes_by_model": _merge_counters(
+            results,
+            "route_successes_by_model",
+        ),
+        "route_exhausted_by_model": _merge_counters(
+            results,
+            "route_exhausted_by_model",
+        ),
+        "supervisor_tokens": sum(
+            int(item.get("usage", {}).get("supervisor_tokens", 0))
+            for item in results
+        ),
+        "worker_tokens": sum(
+            int(item.get("usage", {}).get("worker_tokens", 0))
+            for item in results
+        ),
+        "latency_by_stage": _merge_latency_by_stage(results),
         "budget_violations": sum(
             not bool(item.get("budget", {}).get("within_budget", False))
             for item in results
@@ -263,6 +413,81 @@ def aggregate_closed_loop_results(
             round(total_cost / solved, 6) if solved else None
         ),
         "route_distribution": dict(sorted(paths.items())),
+        "metric_layers": {
+            "business_results": {
+                "task_resolution_rate": solved / total,
+                "target_test_pass_rate": _validation_rate(
+                    results, "target_test_passed"
+                ),
+                "regression_pass_rate": _validation_rate(
+                    results, "regression_passed"
+                ),
+                "patch_success_rate": _closed_loop_rate(
+                    results, "patch_validation_passed"
+                ),
+            },
+            "closed_loop_mechanism": {
+                "evidence_gate_pass_rate": _closed_loop_rate(
+                    results, "evidence_gate_passed"
+                ),
+                "hypothesis_accept_rate": _closed_loop_rate(
+                    results, "hypothesis_accepted"
+                ),
+                "review_pass_rate": _closed_loop_rate(
+                    results, "root_cause_review_passed"
+                ),
+                "patch_binding_rate": _closed_loop_rate(
+                    results, "patch_bound_to_accepted_set"
+                ),
+                "validation_pass_rate": _closed_loop_rate(
+                    results, "validation_passed"
+                ),
+            },
+            "exception_recovery": {
+                "worker_retry_count": _closed_loop_sum(
+                    results, "worker_retry_count"
+                ),
+                "contract_rejection_count": _closed_loop_sum(
+                    results, "contract_rejection_count"
+                ),
+                "node_rebuild_count": _closed_loop_sum(
+                    results, "node_rebuild_count"
+                ),
+                "supervisor_format_repair_count": _closed_loop_sum(
+                    results, "supervisor_format_repair_count"
+                ),
+                "replan_attempt_count": _closed_loop_sum(
+                    results, "replan_attempt_count"
+                ),
+                "replan_success_rate": _conditional_closed_loop_rate(
+                    results,
+                    attempted="replan_attempt_count",
+                    succeeded="replan_succeeded",
+                ),
+            },
+            "routing_and_cost": {
+                "route_attempts_by_model": _merge_counters(
+                    results, "route_attempts_by_model"
+                ),
+                "route_successes_by_model": _merge_counters(
+                    results, "route_successes_by_model"
+                ),
+                "route_exhausted_by_model": _merge_counters(
+                    results, "route_exhausted_by_model"
+                ),
+                "supervisor_tokens": sum(
+                    int(item.get("usage", {}).get("supervisor_tokens", 0))
+                    for item in results
+                ),
+                "worker_tokens": sum(
+                    int(item.get("usage", {}).get("worker_tokens", 0))
+                    for item in results
+                ),
+                "total_tokens": totals["total_tokens"],
+                "latency_by_stage": _merge_latency_by_stage(results),
+                "estimated_cost_cny": total_cost,
+            },
+        },
         "task_result_paths": [str(item["result_path"]) for item in results],
     }
 
@@ -464,16 +689,44 @@ def _is_acceptable_root_cause_review(
     return bool(
         content.get("mode") in _ROOT_CAUSE_REVIEW_MODES
         and content.get("verdict") in _ACCEPTABLE_ROOT_CAUSE_VERDICTS
+        and content.get("failure_explained") is True
+        and content.get("causal_chain_complete") is True
+        and (
+            bool(content.get("alternative_causes"))
+            or content.get("counterexample_checked") is True
+        )
+        and bool(content.get("verification_steps_executed"))
+        and not content.get("remaining_uncertainty")
     )
 
 
 def _patch_refs(item: Mapping[str, Any]) -> tuple[str, ...]:
     content = _content(item)
-    raw_refs = content.get("based_on_hypothesis_refs")
-    if raw_refs is None:
-        legacy = content.get("based_on_hypothesis")
-        raw_refs = (legacy,) if legacy else ()
-    return _unique_strings(raw_refs)
+    return _unique_strings(content.get("based_on_hypothesis_refs", ()))
+
+
+def build_artifact_ref(item: Mapping[str, Any]) -> str:
+    """Build the canonical ref from Artifact identity fields."""
+
+    artifact_id = str(item.get("artifact_id", ""))
+    version = item.get("version")
+    if artifact_id and isinstance(version, int) and not isinstance(version, bool):
+        return f"{artifact_id}@v{version}"
+    fallback = str(item.get("artifact_ref", ""))
+    if fallback:
+        return fallback
+    raise ValueError("artifact requires artifact_id/version or artifact_ref")
+
+
+def _has_artifact_identity(item: Mapping[str, Any]) -> bool:
+    return bool(
+        (item.get("artifact_id") and isinstance(item.get("version"), int))
+        or item.get("artifact_ref")
+    )
+
+
+def _same_ref_set(left: Sequence[str], right: Sequence[str]) -> bool:
+    return len(left) == len(right) and set(left) == set(right)
 
 
 def _content(item: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -507,6 +760,69 @@ def _closed_loop_rate(
     ) / len(results)
 
 
+def _closed_loop_sum(
+    results: Sequence[Mapping[str, Any]],
+    field: str,
+) -> int:
+    return sum(int(item.get("closed_loop", {}).get(field, 0)) for item in results)
+
+
+def _conditional_closed_loop_rate(
+    results: Sequence[Mapping[str, Any]],
+    *,
+    attempted: str,
+    succeeded: str,
+) -> float | None:
+    attempted_tasks = [
+        item
+        for item in results
+        if int(item.get("closed_loop", {}).get(attempted, 0)) > 0
+    ]
+    if not attempted_tasks:
+        return None
+    return sum(
+        bool(item.get("closed_loop", {}).get(succeeded))
+        for item in attempted_tasks
+    ) / len(attempted_tasks)
+
+
+def _merge_counters(
+    results: Sequence[Mapping[str, Any]],
+    field: str,
+) -> dict[str, int]:
+    counter: Counter[str] = Counter()
+    for item in results:
+        values = item.get("closed_loop", {}).get(field, {})
+        if isinstance(values, Mapping):
+            counter.update({str(key): int(value) for key, value in values.items()})
+    return dict(sorted(counter.items()))
+
+
+def _merge_latency_by_stage(
+    results: Sequence[Mapping[str, Any]],
+) -> dict[str, dict[str, float | int]]:
+    calls: Counter[str] = Counter()
+    totals: Counter[str] = Counter()
+    for item in results:
+        values = item.get("closed_loop", {}).get("latency_by_stage", {})
+        if not isinstance(values, Mapping):
+            continue
+        for stage, raw in values.items():
+            if not isinstance(raw, Mapping):
+                continue
+            calls[str(stage)] += int(raw.get("calls", 0))
+            totals[str(stage)] += int(raw.get("total_ms", 0))
+    return {
+        stage: {
+            "calls": calls[stage],
+            "total_ms": total_ms,
+            "average_ms": total_ms / calls[stage],
+        }
+        for stage, total_ms in sorted(totals.items())
+        if calls[stage]
+    }
+
+
 def _format_optional_rate(value: Any) -> str:
     if value is None:
         return "N/A"
@@ -519,6 +835,7 @@ def _yes_no(value: Any) -> str:
 
 __all__ = [
     "aggregate_closed_loop_results",
+    "build_artifact_ref",
     "closed_loop_task_mechanism",
     "save_json",
     "write_closed_loop_final_report",

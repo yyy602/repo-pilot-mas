@@ -8,6 +8,7 @@ from repo_pilot_mas.orchestration import OrchestrationEngine, WorkflowStage
 from repo_pilot_mas.orchestration.policy_violation import DecisionPolicyViolation
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec
 from repo_pilot_mas.schemas.hypothesis_resolution import HypothesisResolutionStatus
+from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
 
 
 def _task(tmp_path: Path) -> TaskSpec:
@@ -30,7 +31,11 @@ def _evidence(node: str = "N1") -> Artifact:
         node,
         {
             "mode": "failure_reproduction",
+            "evidence_kind": "reproduction",
             "claim": "target test reproduces IndexError",
+            "supports_claims": ["target test reproduces IndexError"],
+            "contradicts_claims": [],
+            "verified": True,
             "source": {"path": "target.py", "line_start": 1, "line_end": 3},
             "content": "arr[mid] accesses outside range",
             "observation_type": "direct",
@@ -84,6 +89,12 @@ def _review(hypothesis: Artifact, verdict: str = "supported") -> Artifact:
             "findings": ["Evidence supports the hypothesis"],
             "risk_notes": [],
             "recommendation": "continue",
+            "failure_explained": True,
+            "causal_chain_complete": True,
+            "alternative_causes": ["排除了目标测试配置错误"],
+            "counterexample_checked": True,
+            "verification_steps_executed": ["核对失败输出与源码分支"],
+            "remaining_uncertainty": [],
         },
         input_refs=(hypothesis.ref, "N1.evidence@v1"),
     )
@@ -143,3 +154,84 @@ def test_engine_snapshot_exposes_phase_c_resolution(tmp_path: Path) -> None:
 
     assert "hypothesis_resolution" in snapshot["selections"]
     assert snapshot["workflow_stage"] == WorkflowStage.INITIALIZATION.value
+
+
+def test_minimum_evidence_gate_rejects_source_only_hypothesis(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+    source = Artifact(
+        "source.evidence",
+        ArtifactType.EVIDENCE,
+        "N1",
+        {
+            "mode": "code_retrieval",
+            "evidence_kind": "source",
+            "claim": "located boundary expression",
+            "supports_claims": ["located boundary expression"],
+            "contradicts_claims": [],
+            "verified": True,
+            "source": {"path": "target.py", "line_start": 1, "line_end": 3},
+            "content": "hi starts at len(arr)",
+            "observation_type": "direct",
+            "confidence": 0.9,
+            "status": "verified",
+            "tool_trace_ids": ["inspect-trace"],
+            "missing_evidence": [],
+        },
+    )
+    hypothesis = Artifact(
+        "source.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N2",
+        {
+            **_hypothesis().to_dict()["content"],
+            "supporting_evidence": [source.ref],
+        },
+        input_refs=(source.ref,),
+    )
+    review = Artifact(
+        "source.review",
+        ArtifactType.REVIEW,
+        "N3",
+        {
+            **_review(hypothesis).to_dict()["content"],
+            "target_artifact_ref": hypothesis.ref,
+            "evidence_refs": [source.ref],
+        },
+        input_refs=(hypothesis.ref, source.ref),
+    )
+    for artifact in (source, hypothesis, review):
+        engine.add_artifact(artifact)
+
+    with pytest.raises(DecisionPolicyViolation) as caught:
+        engine._validate_hypothesis_acceptance(
+            type(
+                "Decision",
+                (),
+                {
+                    "hypothesis_refs": (hypothesis.ref,),
+                    "primary_hypothesis_ref": hypothesis.ref,
+                    "review_refs": (review.ref,),
+                },
+            )()
+        )
+
+    assert caught.value.code == "MINIMUM_EVIDENCE_GATE_NOT_MET"
+
+
+def test_supported_review_requires_independent_verification_fields() -> None:
+    hypothesis = _hypothesis()
+    review = _review(hypothesis)
+    invalid = Artifact(
+        review.artifact_id,
+        review.artifact_type,
+        review.created_by,
+        {
+            **review.to_dict()["content"],
+            "counterexample_checked": False,
+            "alternative_causes": [],
+        },
+        input_refs=review.input_refs,
+    )
+
+    with pytest.raises(ValueError, match="alternative cause or counterexample"):
+        validate_worker_artifact(invalid)

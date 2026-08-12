@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "phase": 6,
+  "branch": "agent/hypothesis-patch-closed-loop",
+  "completed_at": "2026-08-12T15:53:40+08:00",
+  "python": "/home/user50305/.conda/envs/multi_agent/bin/python",
+  "repository_fingerprint": "3233b0e5a093a1f328c453ec3ab3bb55452572cbe3a0714d02ec3fa4bcb53f5b",
+  "passed": false,
+  "checks": [
+    {
+      "command": "/home/user50305/.conda/envs/multi_agent/bin/python -m pytest",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "/home/user50305/.conda/envs/multi_agent/bin/python -m ruff check .",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "/home/user50305/.conda/envs/multi_agent/bin/python -m compileall -q src scripts tests",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "git status --short --untracked-files=all -- pyproject.toml configs data scripts src tests",
+      "exit_code": 0,
+      "result": "dirty"
+    }
+  ],
+  "verification_gates": {
+    "preflight_declared_passed": false,
+    "preflight_repository_fingerprint_matches": true,
+    "preflight_pytest_passed": true,
+    "preflight_ruff_passed": true,
+    "preflight_compileall_passed": true,
+    "preflight_diff_passed": true,
+    "preflight_runtime_tree_clean": false
+  }
+}

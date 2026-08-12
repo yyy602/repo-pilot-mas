@@ -90,7 +90,21 @@ class DelayedExecutor:
             f"{node_id}.evidence",
             ArtifactType.EVIDENCE,
             node_id,
-            {"claim": "async test"},
+            {
+                "mode": "code_retrieval",
+                "evidence_kind": "source",
+                "claim": "async test",
+                "supports_claims": ["async test"],
+                "contradicts_claims": [],
+                "verified": True,
+                "source": {"path": "async.py", "line_start": 1, "line_end": 1},
+                "content": "deterministic async evidence",
+                "observation_type": "direct",
+                "confidence": 1.0,
+                "status": "verified",
+                "tool_trace_ids": [f"async-tool-{node_id}"],
+                "missing_evidence": [],
+            },
         )
         return WorkerOutcome(node_id, NodeStatus.SUCCEEDED, (artifact,))
 
@@ -142,7 +156,9 @@ def test_async_dispatch_has_real_time_overlap_and_collector_wakes_supervisor(
     asyncio.run(scenario())
 
 
-def test_one_async_worker_timeout_does_not_crash_engine(tmp_path: Path) -> None:
+def test_too_small_worker_timeout_is_clamped_without_crashing_engine(
+    tmp_path: Path,
+) -> None:
     async def scenario() -> None:
         supervisor = ParallelSupervisor(timeout_seconds=0.03)
         executor = DelayedExecutor({"N1": 0.01, "N2": 0.20})
@@ -158,7 +174,7 @@ def test_one_async_worker_timeout_does_not_crash_engine(tmp_path: Path) -> None:
             )
         restored = restore_engine_from_runtime_state(state)
         statuses = {node.node_id: node.status for node in restored.graph.nodes}
-        assert statuses == {"N1": NodeStatus.SUCCEEDED, "N2": NodeStatus.TIMED_OUT}
+        assert statuses == {"N1": NodeStatus.SUCCEEDED, "N2": NodeStatus.SUCCEEDED}
         assert state["runtime_status"] == "terminated"
         assert len(supervisor.snapshots) == 2
 

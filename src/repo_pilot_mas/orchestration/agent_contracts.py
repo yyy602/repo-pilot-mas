@@ -57,7 +57,33 @@ def validate_agent_input_contract(
 
     if agent_type == "DiagnosticianAgent":
         require("evidence")
-        return
+        if mode in {"control_flow", "data_flow"}:
+            _reject_unexpected_types(agent_type, mode, types, {"evidence"})
+            return
+        if mode == "challenge":
+            require("hypothesis")
+            require_count("hypothesis", minimum=1, maximum=1)
+            _reject_unexpected_types(
+                agent_type,
+                mode,
+                types,
+                {"evidence", "hypothesis"},
+            )
+            return
+        if mode == "rebuttal":
+            require("hypothesis", "challenge")
+            require_count("hypothesis", minimum=1, maximum=1)
+            require_count("challenge", minimum=1, maximum=1)
+            _reject_unexpected_types(
+                agent_type,
+                mode,
+                types,
+                {"evidence", "hypothesis", "challenge"},
+            )
+            return
+        raise AgentContractViolation(
+            f"DiagnosticianAgent has unsupported mode: {mode}"
+        )
 
     if agent_type == "ReviewerAgent":
         _validate_reviewer_contract(mode, items, require, require_count)
@@ -86,6 +112,19 @@ def validate_agent_input_contract(
                 "ValidationExecutor/deterministic requires a non-blocking "
                 "patch_review targeting the PatchCandidate"
             )
+
+
+def _reject_unexpected_types(
+    agent_type: str,
+    mode: str,
+    actual: set[str],
+    allowed: set[str],
+) -> None:
+    unexpected = sorted(actual.difference(allowed))
+    if unexpected:
+        raise AgentContractViolation(
+            f"{agent_type}/{mode} received unsupported artifacts: {unexpected}"
+        )
 
 
 def _validate_reviewer_contract(

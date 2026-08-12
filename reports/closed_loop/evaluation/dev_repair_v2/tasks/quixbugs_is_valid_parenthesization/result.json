@@ -1,0 +1,663 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "is_valid_parenthesization 函数错误地将只有未闭合左括号的字符串判断为有效。",
+        "confidence": 1,
+        "content": "def is_valid_parenthesization(parens):\n    depth = 0\n    for paren in parens:\n        if paren == \"(\":\n            depth += 1\n        else:\n            depth -= 1\n            if depth < 0:\n                return False\n    return True",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_is_valid_parenthesization.py"
+          ],
+          "exit_code": 1,
+          "failure_output": "..F                                                                      [100%]\n=================================== FAILURES ===================================\n___________________ test_is_valid_parenthesization[((-False] ___________________\n\nparens = '((', expected = False\n\n    @pytest.mark.parametrize(\n        (\"parens\", \"expected\"),\n        [\n            (\"((()()))()\", True),\n            (\")()(\", False),\n            (\"((\", False),\n        ],\n    )\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\n>       assert is_valid_parenthesization(parens) is expected\nE       AssertionError: assert True is False\nE        +  where True = is_valid_parenthesization('((')\n\ntests/test_is_valid_parenthesization.py:14: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\n",
+          "failure_type": "AssertionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 11,
+          "line_start": 1,
+          "path": "is_valid_parenthesization.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "函数在处理字符串 '((' 时返回 True，而预期为 False"
+        ],
+        "tool_trace_ids": [
+          "a3b2a4f9363b4f58a7f30da412632ccc",
+          "33bca86e7bf945bfa70bab88ed63d25d"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-12T04:41:22.857665+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "943f7932a96c4affb9d7d835eea076e0",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "is_valid_parenthesization"
+        ],
+        "confidence": 1,
+        "counter_evidence": [],
+        "direct_cause": "函数在遍历字符串后直接返回 True，而未验证深度是否为零。",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "函数未在循环结束后检查深度是否为零，导致未闭合的左括号未被正确识别。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "在循环结束后添加对 depth 是否为零的检查。",
+          "测试字符串 '((' 是否返回 False。",
+          "测试字符串 '(()' 是否返回 False。",
+          "测试字符串 '()' 是否返回 True。"
+        ]
+      },
+      "created_at": "2026-08-12T04:41:41.776197+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "493bfbef793249d9bca48276dbe795a3",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "可能存在其他条件未被正确处理，例如括号类型不匹配或嵌套结构错误。"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "函数在遍历字符串后直接返回 True，而未验证深度是否为零，导致未闭合的左括号未被正确识别。",
+          "测试用例 '((' 返回 True，而预期为 False，表明函数未正确处理未闭合的左括号。"
+        ],
+        "mode": "root_cause_recommendation",
+        "recommendation": "在循环结束后添加对 depth 是否为零的检查，以确保所有括号正确闭合。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "未检查深度是否为零可能导致其他类似错误，例如未闭合的右括号未被正确识别。",
+          "未闭合的括号可能导致逻辑错误，影响程序的正确性。"
+        ],
+        "target_artifact_ref": "N2.hypothesis@v1",
+        "target_artifact_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "在循环结束后添加对 depth 是否为零的检查。",
+          "测试字符串 '((' 是否返回 False。",
+          "测试字符串 '(()' 是否返回 False。",
+          "测试字符串 '()' 是否返回 True。"
+        ]
+      },
+      "created_at": "2026-08-12T04:42:11.787476+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "053e691bbb0349fa8f025e3c30ee2a78",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.patch",
+      "artifact_type": "patch_candidate",
+      "content": {
+        "based_on_hypothesis_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "changed_files": [
+          "is_valid_parenthesization.py"
+        ],
+        "covered_root_causes": {
+          "N2.hypothesis@v1": "函数未在循环结束后检查深度是否为零，导致未闭合的左括号未被正确识别。"
+        },
+        "diff": "--- a/is_valid_parenthesization.py\n+++ b/is_valid_parenthesization.py\n@@ -8,4 +8,4 @@\n             if depth < 0:\n                 return False\n \n-    return True\n+    return depth == 0\n",
+        "diff_sha256": "1b021c40d20910e6404ce2d2631e3164dd9f171ff6b6cd2238c972933b7c48e7",
+        "failure_input_walkthrough": "N2.hypothesis@v1: 函数未在循环结束后检查深度是否为零，导致未闭合的左括号未被正确识别。 -> 函数在遍历字符串后直接返回 True，而未验证深度是否为零。",
+        "post_patch_expected_behavior": "应用 minimal 替换后，在循环结束后检查 depth 是否为零，确保所有括号正确闭合，避免未闭合的左括号被错误判断为有效。，失败输入不再触发直接原因",
+        "pre_patch_behavior": "函数在遍历字符串后直接返回 True，而未验证深度是否为零。",
+        "precheck_command": [
+          "static_check",
+          ".",
+          "--no-ruff"
+        ],
+        "precheck_result": {
+          "exit_code": 0,
+          "ok": true,
+          "output_tail": "",
+          "trace_id": "28bf203770944d4ca1bbbcd5cb861a17"
+        },
+        "primary_hypothesis_ref": "N2.hypothesis@v1",
+        "protected_path_check": true,
+        "rationale": "在循环结束后检查 depth 是否为零，确保所有括号正确闭合，避免未闭合的左括号被错误判断为有效。",
+        "risk_notes": [
+          "修改可能导致其他括号类型或嵌套结构的逻辑错误。",
+          "需要确保所有测试用例覆盖所有可能的括号组合。"
+        ],
+        "semantic_rationale": "在循环结束后检查 depth 是否为零，确保所有括号正确闭合，避免未闭合的左括号被错误判断为有效。",
+        "strategy": "minimal",
+        "workspace_id": "N4-a1-cb5dcda4f7"
+      },
+      "created_at": "2026-08-12T04:43:04.659255+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N2.hypothesis@v1",
+        "N3.review@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "84d3875dd4b641deb89cea7f22505213",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "可能存在其他条件未被正确处理，例如括号类型不匹配或嵌套结构错误。"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "函数在遍历字符串后直接返回 True，而未验证深度是否为零，导致未闭合的左括号未被正确识别。",
+          "测试用例 '((' 返回 True，而预期为 False，表明函数未正确处理未闭合的左括号。"
+        ],
+        "mode": "patch_review",
+        "recommendation": "在循环结束后检查 depth 是否为零，确保所有括号正确闭合，避免未闭合的左括号被错误判断为有效。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "修改可能导致其他括号类型或嵌套结构的逻辑错误。",
+          "需要确保所有测试用例覆盖所有可能的括号组合。"
+        ],
+        "target_artifact_ref": "N4.patch@v1",
+        "target_artifact_refs": [
+          "N4.patch@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "在循环结束后添加对 depth 是否为零的检查。",
+          "测试字符串 '((' 是否返回 False。",
+          "测试字符串 '(()' 是否返回 False。",
+          "测试字符串 '()' 是否返回 True。"
+        ]
+      },
+      "created_at": "2026-08-12T04:43:32.254556+00:00",
+      "created_by": "N5",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.review@v1",
+        "N4.patch@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "44140b0576984a8e8aec1dde3c5d0766",
+      "version": 1
+    },
+    {
+      "artifact_id": "N6.validation",
+      "artifact_type": "validation_result",
+      "content": {
+        "applied": true,
+        "changed_files": [
+          "is_valid_parenthesization.py"
+        ],
+        "changed_lines": 2,
+        "failure_class": "none",
+        "invalidated_refs": [],
+        "passed": true,
+        "patch_ref": "N4.patch@v1",
+        "patch_review_refs": [
+          "N5.review@v1"
+        ],
+        "patch_sha256": "1b021c40d20910e6404ce2d2631e3164dd9f171ff6b6cd2238c972933b7c48e7",
+        "protected_path_check": true,
+        "recommended_stage": "completed",
+        "recoverable": false,
+        "regression_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q"
+          ],
+          "duration_ms": 566,
+          "exit_code": 0,
+          "output_tail": "...                                                                      [100%]\n",
+          "trace_id": "7118d3a79dad44a28533c7a3566ceb6c"
+        },
+        "static_check": {
+          "command": [
+            "static_check"
+          ],
+          "duration_ms": 68,
+          "exit_code": 0,
+          "output_tail": "",
+          "trace_id": "0e32451e7be748d7ab958e865b638755"
+        },
+        "target_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_is_valid_parenthesization.py"
+          ],
+          "duration_ms": 566,
+          "exit_code": 0,
+          "output_tail": "...                                                                      [100%]\n",
+          "trace_id": "269c5f7c097f40b3bd35e9a13139e8d7"
+        },
+        "tool_trace_ids": [
+          "23fe4b5a71d043eead7ff615498c97d7",
+          "269c5f7c097f40b3bd35e9a13139e8d7",
+          "7118d3a79dad44a28533c7a3566ceb6c",
+          "0e32451e7be748d7ab958e865b638755"
+        ],
+        "workspace_id": "N4-a1-cb5dcda4f7"
+      },
+      "created_at": "2026-08-12T04:43:57.302270+00:00",
+      "created_by": "N6",
+      "input_refs": [
+        "N4.patch@v1",
+        "N5.review@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "d7e2c7c8b72c4ad9b87a7bea603b8853",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 18,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 18,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2/tasks/quixbugs_is_valid_parenthesization/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 1,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 0,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": true,
+    "hypothesis_accepted": true,
+    "isolated_worker_failure_count": 0,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 12278.0,
+        "calls": 2,
+        "total_ms": 24556
+      },
+      "initialization": {
+        "average_ms": 62837.0,
+        "calls": 1,
+        "total_ms": 62837
+      },
+      "investigation": {
+        "average_ms": 16298.0,
+        "calls": 2,
+        "total_ms": 32596
+      },
+      "patch": {
+        "average_ms": 17078.0,
+        "calls": 3,
+        "total_ms": 51234
+      },
+      "review": {
+        "average_ms": 15867.25,
+        "calls": 4,
+        "total_ms": 63469
+      },
+      "validation": {
+        "average_ms": 8444.0,
+        "calls": 2,
+        "total_ms": 16888
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": true,
+    "patch_validation_passed": true,
+    "recovery_attempted": false,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 0,
+    "replan_record_count": 0,
+    "replan_succeeded": false,
+    "retry_node_count": 0,
+    "root_cause_review_passed": true,
+    "route_attempts_by_model": {
+      "qwen3.7-flash": 9,
+      "qwen3.7-flash-2026-07-15": 2
+    },
+    "route_exhausted_by_model": {
+      "qwen3.7-flash": 1
+    },
+    "route_successes_by_model": {
+      "qwen3.7-flash": 7,
+      "qwen3.7-flash-2026-07-15": 2
+    },
+    "supervisor_format_repair_count": 1,
+    "validation_passed": true,
+    "worker_failure_count": 0,
+    "worker_retry_count": 0,
+    "workspace_clean": true
+  },
+  "engine_status": "succeeded",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": 30,
+    "accepted_by_decision_id": "accept_root_cause_004",
+    "accepted_refs": [
+      "N2.hypothesis@v1"
+    ],
+    "candidate_refs": [
+      "N2.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "root_cause_recommendation"
+    },
+    "primary_ref": "N2.hypothesis@v1",
+    "review_refs": [
+      "N3.review@v1"
+    ],
+    "status": "accepted"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "standard",
+    "gate_records": [],
+    "invalid_decisions": 0,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": false,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:qwen3.7-flash-2026-07-15:DASHSCOPE_API_KEY_1": 2,
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_2": 9,
+      "supervisor_route_exhausted:qwen3.7-flash:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:qwen3.7-flash-2026-07-15:DASHSCOPE_API_KEY_1": 2,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_2": 7,
+      "supervisor_route_timeout:qwen3.7-flash:DASHSCOPE_API_KEY_2": 1
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-12T04:41:03.801066+00:00",
+      "created_by_decision_id": "init_investigation_002",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:41:22.876987+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Reproduce the failing test case in tests/test_is_valid_parenthesization.py to confirm that strings containing only unclosed left parentheses are incorrectly evaluated as valid.",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:41:03.825214+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-12T04:41:36.461041+00:00",
+      "created_by_decision_id": "create_diag_task_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:41:41.806092+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "Trace the control flow of is_valid_parenthesization to determine why the function fails to return False when the final depth remains positive due to unclosed left parentheses.",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:41:36.479371+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-12T04:42:01.086870+00:00",
+      "created_by_decision_id": "create_root_cause_review_003",
+      "critical": true,
+      "dependencies": [
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:42:11.811044+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N3",
+      "node_type": "REVIEW_TASK",
+      "objective": "审查假设 '函数未在循环结束后检查深度是否为零' 是否为导致测试失败的实质根因，并确认其得到失败复现证据的支持。",
+      "output_artifact_ids": [
+        "N3.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:42:01.117335+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-12T04:42:53.180276+00:00",
+      "created_by_decision_id": "create_patch_task_005",
+      "critical": true,
+      "dependencies": [
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:43:04.690888+00:00",
+      "input_artifact_ids": [
+        "N2.hypothesis@v1",
+        "N3.review@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N4",
+      "node_type": "PATCH_TASK",
+      "objective": "Generate a minimal patch for is_valid_parenthesization.py that adds a check for depth == 0 after the loop to correctly handle unclosed left parentheses.",
+      "output_artifact_ids": [
+        "N4.patch@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:42:53.199448+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-12T04:43:20.739285+00:00",
+      "created_by_decision_id": "create_patch_review_006",
+      "critical": true,
+      "dependencies": [
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:43:32.287922+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.review@v1",
+        "N4.patch@v1"
+      ],
+      "mode": "patch_review",
+      "node_id": "N5",
+      "node_type": "REVIEW_TASK",
+      "objective": "Review the minimal patch candidate N4.patch@v1 against the accepted root cause and evidence to ensure it correctly addresses the issue without introducing regressions or semantic errors.",
+      "output_artifact_ids": [
+        "N5.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:43:20.757453+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "ValidationExecutor",
+      "created_at": "2026-08-12T04:43:56.055122+00:00",
+      "created_by_decision_id": "create_validation_task_007",
+      "critical": true,
+      "dependencies": [
+        "N4",
+        "N5"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:43:57.326794+00:00",
+      "input_artifact_ids": [
+        "N4.patch@v1",
+        "N5.review@v1"
+      ],
+      "mode": "deterministic",
+      "node_id": "N6",
+      "node_type": "VALIDATION_TASK",
+      "objective": "Validate the minimal patch N4.patch@v1 by running the failing test case and checking for regressions.",
+      "output_artifact_ids": [
+        "N6.validation@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:43:56.075889+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "VALIDATION_PASSED",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2/tasks/quixbugs_is_valid_parenthesization/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": "N2.hypothesis@v1",
+  "selected_patch_ref": "N4.patch@v1",
+  "source_integrity": {
+    "after_sha256": "37608890d4b49dc1b5cde9cc7f54ee24fc0dc9eacb28d3595bad9bca92d3c20a",
+    "before_sha256": "37608890d4b49dc1b5cde9cc7f54ee24fc0dc9eacb28d3595bad9bca92d3c20a",
+    "unchanged": true
+  },
+  "status": "succeeded",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2/tasks/quixbugs_is_valid_parenthesization/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 8,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 14540,
+        "output_tokens": 1715
+      },
+      "qwen3.7-flash": {
+        "calls": 7,
+        "estimated_cost_cny": 0.023382,
+        "input_tokens": 45470,
+        "output_tokens": 17860
+      },
+      "qwen3.7-flash-2026-07-15": {
+        "calls": 2,
+        "estimated_cost_cny": 0.00705,
+        "input_tokens": 13071,
+        "output_tokens": 5545
+      }
+    },
+    "duration_ms": 252124,
+    "estimated_api_cost_cny": 0.030432,
+    "input_tokens": 73081,
+    "model_calls": 19,
+    "output_tokens": 25120,
+    "supervisor_api_calls": 11,
+    "supervisor_policy_calls": 8,
+    "supervisor_tokens": 81946,
+    "tool_calls": 9,
+    "total_tokens": 98201,
+    "worker_model_calls": 8,
+    "worker_tokens": 16255
+  },
+  "validation": {
+    "changed_files": [
+      "is_valid_parenthesization.py"
+    ],
+    "passed_validation_count": 1,
+    "patch_applied": true,
+    "protected_path_violations": 0,
+    "regression_passed": true,
+    "syntax_valid": true,
+    "target_test_passed": true,
+    "validation_count": 1
+  },
+  "validation_ref": "N6.validation@v1",
+  "workflow_stage": "completed"
+}

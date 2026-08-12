@@ -1,6 +1,7 @@
 {
   "suite_id": "quixbugs_closed_loop_v1",
   "dataset": "QuixBugs Python",
+  "upstream_commit": "4257f44b0ff1181dedaedee6a447e133219fcebf",
   "seed": 0,
   "task_manifest_directory": "tasks",
   "test_task_ids": [

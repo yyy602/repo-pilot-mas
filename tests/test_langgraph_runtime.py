@@ -49,7 +49,7 @@ class StateAwareSupervisor:
                 CreateTaskRequest(
                     "INVESTIGATION_TASK",
                     "InvestigatorAgent",
-                    "focused",
+                    "code_retrieval",
                     f"执行调查 {index}",
                 )
                 for index in range(1, self.worker_count + 1)
@@ -91,7 +91,21 @@ class RecoverableWorker:
             f"{node_id}-result",
             ArtifactType.EVIDENCE,
             node_id,
-            {"verified": True},
+            {
+                "mode": "code_retrieval",
+                "evidence_kind": "source",
+                "claim": "restart test evidence",
+                "supports_claims": ["restart test evidence"],
+                "contradicts_claims": [],
+                "verified": True,
+                "source": {"path": "worker.py", "line_start": 1, "line_end": 1},
+                "content": "deterministic restart evidence",
+                "observation_type": "direct",
+                "confidence": 1.0,
+                "status": "verified",
+                "tool_trace_ids": [f"restart-tool-{node_id}"],
+                "missing_evidence": [],
+            },
         )
         return WorkerOutcome(node_id, NodeStatus.SUCCEEDED, (artifact,))
 

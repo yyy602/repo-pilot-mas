@@ -1,0 +1,109 @@
+{
+  "tasks": [
+    {
+      "budget": {
+        "limits": {
+          "max_input_tokens": 600000,
+          "max_output_tokens": 100000,
+          "max_patch_candidates": 2,
+          "max_runtime_seconds": 1200,
+          "max_supervisor_api_calls": 18,
+          "max_tool_calls": 120,
+          "max_worker_model_calls": 120
+        },
+        "within_budget": false
+      },
+      "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/smoke_repair_v2_stagefix/tasks/quixbugs_find_first_in_sorted/langgraph.sqlite3",
+      "closed_loop": {
+        "accepted_hypothesis_count": 0,
+        "accepted_review_count": 0,
+        "artifact_rejection_count": 0,
+        "contract_rejection_count": 0,
+        "evidence_gate_passed": false,
+        "hypothesis_accepted": false,
+        "isolated_worker_failure_count": 0,
+        "latency_by_stage": {},
+        "node_rebuild_count": 0,
+        "patch_bound_to_accepted_set": false,
+        "patch_validation_passed": false,
+        "recovery_attempted": false,
+        "recovery_succeeded": false,
+        "replan_attempt_count": 0,
+        "replan_record_count": 0,
+        "replan_succeeded": false,
+        "retry_node_count": 0,
+        "root_cause_review_passed": false,
+        "route_attempts_by_model": {},
+        "route_exhausted_by_model": {},
+        "route_successes_by_model": {},
+        "supervisor_format_repair_count": 0,
+        "validation_passed": false,
+        "worker_failure_count": 0,
+        "worker_retry_count": 0,
+        "workspace_clean": true
+      },
+      "mechanism": {
+        "execution_path": "error",
+        "invalid_decisions": 0
+      },
+      "protocol_version": "closed_loop_v1",
+      "reason": "RUNNER_ERROR:ValueError:root-cause Review may target only Hypothesis artifacts",
+      "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/smoke_repair_v2_stagefix/tasks/quixbugs_find_first_in_sorted/result.json",
+      "schema_version": 1,
+      "seed": 0,
+      "source_integrity": {
+        "after_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+        "before_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+        "unchanged": true
+      },
+      "status": "failed",
+      "system_id": "closed_loop_dynamic",
+      "task_id": "quixbugs_find_first_in_sorted",
+      "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/smoke_repair_v2_stagefix/tasks/quixbugs_find_first_in_sorted/trace.jsonl",
+      "usage": {
+        "by_model": {
+          "Qwen3-8B": {
+            "calls": 8,
+            "estimated_cost_cny": 0.0,
+            "input_tokens": 12630,
+            "output_tokens": 1785
+          },
+          "qwen3.7-flash": {
+            "calls": 7,
+            "estimated_cost_cny": 0.022418,
+            "input_tokens": 31835,
+            "output_tokens": 20064
+          },
+          "qwen3.7-flash-2026-07-15": {
+            "calls": 1,
+            "estimated_cost_cny": 0.003307,
+            "input_tokens": 6496,
+            "output_tokens": 2510
+          }
+        },
+        "duration_ms": 322159,
+        "estimated_api_cost_cny": 0.025725,
+        "input_tokens": 50961,
+        "model_calls": 21,
+        "output_tokens": 24359,
+        "supervisor_api_calls": 13,
+        "supervisor_policy_calls": 0,
+        "supervisor_tokens": 60905,
+        "tool_calls": 2,
+        "total_tokens": 75320,
+        "worker_model_calls": 8,
+        "worker_tokens": 14415
+      },
+      "validation": {
+        "changed_files": [],
+        "passed_validation_count": 0,
+        "patch_applied": false,
+        "protected_path_violations": 0,
+        "regression_passed": false,
+        "syntax_valid": false,
+        "target_test_passed": false,
+        "validation_count": 0
+      }
+    }
+  ]
+}

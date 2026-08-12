@@ -1,0 +1,148 @@
+{
+  "dry_run": false,
+  "failures_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/failures",
+  "final_report": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/final_report.md",
+  "full_development_run": false,
+  "full_run": false,
+  "gates": {
+    "budget_outcomes_fail_closed": true,
+    "every_task_has_result": true,
+    "every_task_has_trace": true,
+    "failures_are_included": true,
+    "final_runtime_entrypoint": true,
+    "frozen_test_set_has_expected_tasks": true,
+    "selected_task_count_complete": true,
+    "source_repositories_unchanged": true,
+    "terminal_workspaces_cleaned": true
+  },
+  "manifest_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/manifest.json",
+  "passed": true,
+  "phase": 6,
+  "results_csv": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/task_results.csv",
+  "results_json": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/task_results.json",
+  "run_id": "dev_repair_v2_find_first_retrybudget",
+  "summary": {
+    "artifact_rejection_count": 0,
+    "average_latency_ms": 1865.0,
+    "average_tokens": 0.0,
+    "budget_violations": 0,
+    "contract_rejection_count": 0,
+    "estimated_api_cost_cny": 0.0,
+    "estimated_api_cost_per_solved_cny": null,
+    "evidence_gate_pass_rate": 0.0,
+    "failed": 1,
+    "hypothesis_accept_rate": 0.0,
+    "isolated_worker_failure_count": 0,
+    "latency_by_stage": {},
+    "median_latency_ms": 1865,
+    "metric_layers": {
+      "business_results": {
+        "patch_success_rate": 0.0,
+        "regression_pass_rate": 0.0,
+        "target_test_pass_rate": 0.0,
+        "task_resolution_rate": 0.0
+      },
+      "closed_loop_mechanism": {
+        "evidence_gate_pass_rate": 0.0,
+        "hypothesis_accept_rate": 0.0,
+        "patch_binding_rate": 0.0,
+        "review_pass_rate": 0.0,
+        "validation_pass_rate": 0.0
+      },
+      "exception_recovery": {
+        "contract_rejection_count": 0,
+        "node_rebuild_count": 0,
+        "replan_attempt_count": 0,
+        "replan_success_rate": null,
+        "supervisor_format_repair_count": 0,
+        "worker_retry_count": 0
+      },
+      "routing_and_cost": {
+        "estimated_cost_cny": 0.0,
+        "latency_by_stage": {},
+        "route_attempts_by_model": {
+          "qwen3.7-flash": 2,
+          "qwen3.7-flash-2026-07-15": 2,
+          "qwen3.7-max-2026-06-08": 2
+        },
+        "route_exhausted_by_model": {
+          "qwen3.7-flash": 2,
+          "qwen3.7-flash-2026-07-15": 2,
+          "qwen3.7-max-2026-06-08": 2
+        },
+        "route_successes_by_model": {},
+        "supervisor_tokens": 0,
+        "total_tokens": 0,
+        "worker_tokens": 0
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_apply_rate": 0.0,
+    "patch_binding_rate": 0.0,
+    "patch_success_rate": 0.0,
+    "recovery_attempted_tasks": 0,
+    "recovery_succeeded_tasks": 0,
+    "recovery_success_rate": null,
+    "regression_pass_rate": 0.0,
+    "replan_attempt_count": 0,
+    "replan_success_rate": null,
+    "review_pass_rate": 0.0,
+    "route_attempts_by_model": {
+      "qwen3.7-flash": 2,
+      "qwen3.7-flash-2026-07-15": 2,
+      "qwen3.7-max-2026-06-08": 2
+    },
+    "route_distribution": {
+      "fast": 1
+    },
+    "route_exhausted_by_model": {
+      "qwen3.7-flash": 2,
+      "qwen3.7-flash-2026-07-15": 2,
+      "qwen3.7-max-2026-06-08": 2
+    },
+    "route_successes_by_model": {},
+    "schema_version": 1,
+    "solved": 0,
+    "source_integrity_violations": 0,
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 47542,
+    "supervisor_snapshot_count": 24,
+    "supervisor_snapshot_original_chars": 71889,
+    "supervisor_snapshot_reduction_ratio": 0.33867490158438707,
+    "supervisor_tokens": 0,
+    "syntax_valid_rate": 0.0,
+    "system_id": "closed_loop_dynamic",
+    "target_test_pass_rate": 0.0,
+    "task_count": 1,
+    "task_resolution_rate": 0.0,
+    "task_result_paths": [
+      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/tasks/quixbugs_find_first_in_sorted/result.json"
+    ],
+    "termination_codes": {
+      "SUPERVISOR_CALL_BUDGET_EXHAUSTED": 1
+    },
+    "termination_failure_classes": {
+      "budget_exhausted": 1
+    },
+    "termination_stages": {
+      "initialization": 1
+    },
+    "totals": {
+      "duration_ms": 1865,
+      "input_tokens": 0,
+      "model_calls": 6,
+      "output_tokens": 0,
+      "supervisor_api_calls": 6,
+      "tool_calls": 0,
+      "total_tokens": 0,
+      "worker_model_calls": 0
+    },
+    "validation_pass_rate": 0.0,
+    "worker_failure_count": 0,
+    "worker_failure_isolation_rate": null,
+    "worker_retry_count": 0,
+    "worker_tokens": 0,
+    "workspace_cleanup_rate": 1.0
+  },
+  "summary_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_find_first_retrybudget/summary.json"
+}

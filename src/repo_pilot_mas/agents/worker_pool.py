@@ -15,7 +15,9 @@ from repo_pilot_mas.agents.diagnostician import DiagnosticianAgent
 from repo_pilot_mas.agents.investigator import InvestigatorAgent
 from repo_pilot_mas.agents.patch_agent import PatchAgent
 from repo_pilot_mas.agents.reviewer import ReviewerAgent
+from repo_pilot_mas.agents.worker_common import WorkerAgentError
 from repo_pilot_mas.models import GenerationConfig, ModelAdapter
+from repo_pilot_mas.models.base import ModelAdapterError
 from repo_pilot_mas.orchestration.langgraph_runtime import WorkerOutcome
 from repo_pilot_mas.orchestration.react_loop import ReactBudget
 from repo_pilot_mas.orchestration.task_graph import NodeStatus, NodeType, TaskNode
@@ -114,8 +116,7 @@ class WorkerPool:
         task_node = TaskNode.from_dict(node)
         attempt = _attempt_number(node, task_node)
         attempt_id = str(
-            node.get("attempt_id")
-            or _attempt_id(task_spec.task_id, task_node.node_id, attempt)
+            node.get("attempt_id") or _attempt_id(task_spec.task_id, task_node.node_id, attempt)
         )
         input_artifacts = tuple(Artifact.from_dict(item) for item in artifacts)
         expected_agent = _expected_agent(task_node)
@@ -224,9 +225,7 @@ class WorkerPool:
                                     None,
                                 ),
                                 "finished_at": utc_now_iso(),
-                                "duration_ms": int(
-                                    (time.perf_counter() - model_started) * 1000
-                                ),
+                                "duration_ms": int((time.perf_counter() - model_started) * 1000),
                             },
                         )
             attempt_guard()
@@ -235,26 +234,21 @@ class WorkerPool:
             if task_node.node_type is NodeType.REBUTTAL_TASK:
                 types = [item.artifact_type for item in outputs]
                 if types.count(ArtifactType.REBUTTAL) != 1 or any(
-                    item not in {
+                    item
+                    not in {
                         ArtifactType.HYPOTHESIS,
                         ArtifactType.REBUTTAL,
                     }
                     for item in types
                 ):
-                    raise ValueError(
-                        "RebuttalTask 必须返回 Rebuttal 和至多一个修订 Hypothesis"
-                    )
+                    raise ValueError("RebuttalTask 必须返回 Rebuttal 和至多一个修订 Hypothesis")
             elif len(outputs) != 1 or outputs[0].artifact_type is not expected_type:
-                raise ValueError(
-                    f"Worker 必须返回一个 {expected_type.value} Artifact"
-                )
+                raise ValueError(f"Worker 必须返回一个 {expected_type.value} Artifact")
             for artifact in outputs:
                 validate_worker_artifact(
                     artifact,
                     expected_type=(
-                        None
-                        if task_node.node_type is NodeType.REBUTTAL_TASK
-                        else expected_type
+                        None if task_node.node_type is NodeType.REBUTTAL_TASK else expected_type
                     ),
                     allowed_input_refs=tuple(available_refs),
                 )
@@ -281,7 +275,7 @@ class WorkerPool:
             )
         except Exception as exc:  # noqa: BLE001 - Worker isolation boundary
             revoked = isinstance(exc, WorkerAttemptRevokedError) or lease.is_set()
-            code = "WORKER_ATTEMPT_REVOKED" if revoked else "WORKER_AGENT_ERROR"
+            code = "MODEL_TIMEOUT" if revoked else _worker_failure_code(exc)
             self._trace(
                 "worker_agent_failed",
                 {
@@ -301,9 +295,7 @@ class WorkerPool:
             )
         finally:
             revoked = lease.is_set()
-            if manager is not None and workspace is not None and (
-                not retain_workspace or revoked
-            ):
+            if manager is not None and workspace is not None and (not retain_workspace or revoked):
                 deleted = manager.discard(
                     task_spec.task_id,
                     workspace.workspace_id,
@@ -353,8 +345,7 @@ class WorkerPool:
         task_node = TaskNode.from_dict(node)
         attempt = _attempt_number(node, task_node)
         identity = attempt_id or str(
-            node.get("attempt_id")
-            or _attempt_id(task_spec.task_id, task_node.node_id, attempt)
+            node.get("attempt_id") or _attempt_id(task_spec.task_id, task_node.node_id, attempt)
         )
         with self._attempt_lock:
             lease = self._attempt_leases.setdefault(identity, threading.Event())
@@ -436,9 +427,7 @@ class WorkerPool:
         attempt_guard()
         if node.node_type is NodeType.INVESTIGATION_TASK:
             assert workspace is not None
-            tools = build_workspace_tool_registry(task, workspace).guarded(
-                attempt_guard
-            )
+            tools = build_workspace_tool_registry(task, workspace).guarded(attempt_guard)
             agent = InvestigatorAgent(
                 model,
                 tools,
@@ -545,9 +534,7 @@ class WorkerPool:
                 lease = threading.Event()
                 self._attempt_leases[attempt_id] = lease
             if lease.is_set():
-                raise WorkerAttemptRevokedError(
-                    f"Worker attempt is already revoked: {attempt_id}"
-                )
+                raise WorkerAttemptRevokedError(f"Worker attempt is already revoked: {attempt_id}")
             return lease
 
     def _assert_attempt_active(self, attempt_id: str) -> None:
@@ -555,9 +542,7 @@ class WorkerPool:
             lease = self._attempt_leases.get(attempt_id)
             revoked = lease is None or lease.is_set()
         if revoked:
-            raise WorkerAttemptRevokedError(
-                f"Worker attempt is no longer active: {attempt_id}"
-            )
+            raise WorkerAttemptRevokedError(f"Worker attempt is no longer active: {attempt_id}")
 
     def _release_attempt(
         self,
@@ -596,9 +581,7 @@ def _attempt_id(task_id: str, node_id: str, attempt: int) -> str:
 
 
 def _workspace_id(node_id: str, created_at: str, attempt: int) -> str:
-    digest = hashlib.sha256(
-        f"{node_id}:{created_at}:attempt={attempt}".encode()
-    ).hexdigest()[:10]
+    digest = hashlib.sha256(f"{node_id}:{created_at}:attempt={attempt}".encode()).hexdigest()[:10]
     normalized = re.sub(r"[^A-Za-z0-9_.-]", "-", node_id).strip("-.") or "worker"
     return f"{normalized[:24]}-a{attempt}-{digest}"
 
@@ -610,3 +593,27 @@ def _expected_agent(node: TaskNode) -> str | None:
     }:
         return "PatchAgent"
     return _EXPECTED_AGENTS.get(node.node_type)
+
+
+def _worker_failure_code(exc: Exception) -> str:
+    """Map Worker boundary failures to the closed-loop recovery taxonomy."""
+
+    if isinstance(exc, ModelAdapterError):
+        if exc.code == "MODEL_TIMEOUT":
+            return "MODEL_TIMEOUT"
+        if exc.code == "STRUCTURED_OUTPUT_ERROR":
+            return "MODEL_FORMAT_ERROR"
+        return "TRANSIENT_WORKER_ERROR"
+    if isinstance(exc, WorkerAgentError):
+        message = str(exc)
+        if "MODEL_TIMEOUT" in message:
+            return "MODEL_TIMEOUT"
+        if "STRUCTURED_OUTPUT_ERROR" in message:
+            return "MODEL_FORMAT_ERROR"
+        if exc.code:
+            return exc.code
+    if type(exc).__name__ == "SchemaValidationError":
+        return "ARTIFACT_SCHEMA_ERROR"
+    if isinstance(exc, (KeyError, TypeError, ValueError)):
+        return "ARTIFACT_SCHEMA_ERROR"
+    return "TRANSIENT_WORKER_ERROR"

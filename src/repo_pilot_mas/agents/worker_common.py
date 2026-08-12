@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from repo_pilot_mas.models import GenerationConfig, Message, ModelAdapter
@@ -14,6 +14,10 @@ from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
 
 class WorkerAgentError(RuntimeError):
     """A bounded Worker failure that must not mutate orchestration state."""
+
+    def __init__(self, message: str, *, code: str = "MODEL_FORMAT_ERROR") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def generate_artifact(
@@ -29,6 +33,7 @@ def generate_artifact(
     system_prompt: str,
     generation_config: GenerationConfig,
     trace_writer: TraceWriter | None,
+    content_transform: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
 ) -> Artifact:
     refs = tuple(artifact.ref for artifact in artifacts)
     context = {
@@ -52,6 +57,8 @@ def generate_artifact(
         artifact_type,
         artifacts,
     )
+    if content_transform is not None:
+        content = content_transform(content)
     artifact = Artifact(
         artifact_id=f"{node_id}.{artifact_type.value}",
         artifact_type=artifact_type,
@@ -134,6 +141,10 @@ def _canonicalize_refs(
         ]
     elif artifact_type is ArtifactType.REVIEW:
         content["target_artifact_ref"] = canonical(content.get("target_artifact_ref", ""))
+        if "target_artifact_refs" in content:
+            content["target_artifact_refs"] = [
+                canonical(item) for item in content.get("target_artifact_refs", ())
+            ]
         content["evidence_refs"] = [canonical(item) for item in content.get("evidence_refs", ())]
     elif artifact_type is ArtifactType.CHALLENGE:
         content["challenged_hypothesis_ref"] = canonical(

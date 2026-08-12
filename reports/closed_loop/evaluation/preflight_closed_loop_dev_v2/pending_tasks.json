@@ -1,0 +1,29 @@
+{
+  "tasks": [
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/find_first_in_sorted",
+      "status": "pending",
+      "task_id": "quixbugs_find_first_in_sorted"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/gcd",
+      "status": "pending",
+      "task_id": "quixbugs_gcd"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/is_valid_parenthesization",
+      "status": "pending",
+      "task_id": "quixbugs_is_valid_parenthesization"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/bucketsort",
+      "status": "pending",
+      "task_id": "quixbugs_bucketsort"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/flatten",
+      "status": "pending",
+      "task_id": "quixbugs_flatten"
+    }
+  ]
+}

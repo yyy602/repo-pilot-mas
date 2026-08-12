@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_mergesort",
+  "repository_path": "../mergesort",
+  "issue": "mergesort 缺少单元素基线条件，非空输入会递归到无法收敛。",
+  "failing_tests": ["tests/test_mergesort.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["mergesort.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "missing_recursion_base_case"}
+}

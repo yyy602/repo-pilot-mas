@@ -31,6 +31,9 @@ def validate_json_schema(value: Any, schema: Mapping[str, Any], *, path: str = "
             )
         return
 
+    for candidate in schema.get("allOf", ()):
+        validate_json_schema(value, candidate, path=path)
+
     if "const" in schema and value != schema["const"]:
         raise SchemaValidationError(f"{path}: expected constant {schema['const']!r}")
     if "enum" in schema and value not in schema["enum"]:
@@ -59,6 +62,35 @@ def validate_json_schema(value: Any, schema: Mapping[str, Any], *, path: str = "
         assert isinstance(value, Sequence) and not isinstance(value, (str, bytes))
         if "minItems" in schema and len(value) < int(schema["minItems"]):
             raise SchemaValidationError(f"{path}: expected at least {schema['minItems']} items")
+        if "maxItems" in schema and len(value) > int(schema["maxItems"]):
+            raise SchemaValidationError(f"{path}: expected at most {schema['maxItems']} items")
+        if schema.get("uniqueItems") is True:
+            serialized = [repr(item) for item in value]
+            if len(serialized) != len(set(serialized)):
+                raise SchemaValidationError(f"{path}: expected unique items")
+        if "contains" in schema:
+            matches = 0
+            for index, item in enumerate(value):
+                try:
+                    validate_json_schema(
+                        item,
+                        schema["contains"],
+                        path=f"{path}[{index}]",
+                    )
+                    matches += 1
+                except SchemaValidationError:
+                    pass
+            minimum = int(schema.get("minContains", 1))
+            maximum = schema.get("maxContains")
+            if matches < minimum or (
+                maximum is not None and matches > int(maximum)
+            ):
+                expected = (
+                    f"{minimum}..{maximum}" if maximum is not None else f">={minimum}"
+                )
+                raise SchemaValidationError(
+                    f"{path}: expected contains matches {expected}, got {matches}"
+                )
         item_schema = schema.get("items")
         if item_schema is not None:
             for index, item in enumerate(value):

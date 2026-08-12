@@ -1,0 +1,720 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "find_first_in_sorted 函数的实现存在边界条件问题。",
+        "confidence": 0.9,
+        "content": "def find_first_in_sorted(arr, x):\n    lo = 0\n    hi = len(arr)\n\n    while lo <= hi:\n        mid = (lo + hi) // 2\n\n        if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):\n            return mid\n        if x <= arr[mid]:\n            hi = mid\n        else:\n            lo = mid + 1\n\n    return -1",
+        "contradicts_claims": [],
+        "evidence_kind": "source",
+        "missing_evidence": [
+          "测试用例的详细输出",
+          "函数在边界条件下的具体行为分析"
+        ],
+        "mode": "code_retrieval",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 15,
+          "line_start": 1,
+          "path": "find_first_in_sorted.py"
+        },
+        "status": "unverified",
+        "supports_claims": [
+          "目标测试失败表明函数在处理目标位于边界时可能越界或无法正确缩小搜索区间"
+        ],
+        "tool_trace_ids": [
+          "0376e73a483a42d6b19b5207771b0597",
+          "5f80e3fdf6cc483a82520b64f8375eb5"
+        ],
+        "verified": false
+      },
+      "created_at": "2026-08-12T04:31:44.082162+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "6176d8914f684c6f884c89d32470a811",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "find_first_in_sorted 函数在目标超出范围时发生越界错误。",
+        "confidence": 1,
+        "content": "if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one"
+          ],
+          "exit_code": 1,
+          "failure_output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n__________________ test_target_above_range_returns_minus_one ___________________\n\n    def test_target_above_range_returns_minus_one() -> None:\n>       assert find_first_in_sorted([3, 4, 5, 5, 5, 5, 6], 7) == -1\n\ntests/test_find_first_in_sorted.py:9: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\narr = [3, 4, 5, 5, 5, 5, ...], x = 7\n\n    def find_first_in_sorted(arr, x):\n        lo = 0\n        hi = len(arr)\n    \n        while lo <= hi:\n            mid = (lo + hi) // 2\n    \n>           if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):\nE           IndexError: list index out of range\n\nfind_first_in_sorted.py:8: IndexError\n=========================== short test summary info ============================\nFAILED tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one\n",
+          "failure_type": "IndexError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 8,
+          "line_start": 8,
+          "path": "find_first_in_sorted.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "find_first_in_sorted 函数在目标超出范围时发生越界错误。"
+        ],
+        "tool_trace_ids": [
+          "71cdbd30f4334bf5af62c30b02504e5c"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-12T04:31:35.538982+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "76f89fa6f9024f8bbab68d618eed18b5",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "find_first_in_sorted",
+          "arr",
+          "mid",
+          "lo",
+          "hi"
+        ],
+        "confidence": 0.9,
+        "counter_evidence": [],
+        "direct_cause": "在 while 循环中，mid 的计算可能导致 mid 超出数组索引范围",
+        "missing_evidence": [
+          "测试用例的详细输出",
+          "函数在边界条件下的具体行为分析"
+        ],
+        "perspective": "control_flow",
+        "root_cause": "搜索区间未正确处理边界条件导致越界错误",
+        "supporting_evidence": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 while 循环中 mid 的计算是否在数组索引范围内",
+          "验证当目标超出数组范围时函数返回 -1 的行为",
+          "测试边界条件下的函数行为，如目标位于数组末尾或超出范围"
+        ]
+      },
+      "created_at": "2026-08-12T04:32:04.199514+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "7ee400f11cfc43adbccbaaa6a5dc2990",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "ARTIFACT_SCHEMA_ERROR",
+        "details": {
+          "raw_worker_reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N4",
+        "origin": "collector",
+        "reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+        "recommended_stage": "review",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-12T04:32:37.399781+00:00",
+      "created_by": "N4",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "801bccf9dece42e18ce7a373c43d3815",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "ARTIFACT_SCHEMA_ERROR",
+        "details": {
+          "raw_worker_reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N4",
+        "origin": "collector",
+        "reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+        "recommended_stage": "review",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-12T04:32:54.086541+00:00",
+      "created_by": "N4",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "05a8b39135714b87be7afd32c26203b8",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "replan_inv_evidence_001",
+        "failure_class": "evidence_incomplete",
+        "from_stage": "review",
+        "reason": "Review task N4 permanently failed with ARTIFACT_SCHEMA_ERROR due to unresolved uncertainty in hypothesis N3, indicating insufficient evidence to validate the root cause. Replanning to investigation to collect missing boundary condition evidence before revisiting diagnosis.",
+        "remaining_replans": 0,
+        "target_stage": "investigation",
+        "trigger_refs": [
+          "N4.rejection.a2@v1",
+          "N3.hypothesis@v1"
+        ]
+      },
+      "created_at": "2026-08-12T04:33:10.508999+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N4.rejection.a2@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "5e271c3dd8da4737ba580d10c5f63194",
+      "version": 1
+    },
+    {
+      "artifact_id": "N6.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "find_first_in_sorted 函数在目标值超出数组范围时可能引发 IndexError。",
+        "confidence": 1,
+        "content": "        if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):\n            return mid\n        if x <= arr[mid]:\n            hi = mid\n        else:\n            lo = mid + 1\n    return -1",
+        "contradicts_claims": [],
+        "evidence_kind": "execution",
+        "missing_evidence": [],
+        "mode": "evidence_completion",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 15,
+          "line_start": 8,
+          "path": "find_first_in_sorted.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "find_first_in_sorted 函数在目标值超出数组范围时可能引发 IndexError。"
+        ],
+        "tool_trace_ids": [
+          "3fdaf5822f7b4a53aa7fedfb3c0722d0"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-12T04:33:50.937690+00:00",
+      "created_by": "N6",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "6b91ff22407446b2b08eabd1c19d37c7",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "ARTIFACT_SCHEMA_ERROR",
+        "details": {
+          "raw_worker_reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N7",
+        "origin": "collector",
+        "reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+        "recommended_stage": "review",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-12T04:34:59.893712+00:00",
+      "created_by": "N7",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "b82ebe8795da40a0817ac5538e15eb3c",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "ARTIFACT_SCHEMA_ERROR",
+        "details": {
+          "raw_worker_reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "review",
+        "max_attempts": 2,
+        "node_id": "N7",
+        "origin": "collector",
+        "reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+        "recommended_stage": "review",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-12T04:35:12.521819+00:00",
+      "created_by": "N7",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "484acc76c1c64c3c9f929dfbfe6aa402",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 18,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 18,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2/tasks/quixbugs_find_first_in_sorted/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 0,
+    "artifact_rejection_count": 4,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": false,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 2,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 15169.333333333334,
+        "calls": 3,
+        "total_ms": 45508
+      },
+      "initialization": {
+        "average_ms": 38877.0,
+        "calls": 1,
+        "total_ms": 38877
+      },
+      "investigation": {
+        "average_ms": 25466.333333333332,
+        "calls": 6,
+        "total_ms": 152798
+      },
+      "review": {
+        "average_ms": 14260.8,
+        "calls": 5,
+        "total_ms": 71304
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 1,
+    "replan_record_count": 1,
+    "replan_succeeded": false,
+    "retry_node_count": 2,
+    "root_cause_review_passed": false,
+    "route_attempts_by_model": {
+      "qwen3.7-flash": 9,
+      "qwen3.7-flash-2026-07-15": 1,
+      "qwen3.7-max-2026-06-08": 2
+    },
+    "route_exhausted_by_model": {
+      "qwen3.7-flash": 1,
+      "qwen3.7-max-2026-06-08": 2
+    },
+    "route_successes_by_model": {
+      "qwen3.7-flash": 7,
+      "qwen3.7-flash-2026-07-15": 1
+    },
+    "supervisor_format_repair_count": 1,
+    "validation_passed": false,
+    "worker_failure_count": 2,
+    "worker_retry_count": 2,
+    "workspace_clean": true
+  },
+  "engine_status": "terminated",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {},
+    "primary_ref": null,
+    "review_refs": [],
+    "status": "unresolved"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 1,
+        "budget_effect": "Consumes 1 node slot; remaining_replans remains 0.",
+        "gate_name": "pending_replan_recovery",
+        "reason": "Executing approved replan to investigate missing evidence for hypothesis N3 after N4 review failed due to unresolved uncertainty.",
+        "trigger_artifact_refs": [
+          "replan.1@v1",
+          "N4.rejection.a2@v1",
+          "N3.hypothesis@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "Consumes 1 node slot within max_nodes limit; no extra replans used.",
+        "gate_name": "dynamic_expansion_review_retry",
+        "reason": "N6 completed evidence collection for boundary conditions, resolving the uncertainty that caused N4 to fail. Creating a new root_cause_recommendation review to advance hypothesis resolution.",
+        "trigger_artifact_refs": [
+          "N6.evidence@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 0,
+    "parallel_overlap_pairs": 1,
+    "replan_attempted": true,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:qwen3.7-flash-2026-07-15:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:qwen3.7-flash:DASHSCOPE_API_KEY_2": 8,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_exhausted:qwen3.7-flash:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_exhausted:qwen3.7-max-2026-06-08:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:qwen3.7-flash-2026-07-15:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_succeeded:qwen3.7-flash:DASHSCOPE_API_KEY_2": 7,
+      "supervisor_route_timeout:qwen3.7-flash:DASHSCOPE_API_KEY_2": 1
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-12T04:31:19.040687+00:00",
+      "created_by_decision_id": "init_inv_002",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:31:44.108195+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Retrieve the source code for find_first_in_sorted and its dependencies to establish a baseline for analysis.",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:31:19.070563+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-12T04:31:19.040743+00:00",
+      "created_by_decision_id": "init_inv_002",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:31:44.109872+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Reproduce the failure in tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one to confirm the bug behavior before diagnosis.",
+      "output_artifact_ids": [
+        "N2.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:31:19.070996+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-12T04:31:58.826160+00:00",
+      "created_by_decision_id": "inv_to_diag_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:32:04.217221+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "Analyze the control flow of find_first_in_sorted to identify the precise condition triggering the IndexError when the search target exceeds the array bounds.",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:31:58.837505+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-12T04:32:24.305410+00:00",
+      "created_by_decision_id": "diag_to_review_001",
+      "critical": true,
+      "dependencies": [
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+      "finished_at": "2026-08-12T04:32:54.087244+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "Review the root cause hypothesis N3.hypothesis@v1 against direct evidence to verify its validity and readiness for acceptance.",
+      "output_artifact_ids": [
+        "N4.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-12T04:32:37.411645+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-12T04:33:10.509670+00:00",
+      "created_by_decision_id": "replan_inv_evidence_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:33:10.509647+00:00",
+      "input_artifact_ids": [
+        "N4.rejection.a2@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N5",
+      "node_type": "REPLAN_TASK",
+      "objective": "Review task N4 permanently failed with ARTIFACT_SCHEMA_ERROR due to unresolved uncertainty in hypothesis N3, indicating insufficient evidence to validate the root cause. Replanning to investigation to collect missing boundary condition evidence before revisiting diagnosis.",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-12T04:33:28.863371+00:00",
+      "created_by_decision_id": "inv_evidence_completion_002",
+      "critical": true,
+      "dependencies": [
+        "N5"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-12T04:33:50.960795+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.rejection.a2@v1",
+        "replan.1@v1"
+      ],
+      "mode": "evidence_completion",
+      "node_id": "N6",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Execute planned recovery to gather missing boundary condition evidence and detailed test outputs for hypothesis N3, resolving the unresolved uncertainty that caused Reviewer N4 to fail.",
+      "output_artifact_ids": [
+        "N6.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-12T04:33:28.876301+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-12T04:34:47.226147+00:00",
+      "created_by_decision_id": "review_root_cause_003",
+      "critical": true,
+      "dependencies": [
+        "N6"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "ARTIFACT_SCHEMA_ERROR:ValueError:acceptable Review cannot retain unresolved uncertainty",
+      "finished_at": "2026-08-12T04:35:12.522519+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N6.evidence@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N7",
+      "node_type": "REVIEW_TASK",
+      "objective": "Re-evaluate hypothesis N3.hypothesis@v1 against direct evidence N1, N2, and recovered evidence N6 to resolve prior uncertainty and determine if the root cause is supported for acceptance.",
+      "output_artifact_ids": [
+        "N7.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-12T04:34:59.906303+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 120.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "Hypothesis N3 remains unresolved after exhausting the single allowed replan. Two root_cause_recommendation reviews (N4, N7) failed with ARTIFACT_SCHEMA_ERROR due to unresolved uncertainty, indicating insufficient evidence to validate the root cause. No further replans or safe continuation paths remain within budget constraints.",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2/tasks/quixbugs_find_first_in_sorted/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+    "before_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_find_first_in_sorted",
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2/tasks/quixbugs_find_first_in_sorted/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 13,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 23555,
+        "output_tokens": 3140
+      },
+      "qwen3.7-flash": {
+        "calls": 7,
+        "estimated_cost_cny": 0.023515,
+        "input_tokens": 41900,
+        "output_tokens": 18919
+      },
+      "qwen3.7-flash-2026-07-15": {
+        "calls": 1,
+        "estimated_cost_cny": 0.004222,
+        "input_tokens": 7820,
+        "output_tokens": 3322
+      }
+    },
+    "duration_ms": 292533,
+    "estimated_api_cost_cny": 0.027737,
+    "input_tokens": 73275,
+    "model_calls": 25,
+    "output_tokens": 25381,
+    "supervisor_api_calls": 12,
+    "supervisor_policy_calls": 7,
+    "supervisor_tokens": 71961,
+    "tool_calls": 5,
+    "total_tokens": 98656,
+    "worker_model_calls": 13,
+    "worker_tokens": 26695
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

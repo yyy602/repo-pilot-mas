@@ -415,6 +415,19 @@ def raw_usage(root: str | Path, pricing: Mapping[str, Any] | None = None) -> dic
 
 def trace_metrics(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     route_usage: Counter[str] = Counter()
+    route_attempts_by_model: Counter[str] = Counter()
+    route_successes_by_model: Counter[str] = Counter()
+    route_exhausted_by_model: Counter[str] = Counter()
+    latency_totals: Counter[str] = Counter()
+    latency_calls: Counter[str] = Counter()
+    node_stages: dict[str, str] = {}
+    latest_supervisor_stage = "unknown"
+    contract_rejection_pending = False
+    contract_rejection_keys: set[tuple[str, str]] = set()
+    node_rebuild_count = 0
+    snapshot_original_chars = 0
+    snapshot_compact_chars = 0
+    snapshot_count = 0
     intervals: list[tuple[datetime, datetime]] = []
     for event in events:
         event_type = str(event.get("event_type", ""))
@@ -423,6 +436,52 @@ def trace_metrics(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             continue
         if event_type.startswith("supervisor_route_"):
             route_usage[f"{event_type}:{data.get('model_id')}:{data.get('api_key_env')}"] += 1
+            model_id = str(data.get("model_id", "unknown"))
+            if event_type == "supervisor_route_attempt":
+                route_attempts_by_model[model_id] += 1
+            elif event_type == "supervisor_route_succeeded":
+                route_successes_by_model[model_id] += 1
+            elif event_type == "supervisor_route_exhausted":
+                route_exhausted_by_model[model_id] += 1
+        if event_type == "supervisor_snapshot_compacted":
+            snapshot_count += 1
+            snapshot_original_chars += int(data.get("original_chars", 0))
+            snapshot_compact_chars += int(data.get("compact_chars", 0))
+        if event_type == "supervisor_schema_reduced":
+            latest_supervisor_stage = str(data.get("workflow_stage", "unknown"))
+        elif event_type == "supervisor_decision_generated":
+            latency_totals[latest_supervisor_stage] += int(data.get("latency_ms", 0))
+            latency_calls[latest_supervisor_stage] += 1
+        if event_type == "agent_input_contract_checked" and data.get("node_id"):
+            node_stages[str(data["node_id"])] = _stage_for_node_type(
+                str(data.get("node_type", ""))
+            )
+        if event_type == "agent_input_contract_rejected":
+            contract_rejection_pending = True
+            identity = str(
+                data.get("decision_id")
+                or data.get("node_id")
+                or event.get("event_id")
+                or len(contract_rejection_keys)
+            )
+            contract_rejection_keys.add(("contract", identity))
+        if (
+            event_type == "supervisor_decision_rejected"
+            and data.get("code") == "AGENT_INPUT_CONTRACT_VIOLATION"
+        ):
+            identity = str(
+                data.get("decision_id")
+                or event.get("event_id")
+                or len(contract_rejection_keys)
+            )
+            contract_rejection_keys.add(("contract", identity))
+        if event_type == "supervisor_decision_applied" and contract_rejection_pending:
+            decision = data.get("decision", {})
+            if isinstance(decision, Mapping) and decision.get("action") == "CREATE_TASK":
+                tasks = decision.get("create_tasks", ())
+                if isinstance(tasks, Sequence) and not isinstance(tasks, (str, bytes)):
+                    node_rebuild_count += len(tasks)
+                contract_rejection_pending = False
         if event_type == "worker_completed" and data.get("started_at") and data.get("finished_at"):
             intervals.append(
                 (
@@ -430,6 +489,9 @@ def trace_metrics(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
                     datetime.fromisoformat(str(data["finished_at"])),
                 )
             )
+            stage = node_stages.get(str(data.get("node_id", "")), "unknown")
+            latency_totals[stage] += int(data.get("duration_ms", 0))
+            latency_calls[stage] += 1
     overlap_pairs = sum(
         max(first[0], second[0]) < min(first[1], second[1])
         for index, first in enumerate(intervals)
@@ -454,9 +516,51 @@ def trace_metrics(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             for event in events
         ),
         "route_usage": dict(sorted(route_usage.items())),
+        "route_attempts_by_model": dict(sorted(route_attempts_by_model.items())),
+        "route_successes_by_model": dict(sorted(route_successes_by_model.items())),
+        "route_exhausted_by_model": dict(sorted(route_exhausted_by_model.items())),
+        "worker_retry_count": sum(
+            event.get("event_type") == "deterministic_worker_retry_scheduled"
+            for event in events
+        ),
+        "contract_rejection_count": len(contract_rejection_keys),
+        "node_rebuild_count": node_rebuild_count,
+        "supervisor_format_repair_count": sum(
+            event.get("event_type") == "supervisor_format_repair_attempted"
+            for event in events
+        ),
+        "supervisor_snapshot_count": snapshot_count,
+        "supervisor_snapshot_original_chars": snapshot_original_chars,
+        "supervisor_snapshot_compact_chars": snapshot_compact_chars,
+        "supervisor_snapshot_reduction_ratio": (
+            1.0 - snapshot_compact_chars / snapshot_original_chars
+            if snapshot_original_chars
+            else None
+        ),
+        "latency_by_stage": {
+            stage: {
+                "calls": latency_calls[stage],
+                "total_ms": total_ms,
+                "average_ms": total_ms / latency_calls[stage],
+            }
+            for stage, total_ms in sorted(latency_totals.items())
+            if latency_calls[stage]
+        },
         "parallel_overlap_pairs": overlap_pairs,
         "gate_records": gates,
     }
+
+
+def _stage_for_node_type(node_type: str) -> str:
+    return {
+        "INVESTIGATION_TASK": "investigation",
+        "DIAGNOSIS_TASK": "diagnosis",
+        "CHALLENGE_TASK": "diagnosis",
+        "REBUTTAL_TASK": "diagnosis",
+        "REVIEW_TASK": "review",
+        "PATCH_TASK": "patch",
+        "VALIDATION_TASK": "validation",
+    }.get(node_type, "unknown")
 
 
 def budget_outcomes_fail_closed(results: Sequence[Mapping[str, Any]]) -> bool:

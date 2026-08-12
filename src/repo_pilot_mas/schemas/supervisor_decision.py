@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import re
@@ -682,6 +683,628 @@ def supervisor_decision_schema() -> dict[str, Any]:
             variant(DecisionAction.TERMINATE_TASK),
         ]
     }
+
+
+_STAGE_CREATE_NODE_TYPES = {
+    "initialization": frozenset({"INVESTIGATION_TASK"}),
+    "investigation": frozenset(
+        {"INVESTIGATION_TASK", "DIAGNOSIS_TASK", "REVIEW_TASK"}
+    ),
+    "diagnosis": frozenset(
+        {
+            "INVESTIGATION_TASK",
+            "DIAGNOSIS_TASK",
+            "CHALLENGE_TASK",
+            "REBUTTAL_TASK",
+            "REVIEW_TASK",
+        }
+    ),
+    "review": frozenset(
+        {
+            "INVESTIGATION_TASK",
+            "DIAGNOSIS_TASK",
+            "CHALLENGE_TASK",
+            "REBUTTAL_TASK",
+            "REVIEW_TASK",
+        }
+    ),
+    "patch": frozenset({"PATCH_TASK", "REVIEW_TASK", "VALIDATION_TASK"}),
+    "validation": frozenset(
+        {"PATCH_TASK", "REVIEW_TASK", "VALIDATION_TASK"}
+    ),
+    "replan": frozenset({"INVESTIGATION_TASK", "DIAGNOSIS_TASK", "PATCH_TASK"}),
+}
+
+_LEGAL_STAGE_TRANSITIONS = {
+    "initialization": ("investigation",),
+    "investigation": ("diagnosis",),
+    "diagnosis": ("investigation", "review", "patch"),
+    "review": ("investigation", "diagnosis", "patch"),
+    "patch": ("diagnosis", "validation"),
+    "validation": ("investigation", "diagnosis", "patch", "finalization"),
+    "replan": ("investigation", "diagnosis", "patch"),
+    "finalization": ("completed",),
+}
+
+_REPLAN_TARGET_BY_FAILURE_CLASS = {
+    "reproduction_failure": "investigation",
+    "wrong_location": "investigation",
+    "evidence_incomplete": "investigation",
+    "root_cause_rejected": "diagnosis",
+    "both_patches_fail_target": "diagnosis",
+    "counterexample_overturns": "diagnosis",
+    "patch_apply_failure": "patch",
+    "syntax_failure": "patch",
+    "target_test_failure": "patch",
+    "regression_failure": "patch",
+    "blocking_patch_review": "patch",
+}
+
+
+def additional_investigation_required(
+    artifacts: Sequence[Mapping[str, Any]],
+) -> bool:
+    """Return whether the current Artifact set still justifies Investigation."""
+
+    source_evidence_indexes: list[int] = []
+    failure_evidence_indexes: list[int] = []
+    verified_evidence_indexes: list[int] = []
+    latest_explicit_gap_index: int | None = None
+
+    for index, item in enumerate(artifacts):
+        if not isinstance(item, Mapping):
+            continue
+        artifact_type = str(item.get("artifact_type", ""))
+        content = item.get("content", {})
+        if not isinstance(content, Mapping):
+            continue
+
+        if (
+            artifact_type == "hypothesis" and content.get("missing_evidence")
+        ) or (
+            artifact_type == "review"
+            and (
+                content.get("verdict") == "needs_more_evidence"
+                or content.get("remaining_uncertainty")
+            )
+        ):
+            latest_explicit_gap_index = index
+
+        if artifact_type != "evidence":
+            continue
+        if (
+            content.get("verified") is not True
+            or content.get("status") != "verified"
+            or not content.get("tool_trace_ids")
+            or not isinstance(content.get("source"), Mapping)
+            or not content.get("source", {}).get("path")
+        ):
+            continue
+
+        verified_evidence_indexes.append(index)
+        source_evidence_indexes.append(index)
+        reproduction = content.get("reproduction")
+        reproduced_failure = (
+            isinstance(reproduction, Mapping)
+            and reproduction.get("attempted") is True
+            and reproduction.get("succeeded") is True
+            and bool(reproduction.get("failure_output"))
+        )
+        verified_execution = (
+            content.get("evidence_kind") == "execution"
+            and bool(content.get("content"))
+        )
+        if reproduced_failure or verified_execution:
+            failure_evidence_indexes.append(index)
+
+    if not source_evidence_indexes or not failure_evidence_indexes:
+        return True
+    if latest_explicit_gap_index is None:
+        return False
+    return not any(
+        index > latest_explicit_gap_index
+        and not artifacts[index].get("content", {}).get("missing_evidence")
+        for index in verified_evidence_indexes
+    )
+
+
+def supervisor_decision_schema_for_state(
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return only actions and Worker contracts that are legal for this state."""
+
+    stage = str(snapshot.get("workflow_stage", "initialization"))
+    selections = snapshot.get("selections", {})
+    selections = selections if isinstance(selections, Mapping) else {}
+    resolution = selections.get("hypothesis_resolution", {})
+    resolution = resolution if isinstance(resolution, Mapping) else {}
+    accepted = resolution.get("status") == "accepted"
+    nodes = snapshot.get("nodes", ())
+    nodes = (
+        nodes
+        if isinstance(nodes, Sequence) and not isinstance(nodes, (str, bytes))
+        else ()
+    )
+    artifacts = snapshot.get("artifacts", ())
+    artifacts = (
+        artifacts
+        if isinstance(artifacts, Sequence)
+        and not isinstance(artifacts, (str, bytes))
+        else ()
+    )
+    task = snapshot.get("task", {})
+    task = task if isinstance(task, Mapping) else {}
+    reproduction_pending = bool(task.get("requires_failure_reproduction")) and not bool(
+        task.get("confirmed_failure_reproduction_refs")
+    )
+    artifact_types = {
+        str(item.get("artifact_type", ""))
+        for item in artifacts
+        if isinstance(item, Mapping)
+    }
+    artifact_refs_by_type: dict[str, list[str]] = {}
+    for item in artifacts:
+        if not isinstance(item, Mapping) or not item.get("artifact_ref"):
+            continue
+        artifact_refs_by_type.setdefault(
+            str(item.get("artifact_type", "")), []
+        ).append(str(item["artifact_ref"]))
+    hypothesis_ready_refs = {
+        str(item["artifact_ref"])
+        for item in artifacts
+        if isinstance(item, Mapping)
+        and item.get("artifact_type") == "hypothesis"
+        and item.get("artifact_ref")
+        and isinstance(item.get("content"), Mapping)
+        and not item.get("content", {}).get("missing_evidence")
+    }
+    acceptable_review_refs: set[str] = set()
+    reviewed_ready_refs: set[str] = set()
+    for item in artifacts:
+        if (
+            not isinstance(item, Mapping)
+            or item.get("artifact_type") != "review"
+            or not item.get("artifact_ref")
+            or not isinstance(item.get("content"), Mapping)
+        ):
+            continue
+        content = item["content"]
+        if (
+            content.get("mode")
+            not in {"root_cause_recommendation", "hypothesis_comparison"}
+            or content.get("verdict")
+            not in {"approved", "compatible", "supported"}
+        ):
+            continue
+        raw_targets = content.get("target_artifact_refs")
+        if raw_targets is None:
+            raw_targets = (content.get("target_artifact_ref"),)
+        if isinstance(raw_targets, (str, bytes)):
+            raw_targets = (raw_targets,)
+        covered = {
+            str(ref) for ref in raw_targets if str(ref) in hypothesis_ready_refs
+        }
+        if covered:
+            acceptable_review_refs.add(str(item["artifact_ref"]))
+            reviewed_ready_refs.update(covered)
+    recovery = snapshot.get("recovery", {})
+    recovery = recovery if isinstance(recovery, Mapping) else {}
+    pending_replan = recovery.get("pending_replan") is True
+    remaining_replans = int(recovery.get("remaining_replans", 1) or 0)
+    patch_refs = set(artifact_refs_by_type.get("patch_candidate", ()))
+    validations_by_patch = {
+        str(item.get("content", {}).get("patch_ref", "")): item
+        for item in artifacts
+        if isinstance(item, Mapping)
+        and item.get("artifact_type") == "validation_result"
+        and isinstance(item.get("content"), Mapping)
+        and item.get("content", {}).get("patch_ref")
+    }
+    unvalidated_patch_refs = patch_refs.difference(validations_by_patch)
+    passed_validation_exists = any(
+        item.get("content", {}).get("passed") is True
+        for item in validations_by_patch.values()
+    )
+    investigation_required = additional_investigation_required(artifacts)
+
+    allowed_actions = {
+        DecisionAction.CREATE_TASK.value,
+        DecisionAction.TERMINATE_TASK.value,
+    }
+    if stage not in {"initialization", "finalization", "completed", "terminated"}:
+        allowed_actions.add(DecisionAction.CHANGE_WORKFLOW_STAGE.value)
+    if stage == "investigation" and reproduction_pending:
+        allowed_actions.discard(DecisionAction.CHANGE_WORKFLOW_STAGE.value)
+    if stage in {"review", "patch", "validation", "replan"}:
+        allowed_actions.add(DecisionAction.REQUEST_REPLAN.value)
+    if remaining_replans <= 0 and not pending_replan:
+        allowed_actions.discard(DecisionAction.REQUEST_REPLAN.value)
+    if (
+        stage in {"diagnosis", "review"}
+        and not accepted
+        and reviewed_ready_refs
+        and acceptable_review_refs
+    ):
+        allowed_actions.add(DecisionAction.ACCEPT_HYPOTHESIS.value)
+    if stage == "validation" and "validation_result" in artifact_types:
+        allowed_actions.update(
+            {
+                DecisionAction.SELECT_PATCH.value,
+                DecisionAction.FINALIZE_TASK.value,
+            }
+        )
+    if stage == "finalization" and "validation_result" in artifact_types:
+        allowed_actions.add(DecisionAction.FINALIZE_TASK.value)
+    if any(
+        isinstance(item, Mapping)
+        and str(item.get("status", "")) in {"PENDING", "READY", "RUNNING"}
+        for item in nodes
+    ):
+        allowed_actions.update(
+            {
+                DecisionAction.CANCEL_TASK.value,
+                DecisionAction.PAUSE_TASK.value,
+            }
+        )
+    if any(
+        isinstance(item, Mapping) and str(item.get("status", "")) == "PAUSED"
+        for item in nodes
+    ):
+        allowed_actions.add(DecisionAction.RESUME_TASK.value)
+
+    allowed_node_types = set(_STAGE_CREATE_NODE_TYPES.get(stage, ()))
+    if reproduction_pending:
+        allowed_node_types.discard("DIAGNOSIS_TASK")
+        allowed_node_types.discard("REVIEW_TASK")
+    if pending_replan:
+        allowed_actions = {DecisionAction.CREATE_TASK.value}
+        target_node_type = str(recovery.get("target_node_type", ""))
+        allowed_node_types = {target_node_type} if target_node_type else set()
+    if accepted and stage in {"diagnosis", "review"}:
+        allowed_node_types.add("PATCH_TASK")
+    if not accepted:
+        allowed_node_types.discard("PATCH_TASK")
+        allowed_node_types.discard("VALIDATION_TASK")
+    if patch_refs and not pending_replan:
+        allowed_node_types.discard("PATCH_TASK")
+    if not pending_replan and not investigation_required:
+        allowed_node_types.discard("INVESTIGATION_TASK")
+    if not unvalidated_patch_refs:
+        allowed_node_types.discard("VALIDATION_TASK")
+    if (
+        stage in {"patch", "validation"}
+        and patch_refs
+        and not unvalidated_patch_refs
+        and not passed_validation_exists
+        and remaining_replans <= 0
+        and not pending_replan
+    ):
+        allowed_actions = {DecisionAction.TERMINATE_TASK.value}
+        allowed_node_types.clear()
+    if not allowed_node_types:
+        allowed_actions.discard(DecisionAction.CREATE_TASK.value)
+    gate_required_node_types = {"CHALLENGE_TASK", "REBUTTAL_TASK"}
+    active_statuses = {"PENDING", "READY", "RUNNING", "PAUSED", "SUCCEEDED"}
+    for node_type in ("INVESTIGATION_TASK", "DIAGNOSIS_TASK", "PATCH_TASK"):
+        if any(
+            isinstance(item, Mapping)
+            and str(item.get("node_type", "")) == node_type
+            and str(item.get("status", "")) in active_statuses
+            for item in nodes
+        ):
+            gate_required_node_types.add(node_type)
+
+    schema = supervisor_decision_schema()
+    filtered_variants = [
+        variant
+        for variant in schema["oneOf"]
+        if variant["properties"]["action"]["const"] in allowed_actions
+    ]
+    variants: list[dict[str, Any]] = []
+    for variant in filtered_variants:
+        action = variant["properties"]["action"]["const"]
+        if action == DecisionAction.REQUEST_REPLAN.value:
+            for failure_class, target_stage in _REPLAN_TARGET_BY_FAILURE_CLASS.items():
+                constrained = copy.deepcopy(variant)
+                constrained["properties"]["failure_class"] = {
+                    "const": failure_class
+                }
+                constrained["properties"]["next_workflow_stage"] = {
+                    "const": target_stage
+                }
+                variants.append(constrained)
+            continue
+        constrained = copy.deepcopy(variant)
+        if action == DecisionAction.ACCEPT_HYPOTHESIS.value:
+            allowed_hypotheses = sorted(reviewed_ready_refs)
+            allowed_reviews = sorted(acceptable_review_refs)
+            constrained["properties"]["hypothesis_refs"]["items"] = {
+                "type": "string",
+                "enum": allowed_hypotheses,
+            }
+            constrained["properties"]["primary_hypothesis_ref"] = {
+                "type": "string",
+                "enum": allowed_hypotheses,
+            }
+            constrained["properties"]["review_refs"]["items"] = {
+                "type": "string",
+                "enum": allowed_reviews,
+            }
+        if action == DecisionAction.CREATE_TASK.value:
+            allowed_next_stages = tuple(
+                dict.fromkeys((stage, *_LEGAL_STAGE_TRANSITIONS.get(stage, ())))
+            )
+            constrained["properties"]["next_workflow_stage"] = {
+                "type": "string",
+                "enum": list(allowed_next_stages),
+            }
+            if stage == "initialization":
+                constrained["properties"]["next_workflow_stage"] = {
+                    "const": "investigation"
+                }
+                if "next_workflow_stage" not in constrained["required"]:
+                    constrained["required"].append("next_workflow_stage")
+            if pending_replan:
+                trigger_refs = tuple(
+                    dict.fromkeys(
+                        (
+                            str(recovery.get("replan_ref", "")),
+                            *(
+                                str(item)
+                                for item in recovery.get("trigger_refs", ())
+                                if str(item)
+                            ),
+                        )
+                    )
+                )
+                trigger_refs = tuple(ref for ref in trigger_refs if ref)
+                exact_triggers = {
+                    "type": "array",
+                    "items": {"type": "string", "enum": list(trigger_refs)},
+                    "minItems": len(trigger_refs),
+                    "maxItems": len(trigger_refs),
+                    "uniqueItems": True,
+                }
+                constrained["properties"]["evidence_refs"] = exact_triggers
+                constrained["properties"]["gate_record"]["properties"][
+                    "trigger_artifact_refs"
+                ] = copy.deepcopy(exact_triggers)
+                for required_field in ("evidence_refs", "gate_record"):
+                    if required_field not in constrained["required"]:
+                        constrained["required"].append(required_field)
+        elif action == DecisionAction.CHANGE_WORKFLOW_STAGE.value:
+            constrained["properties"]["next_workflow_stage"] = {
+                "type": "string",
+                "enum": list(_LEGAL_STAGE_TRANSITIONS.get(stage, ())),
+            }
+        variants.append(constrained)
+
+    for variant in variants:
+        if (
+            variant["properties"]["action"]["const"]
+            != DecisionAction.CREATE_TASK.value
+        ):
+            continue
+        task_variants = variant["properties"]["create_tasks"]["items"]["oneOf"]
+        allowed_task_variants = [
+            task_variant
+            for task_variant in task_variants
+            if task_variant["properties"]["node_type"]["const"]
+            in allowed_node_types
+        ]
+        contracted_task_variants = [
+            constrained
+            for task_variant in allowed_task_variants
+            for constrained in _task_contract_variants(
+                task_variant,
+                artifact_refs_by_type,
+            )
+        ]
+        if not investigation_required:
+            contracted_task_variants = [
+                item
+                for item in contracted_task_variants
+                if not (
+                    item["properties"]["agent_type"]["const"]
+                    == "ReviewerAgent"
+                    and item["properties"]["mode"]["const"]
+                    == "evidence_review"
+                )
+            ]
+        variant["properties"]["create_tasks"]["items"]["oneOf"] = (
+            contracted_task_variants
+        )
+
+    final_variants: list[dict[str, Any]] = []
+    for variant in variants:
+        if (
+            pending_replan
+            or variant["properties"]["action"]["const"]
+            != DecisionAction.CREATE_TASK.value
+        ):
+            final_variants.append(variant)
+            continue
+        task_variants = variant["properties"]["create_tasks"]["items"]["oneOf"]
+        gated_types = {
+            str(item["properties"]["node_type"]["const"])
+            for item in task_variants
+            if str(item["properties"]["node_type"]["const"])
+            in gate_required_node_types
+        }
+        if not gated_types:
+            expandable_types = {
+                "INVESTIGATION_TASK",
+                "DIAGNOSIS_TASK",
+                "PATCH_TASK",
+            }
+            available_types = {
+                str(item["properties"]["node_type"]["const"])
+                for item in task_variants
+            }
+            if (
+                available_types.intersection(expandable_types)
+                and artifact_refs_by_type
+            ):
+                gated = copy.deepcopy(variant)
+                gated["properties"]["create_tasks"]["minItems"] = 2
+                for required_field in ("evidence_refs", "gate_record"):
+                    if required_field not in gated["required"]:
+                        gated["required"].append(required_field)
+                gated["properties"]["evidence_refs"]["minItems"] = 1
+                final_variants.append(gated)
+                variant["properties"]["create_tasks"]["maxItems"] = 1
+            elif available_types.intersection(expandable_types):
+                variant["properties"]["create_tasks"]["maxItems"] = 1
+            variant["properties"].pop("gate_record", None)
+            final_variants.append(variant)
+            continue
+        ungated_task_variants = [
+            item
+            for item in task_variants
+            if str(item["properties"]["node_type"]["const"])
+            not in gated_types
+        ]
+        if ungated_task_variants:
+            ungated = copy.deepcopy(variant)
+            ungated["properties"]["create_tasks"]["items"][
+                "oneOf"
+            ] = ungated_task_variants
+            ungated["properties"].pop("gate_record", None)
+            final_variants.append(ungated)
+        gated = copy.deepcopy(variant)
+        gated["properties"]["create_tasks"]["items"]["oneOf"] = [
+            item
+            for item in task_variants
+            if str(item["properties"]["node_type"]["const"])
+            in gated_types
+        ]
+        for required_field in ("evidence_refs", "gate_record"):
+            if required_field not in gated["required"]:
+                gated["required"].append(required_field)
+        gated["properties"]["evidence_refs"]["minItems"] = 1
+        final_variants.append(gated)
+    return {"oneOf": final_variants}
+
+
+_TASK_MODE_ARTIFACT_COUNTS: dict[
+    tuple[str, str], dict[str, tuple[int, int | None]]
+] = {
+    ("DiagnosticianAgent", "control_flow"): {"evidence": (1, None)},
+    ("DiagnosticianAgent", "data_flow"): {"evidence": (1, None)},
+    ("DiagnosticianAgent", "challenge"): {
+        "evidence": (1, None),
+        "hypothesis": (1, 1),
+    },
+    ("DiagnosticianAgent", "rebuttal"): {
+        "evidence": (1, None),
+        "hypothesis": (1, 1),
+        "challenge": (1, 1),
+    },
+    ("ReviewerAgent", "evidence_review"): {"evidence": (1, None)},
+    ("ReviewerAgent", "root_cause_recommendation"): {
+        "evidence": (1, None),
+        "hypothesis": (1, 1),
+    },
+    ("ReviewerAgent", "hypothesis_comparison"): {
+        "evidence": (1, None),
+        "hypothesis": (2, None),
+    },
+    ("ReviewerAgent", "challenge_quality"): {
+        "evidence": (1, None),
+        "hypothesis": (1, None),
+        "challenge": (1, None),
+    },
+    ("ReviewerAgent", "patch_review"): {
+        "evidence": (1, None),
+        "hypothesis": (1, None),
+        "patch_candidate": (1, 1),
+        "review": (1, None),
+    },
+    ("ReviewerAgent", "final_risk_review"): {
+        "evidence": (1, None),
+        "patch_candidate": (1, 1),
+        "validation_result": (1, 1),
+        "review": (1, None),
+    },
+    ("PatchAgent", "minimal"): {"hypothesis": (1, None), "review": (1, None)},
+    ("PatchAgent", "robust"): {"hypothesis": (1, None), "review": (1, None)},
+    ("PatchAgent", "minimal_critiques_robust"): {
+        "evidence": (1, None),
+        "patch_candidate": (2, 2),
+    },
+    ("PatchAgent", "robust_critiques_minimal"): {
+        "evidence": (1, None),
+        "patch_candidate": (2, 2),
+    },
+    ("ValidationExecutor", "deterministic"): {
+        "patch_candidate": (1, 1),
+        "review": (1, None),
+    },
+}
+
+_TASK_MODE_ALLOWED_ARTIFACT_TYPES: dict[tuple[str, str], frozenset[str]] = {
+    ("DiagnosticianAgent", "control_flow"): frozenset({"evidence"}),
+    ("DiagnosticianAgent", "data_flow"): frozenset({"evidence"}),
+    ("DiagnosticianAgent", "challenge"): frozenset(
+        {"evidence", "hypothesis"}
+    ),
+    ("DiagnosticianAgent", "rebuttal"): frozenset(
+        {"evidence", "hypothesis", "challenge"}
+    ),
+}
+
+
+def _task_contract_variants(
+    task_variant: Mapping[str, Any],
+    refs_by_type: Mapping[str, Sequence[str]],
+) -> list[dict[str, Any]]:
+    """Split Worker modes and encode their minimum Artifact input contracts."""
+
+    properties = task_variant["properties"]
+    agent_type = str(properties["agent_type"]["const"])
+    mode_schema = properties["mode"]
+    modes = (
+        (str(mode_schema["const"]),)
+        if "const" in mode_schema
+        else tuple(str(item) for item in mode_schema.get("enum", ()))
+    )
+    variants: list[dict[str, Any]] = []
+    for mode in modes:
+        counts = _TASK_MODE_ARTIFACT_COUNTS.get((agent_type, mode), {})
+        if any(len(refs_by_type.get(kind, ())) < minimum for kind, (minimum, _) in counts.items()):
+            continue
+        allowed_types = _TASK_MODE_ALLOWED_ARTIFACT_TYPES.get((agent_type, mode))
+        all_refs = [
+            ref
+            for artifact_type, refs in refs_by_type.items()
+            if allowed_types is None or artifact_type in allowed_types
+            for ref in refs
+        ]
+        constrained = copy.deepcopy(task_variant)
+        constrained["properties"]["mode"] = {"const": mode}
+        input_schema: dict[str, Any] = {
+            "type": "array",
+            "items": {"type": "string", "enum": all_refs},
+            "uniqueItems": True,
+        }
+        input_schema["allOf"] = []
+        for artifact_type, (minimum, maximum) in counts.items():
+            requirement: dict[str, Any] = {
+                "type": "array",
+                "contains": {
+                    "type": "string",
+                    "enum": list(refs_by_type.get(artifact_type, ())),
+                },
+                "minContains": minimum,
+            }
+            if maximum is not None:
+                requirement["maxContains"] = maximum
+            input_schema["allOf"].append(requirement)
+        constrained["properties"]["input_artifact_ids"] = input_schema
+        if counts and "input_artifact_ids" not in constrained["required"]:
+            constrained["required"].append("input_artifact_ids")
+        variants.append(constrained)
+    return variants
 
 
 def _strings(value: Sequence[Any]) -> tuple[str, ...]:

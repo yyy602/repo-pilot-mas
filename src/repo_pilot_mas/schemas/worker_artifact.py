@@ -58,7 +58,20 @@ EVIDENCE_CONTENT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "mode": {"type": "string", "enum": list(INVESTIGATOR_MODES)},
+        "evidence_kind": {
+            "type": "string",
+            "enum": [
+                "source",
+                "reproduction",
+                "execution",
+                "dependency",
+                "counterexample",
+            ],
+        },
         "claim": _TEXT,
+        "supports_claims": _NON_EMPTY_TEXTS,
+        "contradicts_claims": _TEXTS,
+        "verified": {"type": "boolean"},
         "source": {
             "type": "object",
             "properties": {
@@ -85,7 +98,11 @@ EVIDENCE_CONTENT_SCHEMA: dict[str, Any] = {
     },
     "required": [
         "mode",
+        "evidence_kind",
         "claim",
+        "supports_claims",
+        "contradicts_claims",
+        "verified",
         "source",
         "content",
         "observation_type",
@@ -132,6 +149,7 @@ REVIEW_CONTENT_SCHEMA: dict[str, Any] = {
     "properties": {
         "mode": {"type": "string", "enum": list(REVIEWER_MODES)},
         "target_artifact_ref": _TEXT,
+        "target_artifact_refs": _NON_EMPTY_TEXTS,
         "evidence_refs": _NON_EMPTY_TEXTS,
         "verdict": {
             "type": "string",
@@ -148,6 +166,12 @@ REVIEW_CONTENT_SCHEMA: dict[str, Any] = {
         "findings": _NON_EMPTY_TEXTS,
         "risk_notes": _TEXTS,
         "recommendation": _TEXT,
+        "failure_explained": {"type": "boolean"},
+        "causal_chain_complete": {"type": "boolean"},
+        "alternative_causes": _TEXTS,
+        "counterexample_checked": {"type": "boolean"},
+        "verification_steps_executed": _NON_EMPTY_TEXTS,
+        "remaining_uncertainty": _TEXTS,
     },
     "required": [
         "mode",
@@ -157,6 +181,12 @@ REVIEW_CONTENT_SCHEMA: dict[str, Any] = {
         "findings",
         "risk_notes",
         "recommendation",
+        "failure_explained",
+        "causal_chain_complete",
+        "alternative_causes",
+        "counterexample_checked",
+        "verification_steps_executed",
+        "remaining_uncertainty",
     ],
     "additionalProperties": False,
 }
@@ -233,6 +263,7 @@ VALIDATION_CONTENT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "patch_ref": _TEXT,
+        "patch_review_refs": _NON_EMPTY_TEXTS,
         "patch_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
@@ -250,13 +281,18 @@ VALIDATION_CONTENT_SCHEMA: dict[str, Any] = {
             "type": "string",
             "enum": [
                 "none",
-                "patch_integrity_failure",
-                "protected_path_violation",
+                "patch_apply_failure",
                 "target_test_failure",
                 "regression_failure",
                 "syntax_failure",
             ],
         },
+        "recommended_stage": {
+            "type": "string",
+            "enum": ["completed", "patch"],
+        },
+        "invalidated_refs": _TEXTS,
+        "recoverable": {"type": "boolean"},
         "tool_trace_ids": {
             "type": "array",
             "items": _TEXT,
@@ -265,6 +301,7 @@ VALIDATION_CONTENT_SCHEMA: dict[str, Any] = {
     },
     "required": [
         "patch_ref",
+        "patch_review_refs",
         "patch_sha256",
         "workspace_id",
         "applied",
@@ -276,6 +313,9 @@ VALIDATION_CONTENT_SCHEMA: dict[str, Any] = {
         "changed_lines",
         "passed",
         "failure_class",
+        "recommended_stage",
+        "invalidated_refs",
+        "recoverable",
         "tool_trace_ids",
     ],
     "additionalProperties": False,
@@ -321,6 +361,22 @@ _PATCH_COMMON_PROPERTIES: dict[str, Any] = {
     "risk_notes": _TEXTS,
     "protected_path_check": {"type": "boolean"},
     "workspace_id": _TEXT,
+    "pre_patch_behavior": _TEXT,
+    "post_patch_expected_behavior": _TEXT,
+    "failure_input_walkthrough": _TEXT,
+    "semantic_rationale": _TEXT,
+    "precheck_command": {"type": "array", "items": _TEXT, "minItems": 1},
+    "precheck_result": {
+        "type": "object",
+        "properties": {
+            "ok": {"type": "boolean"},
+            "trace_id": _TEXT,
+            "exit_code": {"type": "integer"},
+            "output_tail": {"type": "string"},
+        },
+        "required": ["ok", "trace_id", "exit_code", "output_tail"],
+        "additionalProperties": False,
+    },
 }
 _PATCH_COMMON_REQUIRED = [
     "strategy",
@@ -331,35 +387,28 @@ _PATCH_COMMON_REQUIRED = [
     "risk_notes",
     "protected_path_check",
     "workspace_id",
+    "pre_patch_behavior",
+    "post_patch_expected_behavior",
+    "failure_input_walkthrough",
+    "semantic_rationale",
+    "precheck_command",
+    "precheck_result",
 ]
 PATCH_CONTENT_SCHEMA: dict[str, Any] = {
-    "oneOf": [
-        {
-            "type": "object",
-            "properties": {
-                **_PATCH_COMMON_PROPERTIES,
-                "based_on_hypothesis": _TEXT,
-            },
-            "required": [*_PATCH_COMMON_REQUIRED, "based_on_hypothesis"],
-            "additionalProperties": False,
-        },
-        {
-            "type": "object",
-            "properties": {
-                **_PATCH_COMMON_PROPERTIES,
-                "based_on_hypothesis_refs": _NON_EMPTY_TEXTS,
-                "primary_hypothesis_ref": _TEXT,
-                "covered_root_causes": {"type": "object"},
-            },
-            "required": [
-                *_PATCH_COMMON_REQUIRED,
-                "based_on_hypothesis_refs",
-                "primary_hypothesis_ref",
-                "covered_root_causes",
-            ],
-            "additionalProperties": False,
-        },
-    ]
+    "type": "object",
+    "properties": {
+        **_PATCH_COMMON_PROPERTIES,
+        "based_on_hypothesis_refs": _NON_EMPTY_TEXTS,
+        "primary_hypothesis_ref": _TEXT,
+        "covered_root_causes": {"type": "object"},
+    },
+    "required": [
+        *_PATCH_COMMON_REQUIRED,
+        "based_on_hypothesis_refs",
+        "primary_hypothesis_ref",
+        "covered_root_causes",
+    ],
+    "additionalProperties": False,
 }
 
 ARTIFACT_REJECTION_CONTENT_SCHEMA: dict[str, Any] = {
@@ -438,6 +487,30 @@ def validate_worker_artifact(
             f"unsupported Worker artifact type: {artifact.artifact_type.value}"
         ) from exc
     validate_json_schema(artifact.content, schema)
+    if artifact.artifact_type is ArtifactType.EVIDENCE:
+        if bool(artifact.content["verified"]) != (
+            artifact.content["status"] == "verified"
+        ):
+            raise ValueError("Evidence verified must match status=verified")
+        if (
+            artifact.content["evidence_kind"] == "reproduction"
+            and "reproduction" not in artifact.content
+        ):
+            raise ValueError("reproduction Evidence requires reproduction details")
+    elif artifact.artifact_type is ArtifactType.REVIEW:
+        _validate_review_quality(artifact.content)
+    elif artifact.artifact_type is ArtifactType.PATCH_CANDIDATE:
+        _validate_patch_semantics(artifact.content)
+    elif artifact.artifact_type is ArtifactType.VALIDATION_RESULT:
+        passed = artifact.content["passed"] is True
+        if passed != (artifact.content["failure_class"] == "none"):
+            raise ValueError("Validation passed and failure_class are inconsistent")
+        if passed != (artifact.content["recommended_stage"] == "completed"):
+            raise ValueError("Validation recommended_stage is inconsistent")
+        if passed and artifact.content["invalidated_refs"]:
+            raise ValueError("passed Validation cannot invalidate artifacts")
+        if not passed and not artifact.content["invalidated_refs"]:
+            raise ValueError("failed Validation must identify invalidated refs")
     if artifact.artifact_type is ArtifactType.ARTIFACT_REJECTION:
         attempt = int(artifact.content["attempt"])
         max_attempts = int(artifact.content["max_attempts"])
@@ -464,12 +537,19 @@ def _validate_content_refs(artifact: Artifact, allowed: set[str]) -> None:
             allowed,
             "target_artifact_ref",
         )
+        if "target_artifact_refs" in content:
+            _require_refs(
+                content["target_artifact_refs"],
+                allowed,
+                "target_artifact_refs",
+            )
         _require_refs(content["evidence_refs"], allowed, "evidence_refs")
     elif artifact.artifact_type is ArtifactType.PATCH_CANDIDATE:
-        refs = content.get("based_on_hypothesis_refs")
-        if refs is None:
-            refs = (content["based_on_hypothesis"],)
-        _require_refs(refs, allowed, "based_on_hypothesis_refs")
+        _require_refs(
+            content["based_on_hypothesis_refs"],
+            allowed,
+            "based_on_hypothesis_refs",
+        )
     elif artifact.artifact_type is ArtifactType.CHALLENGE:
         _require_refs(
             (content["challenged_hypothesis_ref"],),
@@ -493,8 +573,57 @@ def _validate_content_refs(artifact: Artifact, allowed: set[str]) -> None:
         )
     elif artifact.artifact_type is ArtifactType.VALIDATION_RESULT:
         _require_refs((content["patch_ref"],), allowed, "patch_ref")
+        _require_refs(
+            content["patch_review_refs"],
+            allowed,
+            "patch_review_refs",
+        )
+        _require_refs(
+            content["invalidated_refs"],
+            allowed,
+            "invalidated_refs",
+        )
     elif artifact.artifact_type is ArtifactType.REPLAN_RECORD:
         _require_refs(content["trigger_refs"], allowed, "trigger_refs")
+
+
+def _validate_review_quality(content: Mapping[str, Any]) -> None:
+    if content["mode"] == "hypothesis_comparison":
+        targets = tuple(str(item) for item in content.get("target_artifact_refs", ()))
+        if len(targets) < 2 or len(targets) != len(set(targets)):
+            raise ValueError(
+                "hypothesis_comparison requires at least two unique target_artifact_refs"
+            )
+        if content["target_artifact_ref"] not in targets:
+            raise ValueError(
+                "hypothesis_comparison target_artifact_ref must be one compared Hypothesis"
+            )
+    if content["verdict"] not in {"approved", "compatible", "supported"}:
+        return
+    if content["failure_explained"] is not True:
+        raise ValueError("acceptable Review must explain the observed failure")
+    if content["causal_chain_complete"] is not True:
+        raise ValueError("acceptable Review requires a complete causal chain")
+    if not content["alternative_causes"] and content["counterexample_checked"] is not True:
+        raise ValueError("acceptable Review must check an alternative cause or counterexample")
+    if not content["verification_steps_executed"]:
+        raise ValueError("acceptable Review must execute at least one verification step")
+    if content["remaining_uncertainty"]:
+        raise ValueError("acceptable Review cannot retain unresolved uncertainty")
+
+
+def _validate_patch_semantics(content: Mapping[str, Any]) -> None:
+    refs = tuple(str(item) for item in content["based_on_hypothesis_refs"])
+    if len(refs) != len(set(refs)):
+        raise ValueError("Patch hypothesis refs must be unique")
+    if content["primary_hypothesis_ref"] not in refs:
+        raise ValueError("Patch primary_hypothesis_ref must belong to accepted refs")
+    if set(content["covered_root_causes"]) != set(refs):
+        raise ValueError("Patch covered_root_causes must match hypothesis refs")
+    if content["protected_path_check"] is not True:
+        raise ValueError("Patch did not pass protected path checks")
+    if content["precheck_result"]["ok"] is not True:
+        raise ValueError("Patch semantic precheck did not pass")
 
 
 def _require_refs(

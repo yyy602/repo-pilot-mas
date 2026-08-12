@@ -7,7 +7,6 @@ import pytest
 from repo_pilot_mas.agents import ReviewerAgent, WorkerAgentError
 from repo_pilot_mas.models import FakeModelAdapter
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec
-from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
 
 
 def _task(tmp_path: Path) -> TaskSpec:
@@ -42,7 +41,11 @@ def _evidence() -> Artifact:
         "N1",
         {
             "mode": "failure_reproduction",
+            "evidence_kind": "reproduction",
             "claim": "test reproduces IndexError",
+            "supports_claims": ["test reproduces IndexError"],
+            "contradicts_claims": [],
+            "verified": True,
             "source": {"path": "target.py", "line_start": 1, "line_end": 5},
             "content": "arr[mid] can exceed array bound",
             "observation_type": "direct",
@@ -112,6 +115,15 @@ def test_patch_review_requires_single_patch_and_root_review(tmp_path: Path) -> N
             "target_artifact_ref": hypothesis.ref,
             "evidence_refs": [evidence.ref],
             "verdict": "supported",
+            "findings": ["Evidence supports the root cause"],
+            "risk_notes": [],
+            "recommendation": "continue",
+            "failure_explained": True,
+            "causal_chain_complete": True,
+            "alternative_causes": ["排除了测试配置问题"],
+            "counterexample_checked": True,
+            "verification_steps_executed": ["核对失败输出"],
+            "remaining_uncertainty": [],
         },
         (hypothesis.ref, evidence.ref),
     )
@@ -126,6 +138,12 @@ def test_patch_review_requires_single_patch_and_root_review(tmp_path: Path) -> N
                 "findings": ["patch covers root cause"],
                 "risk_notes": [],
                 "recommendation": "continue validation",
+                "failure_explained": True,
+                "causal_chain_complete": True,
+                "alternative_causes": ["排除了仅硬编码目标用例"],
+                "counterexample_checked": True,
+                "verification_steps_executed": ["逐项核对 diff 与根因"],
+                "remaining_uncertainty": [],
             }
         ]
     )

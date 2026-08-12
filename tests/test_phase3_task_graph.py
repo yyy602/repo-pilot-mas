@@ -19,6 +19,7 @@ from repo_pilot_mas.schemas import (
     ArtifactType,
     CreateTaskRequest,
     DecisionAction,
+    GateRecord,
     SupervisorDecision,
     TaskSpec,
 )
@@ -137,7 +138,7 @@ def test_artifact_store_is_append_only_and_revision_invalidates_consumers(
             CreateTaskRequest(
                 "INVESTIGATION_TASK",
                 "InvestigatorAgent",
-                "focused",
+                "code_retrieval",
                 "基于证据形成假设",
                 input_artifact_ids=(evidence_v1.artifact_id,),
             ),
@@ -152,12 +153,21 @@ def test_artifact_store_is_append_only_and_revision_invalidates_consumers(
         "审查假设",
         create_tasks=(
             CreateTaskRequest(
-                "REVIEW_TASK",
-                "ReviewerAgent",
-                "strict",
+                "INVESTIGATION_TASK",
+                "InvestigatorAgent",
+                "code_retrieval",
                 "审查上游结论",
                 depends_on=("N1",),
+                input_artifact_ids=(evidence_v1.ref,),
             ),
+        ),
+        evidence_refs=(evidence_v1.ref,),
+        gate_record=GateRecord(
+            "revision-propagation-test",
+            (evidence_v1.ref,),
+            "测试第二个调查节点对上游修订的失效传播",
+            1,
+            "新增一个测试节点",
         ),
     )
     assert engine.apply_decision(create_successor).ok

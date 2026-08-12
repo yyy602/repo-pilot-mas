@@ -1,0 +1,172 @@
+{
+  "artifact_rejection_count": 2,
+  "average_latency_ms": 530577.0,
+  "average_tokens": 248370.0,
+  "budget_violations": 0,
+  "contract_rejection_count": 0,
+  "estimated_api_cost_cny": 0.039496,
+  "estimated_api_cost_per_solved_cny": 0.039496,
+  "evidence_gate_pass_rate": 1.0,
+  "failed": 0,
+  "hypothesis_accept_rate": 1.0,
+  "isolated_worker_failure_count": 1,
+  "latency_by_stage": {
+    "diagnosis": {
+      "average_ms": 16922.0,
+      "calls": 4,
+      "total_ms": 67688
+    },
+    "initialization": {
+      "average_ms": 37587.0,
+      "calls": 1,
+      "total_ms": 37587
+    },
+    "investigation": {
+      "average_ms": 17797.5,
+      "calls": 2,
+      "total_ms": 35595
+    },
+    "patch": {
+      "average_ms": 50419.57142857143,
+      "calls": 7,
+      "total_ms": 352937
+    },
+    "review": {
+      "average_ms": 9780.0,
+      "calls": 2,
+      "total_ms": 19560
+    },
+    "validation": {
+      "average_ms": 8280.0,
+      "calls": 2,
+      "total_ms": 16560
+    }
+  },
+  "median_latency_ms": 530577,
+  "metric_layers": {
+    "business_results": {
+      "patch_success_rate": 1.0,
+      "regression_pass_rate": 1.0,
+      "target_test_pass_rate": 1.0,
+      "task_resolution_rate": 1.0
+    },
+    "closed_loop_mechanism": {
+      "evidence_gate_pass_rate": 1.0,
+      "hypothesis_accept_rate": 1.0,
+      "patch_binding_rate": 1.0,
+      "review_pass_rate": 1.0,
+      "validation_pass_rate": 1.0
+    },
+    "exception_recovery": {
+      "contract_rejection_count": 0,
+      "node_rebuild_count": 0,
+      "replan_attempt_count": 1,
+      "replan_success_rate": 1.0,
+      "supervisor_format_repair_count": 1,
+      "worker_retry_count": 1
+    },
+    "routing_and_cost": {
+      "estimated_cost_cny": 0.039496,
+      "latency_by_stage": {
+        "diagnosis": {
+          "average_ms": 16922.0,
+          "calls": 4,
+          "total_ms": 67688
+        },
+        "initialization": {
+          "average_ms": 37587.0,
+          "calls": 1,
+          "total_ms": 37587
+        },
+        "investigation": {
+          "average_ms": 17797.5,
+          "calls": 2,
+          "total_ms": 35595
+        },
+        "patch": {
+          "average_ms": 50419.57142857143,
+          "calls": 7,
+          "total_ms": 352937
+        },
+        "review": {
+          "average_ms": 9780.0,
+          "calls": 2,
+          "total_ms": 19560
+        },
+        "validation": {
+          "average_ms": 8280.0,
+          "calls": 2,
+          "total_ms": 16560
+        }
+      },
+      "route_attempts_by_model": {
+        "qwen3.7-flash": 12,
+        "qwen3.7-max-2026-06-08": 2
+      },
+      "route_exhausted_by_model": {
+        "qwen3.7-flash": 1,
+        "qwen3.7-max-2026-06-08": 2
+      },
+      "route_successes_by_model": {
+        "qwen3.7-flash": 11
+      },
+      "supervisor_tokens": 110199,
+      "total_tokens": 248370,
+      "worker_tokens": 138171
+    }
+  },
+  "node_rebuild_count": 0,
+  "patch_apply_rate": 1.0,
+  "patch_binding_rate": 1.0,
+  "patch_success_rate": 1.0,
+  "recovery_attempted_tasks": 1,
+  "recovery_succeeded_tasks": 1,
+  "recovery_success_rate": 1.0,
+  "regression_pass_rate": 1.0,
+  "replan_attempt_count": 1,
+  "replan_success_rate": 1.0,
+  "review_pass_rate": 1.0,
+  "route_attempts_by_model": {
+    "qwen3.7-flash": 12,
+    "qwen3.7-max-2026-06-08": 2
+  },
+  "route_distribution": {
+    "deep": 1
+  },
+  "route_exhausted_by_model": {
+    "qwen3.7-flash": 1,
+    "qwen3.7-max-2026-06-08": 2
+  },
+  "route_successes_by_model": {
+    "qwen3.7-flash": 11
+  },
+  "schema_version": 1,
+  "solved": 1,
+  "source_integrity_violations": 0,
+  "supervisor_format_repair_count": 1,
+  "supervisor_tokens": 110199,
+  "syntax_valid_rate": 1.0,
+  "system_id": "closed_loop_dynamic",
+  "target_test_pass_rate": 1.0,
+  "task_count": 1,
+  "task_resolution_rate": 1.0,
+  "task_result_paths": [
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_bucketsort/tasks/quixbugs_bucketsort/result.json"
+  ],
+  "totals": {
+    "duration_ms": 530577,
+    "input_tokens": 214851,
+    "model_calls": 48,
+    "output_tokens": 33519,
+    "supervisor_api_calls": 14,
+    "tool_calls": 29,
+    "total_tokens": 248370,
+    "worker_model_calls": 34
+  },
+  "validation_pass_rate": 1.0,
+  "worker_failure_count": 1,
+  "worker_failure_isolation_rate": 1.0,
+  "worker_retry_count": 1,
+  "worker_tokens": 138171,
+  "workspace_cleanup_rate": 1.0
+}

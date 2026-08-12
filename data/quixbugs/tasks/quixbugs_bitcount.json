@@ -1,0 +1,12 @@
+{
+  "task_id": "quixbugs_bitcount",
+  "repository_path": "../bitcount",
+  "issue": "bitcount 对正整数不能稳定清除最低有效位，可能无法终止并返回位计数。",
+  "failing_tests": ["tests/test_bitcount.py"],
+  "acceptance_criteria": ["目标测试通过", "完整回归通过", "tests 目录未修改"],
+  "test_command": ["python", "-m", "pytest", "-q"],
+  "target_files": ["bitcount.py"],
+  "protected_paths": ["tests"],
+  "max_runtime_seconds": 20,
+  "metadata": {"dataset": "quixbugs", "category": "non_terminating_bit_update"}
+}

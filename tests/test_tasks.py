@@ -9,7 +9,7 @@ def test_phase6_quixbugs_tasks_are_valid_and_reproduce_failures() -> None:
     root = Path(__file__).parents[1]
     tasks = load_tasks(root / "data" / "quixbugs" / "tasks")
 
-    assert len(tasks) == 15
+    assert len(tasks) == 20
     assert all(task.metadata["dataset"] == "quixbugs" for task in tasks)
     for task in tasks:
         result = run_tests(

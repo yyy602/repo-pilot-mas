@@ -7,18 +7,18 @@
     "quixbugs_find_first_in_sorted",
     "quixbugs_gcd",
     "quixbugs_is_valid_parenthesization",
-    "quixbugs_max_sublist_sum",
-    "quixbugs_powerset"
+    "quixbugs_bucketsort",
+    "quixbugs_flatten"
   ],
   "test_task_ids": [
-    "quixbugs_bucketsort",
-    "quixbugs_flatten",
     "quixbugs_get_factors",
     "quixbugs_hanoi",
     "quixbugs_knapsack",
     "quixbugs_lcs_length",
     "quixbugs_lis",
+    "quixbugs_max_sublist_sum",
     "quixbugs_next_permutation",
+    "quixbugs_powerset",
     "quixbugs_quicksort",
     "quixbugs_sieve"
   ],
@@ -31,7 +31,9 @@
     "quixbugs_knapsack": {"expected_complexity": "simple"},
     "quixbugs_lcs_length": {"expected_complexity": "simple"},
     "quixbugs_lis": {"expected_complexity": "simple"},
+    "quixbugs_max_sublist_sum": {"expected_complexity": "simple"},
     "quixbugs_next_permutation": {"expected_complexity": "simple"},
+    "quixbugs_powerset": {"expected_complexity": "simple"},
     "quixbugs_quicksort": {"expected_complexity": "simple"},
     "quixbugs_sieve": {"expected_complexity": "simple"}
   }

@@ -6,8 +6,9 @@ supervisor:
   routing:
     strategy: model_first_account_second
     model_order:
-      - qwen3.7-plus
-      - qwen3.8-max
+      - qwen3.7-max-2026-06-08
+      - qwen3.7-flash
+      - qwen3.7-flash-2026-07-15
     api_key_envs:
       - DASHSCOPE_API_KEY_1
       - DASHSCOPE_API_KEY_2
@@ -15,7 +16,7 @@ supervisor:
   failover:
     max_retries_per_route: 1
     initial_backoff_seconds: 2
-    per_route_timeout_seconds: 30
+    per_route_timeout_seconds: 60
     quota_exhausted_error_codes:
       - AllocationQuota.FreeTierOnly
     quota_exhausted_message_patterns:
@@ -29,5 +30,11 @@ supervisor:
   generation:
     temperature: 0.0
     max_output_tokens: 2048
+    # Supervisor 必须输出严格 JSON；DashScope 官方建议结构化输出关闭思考模式。
+    enable_thinking: false
     timeout_seconds: 120
     max_format_repairs: 1
+
+  recovery:
+    additional_schema_retries: 1
+    safe_fallback_enabled: true

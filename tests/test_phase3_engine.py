@@ -17,6 +17,7 @@ from repo_pilot_mas.schemas import (
     ArtifactType,
     CreateTaskRequest,
     DecisionAction,
+    GateRecord,
     SupervisorDecision,
     TaskSpec,
 )
@@ -49,17 +50,72 @@ def _create(decision_id: str, objective: str = "调查失败入口") -> Supervis
 
 
 def _validated_patch_pair(engine: OrchestrationEngine) -> tuple[Artifact, Artifact]:
+    evidence = next(
+        (
+            item
+            for item in engine.blackboard.artifacts.latest_values()
+            if item.artifact_type is ArtifactType.EVIDENCE
+        ),
+        None,
+    )
+    if evidence is None:
+        evidence = _root_evidence()
+        engine.add_artifact(evidence)
+    resolution = engine.blackboard.hypothesis_resolution
+    if resolution.status.value != "accepted":
+        hypothesis = _root_hypothesis(evidence)
+        root_review = _review_artifact(
+            "root-review",
+            "root_cause_recommendation",
+            hypothesis.ref,
+            evidence.ref,
+        )
+        engine.add_artifact(hypothesis)
+        engine.add_artifact(root_review)
+        engine.blackboard.set_hypotheses(
+            (hypothesis.ref,),
+            primary_ref=hypothesis.ref,
+            review_refs=(root_review.ref,),
+            decision_id="fixture-accept",
+        )
+        resolution = engine.blackboard.hypothesis_resolution
+    accepted_refs = tuple(resolution.accepted_refs)
+    primary_ref = str(resolution.primary_ref)
     patch = Artifact(
         "patch-1",
         ArtifactType.PATCH_CANDIDATE,
         "N1",
         {
-            "diff": "--- a/module.py\n+++ b/module.py\n",
-            "diff_sha256": "abc",
+            "strategy": "minimal",
+            "based_on_hypothesis_refs": list(accepted_refs),
+            "primary_hypothesis_ref": primary_ref,
+            "covered_root_causes": {ref: "缺少最终状态检查" for ref in accepted_refs},
+            "diff": "--- a/module.py\n+++ b/module.py\n-old\n+new\n",
+            "diff_sha256": "a" * 64,
             "changed_files": ["module.py"],
+            "rationale": "修复已接受根因",
+            "semantic_rationale": "增加最终状态检查以消除直接原因",
+            "pre_patch_behavior": "失败输入绕过最终状态检查",
+            "post_patch_expected_behavior": "失败输入返回正确结果",
+            "failure_input_walkthrough": "失败输入进入缺少保护的返回分支",
+            "precheck_command": ["static_check", ".", "--no-ruff"],
+            "precheck_result": {
+                "ok": True,
+                "trace_id": "precheck",
+                "exit_code": 0,
+                "output_tail": "",
+            },
+            "risk_notes": [],
             "protected_path_check": True,
             "workspace_id": "ws-1",
         },
+        input_refs=(*accepted_refs, *resolution.review_refs),
+    )
+    patch_review = _review_artifact(
+        "patch-review",
+        "patch_review",
+        patch.ref,
+        evidence.ref,
     )
     validation = Artifact(
         "validation-passed",
@@ -68,17 +124,118 @@ def _validated_patch_pair(engine: OrchestrationEngine) -> tuple[Artifact, Artifa
         {
             "passed": True,
             "patch_ref": patch.ref,
-            "patch_sha256": "abc",
+            "patch_review_refs": [patch_review.ref],
+            "patch_sha256": "a" * 64,
+            "workspace_id": "ws-1",
             "applied": True,
             "protected_path_check": True,
-            "target_test": {"exit_code": 0, "trace_id": "trace-target"},
-            "regression_test": {"exit_code": 0, "trace_id": "trace-regression"},
-            "static_check": {"exit_code": 0, "trace_id": "trace-static"},
+            "changed_files": ["module.py"],
+            "changed_lines": 2,
+            "failure_class": "none",
+            "recommended_stage": "completed",
+            "invalidated_refs": [],
+            "recoverable": False,
+            "target_test": _command_result("trace-target"),
+            "regression_test": _command_result("trace-regression"),
+            "static_check": _command_result("trace-static"),
+            "tool_trace_ids": ["diff", "trace-target", "trace-regression", "trace-static"],
         },
+        input_refs=(patch.ref, patch_review.ref),
     )
     engine.add_artifact(patch)
+    engine.add_artifact(patch_review)
     engine.add_artifact(validation)
     return patch, validation
+
+
+def _root_evidence() -> Artifact:
+    return Artifact(
+        "root-evidence",
+        ArtifactType.EVIDENCE,
+        "N0",
+        {
+            "mode": "failure_reproduction",
+            "evidence_kind": "reproduction",
+            "claim": "失败输入复现最终状态错误",
+            "supports_claims": ["失败输入复现最终状态错误"],
+            "contradicts_claims": [],
+            "verified": True,
+            "source": {"path": "module.py", "line_start": 1, "line_end": 3},
+            "content": "目标输入得到错误返回值",
+            "observation_type": "direct",
+            "confidence": 1.0,
+            "status": "verified",
+            "tool_trace_ids": ["reproduce"],
+            "missing_evidence": [],
+            "reproduction": {
+                "attempted": True,
+                "succeeded": True,
+                "exit_code": 1,
+                "failure_type": "AssertionError",
+                "failure_output": "expected False, got True",
+                "command": ["python", "-m", "pytest", "-q"],
+            },
+        },
+    )
+
+
+def _root_hypothesis(evidence: Artifact) -> Artifact:
+    return Artifact(
+        "root-hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N1",
+        {
+            "perspective": "control_flow",
+            "root_cause": "缺少最终状态检查",
+            "direct_cause": "函数无条件返回成功",
+            "supporting_evidence": [evidence.ref],
+            "counter_evidence": [],
+            "affected_symbols": ["target"],
+            "verification_plan": ["运行目标测试"],
+            "missing_evidence": [],
+            "confidence": 0.9,
+        },
+        input_refs=(evidence.ref,),
+    )
+
+
+def _review_artifact(
+    artifact_id: str,
+    mode: str,
+    target_ref: str,
+    evidence_ref: str,
+) -> Artifact:
+    return Artifact(
+        artifact_id,
+        ArtifactType.REVIEW,
+        "N2",
+        {
+            "mode": mode,
+            "target_artifact_ref": target_ref,
+            "evidence_refs": [evidence_ref],
+            "verdict": "supported",
+            "findings": ["直接证据支持目标"],
+            "risk_notes": [],
+            "recommendation": "继续闭环",
+            "failure_explained": True,
+            "causal_chain_complete": True,
+            "alternative_causes": ["排除了测试配置问题"],
+            "counterexample_checked": True,
+            "verification_steps_executed": ["核对失败输出"],
+            "remaining_uncertainty": [],
+        },
+        input_refs=(target_ref, evidence_ref),
+    )
+
+
+def _command_result(trace_id: str) -> dict[str, object]:
+    return {
+        "command": ["python", "-m", "pytest", "-q"],
+        "exit_code": 0,
+        "trace_id": trace_id,
+        "duration_ms": 1,
+        "output_tail": "passed",
+    }
 
 
 def test_dynamic_create_pause_resume_and_cancel(tmp_path: Path) -> None:
@@ -255,6 +412,13 @@ def test_duplicate_decisions_trigger_no_progress_termination(tmp_path: Path) -> 
     assert second_repeat.code == "NO_PROGRESS_LOOP"
     assert engine.status is EngineStatus.FAILED
     assert engine.termination_reason == "NO_PROGRESS_LOOP"
+    assert engine.termination_code == "NO_PROGRESS_LOOP"
+    assert engine.termination_stage == "initialization"
+    assert engine.snapshot()["termination"] == {
+        "code": "NO_PROGRESS_LOOP",
+        "stage": "initialization",
+        "message": "NO_PROGRESS_LOOP",
+    }
 
 
 def test_scripted_supervisor_reproduces_graph_changes(tmp_path: Path) -> None:
@@ -294,6 +458,76 @@ def test_scripted_supervisor_reproduces_graph_changes(tmp_path: Path) -> None:
     assert results[0] == results[1]
 
 
+def test_same_patch_cannot_be_validated_twice(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+    patch, _ = _validated_patch_pair(engine)
+    patch_review = next(
+        item
+        for item in engine.blackboard.artifacts.latest_values()
+        if item.artifact_type is ArtifactType.REVIEW
+        and item.content.get("mode") == "patch_review"
+    )
+    engine.blackboard.set_stage("patch")
+
+    result = engine.apply_decision(
+        SupervisorDecision(
+            "D-duplicate-validation",
+            DecisionAction.CREATE_TASK,
+            "错误地重复验证同一个补丁",
+            create_tasks=(
+                CreateTaskRequest(
+                    "VALIDATION_TASK",
+                    "ValidationExecutor",
+                    "deterministic",
+                    "重复验证同一个补丁",
+                    input_artifact_ids=(patch.ref, patch_review.ref),
+                ),
+            ),
+            next_workflow_stage="validation",
+        )
+    )
+
+    assert result.ok is False
+    assert result.code == "PATCH_ALREADY_VALIDATED"
+    repeated = engine.apply_decision(
+        SupervisorDecision(
+            "D-duplicate-validation-again",
+            DecisionAction.CREATE_TASK,
+            "错误地重复验证同一个补丁",
+            create_tasks=(
+                CreateTaskRequest(
+                    "VALIDATION_TASK",
+                    "ValidationExecutor",
+                    "deterministic",
+                    "重复验证同一个补丁",
+                    input_artifact_ids=(patch.ref, patch_review.ref),
+                ),
+            ),
+            next_workflow_stage="validation",
+        )
+    )
+    assert repeated.code == "NO_PROGRESS_LOOP"
+    repeated_again = engine.apply_decision(
+        SupervisorDecision(
+            "D-duplicate-validation-third",
+            DecisionAction.CREATE_TASK,
+            "错误地重复验证同一个补丁",
+            create_tasks=(
+                CreateTaskRequest(
+                    "VALIDATION_TASK",
+                    "ValidationExecutor",
+                    "deterministic",
+                    "重复验证同一个补丁",
+                    input_artifact_ids=(patch.ref, patch_review.ref),
+                ),
+            ),
+            next_workflow_stage="validation",
+        )
+    )
+    assert repeated_again.code == "NO_PROGRESS_LOOP"
+    assert engine.status is EngineStatus.FAILED
+
+
 def test_invalid_finalization_is_rejected_and_validated_patch_can_finish(tmp_path: Path) -> None:
     engine = _engine(tmp_path)
     patch, passed_validation = _validated_patch_pair(engine)
@@ -324,11 +558,26 @@ def test_invalid_finalization_is_rejected_and_validated_patch_can_finish(tmp_pat
     assert not rejected.ok
     assert engine.status is EngineStatus.ACTIVE
 
+    evidence_ref = next(
+        item.ref
+        for item in engine.blackboard.artifacts.latest_values()
+        if item.artifact_type is ArtifactType.EVIDENCE
+    )
+    blocking_content = {
+        **_review_artifact(
+            "review-1",
+            "patch_review",
+            patch.ref,
+            evidence_ref,
+        ).to_dict()["content"],
+        "verdict": "changes_requested",
+        "remaining_uncertainty": ["边界验证尚未补充"],
+    }
     blocking_review = Artifact(
         "review-1",
         ArtifactType.REVIEW,
         "N4",
-        {"severity": "blocking", "claim": "需要补充边界验证"},
+        blocking_content,
         status="open",
     )
     engine.add_artifact(blocking_review)
@@ -348,7 +597,11 @@ def test_invalid_finalization_is_rejected_and_validated_patch_can_finish(tmp_pat
             "review-1",
             ArtifactType.REVIEW,
             "N4",
-            {"severity": "blocking", "claim": "边界验证已补充"},
+            {
+                **blocking_content,
+                "verdict": "supported",
+                "remaining_uncertainty": [],
+            },
             version=2,
             status="resolved",
             supersedes=blocking_review.ref,
@@ -397,6 +650,8 @@ def test_tool_token_runtime_and_replan_budgets_are_enforced(tmp_path: Path) -> N
     tool_engine.record_tool_calls(1)
     assert tool_engine.status is EngineStatus.FAILED
     assert tool_engine.termination_reason == "TOOL_CALL_BUDGET_EXHAUSTED"
+    assert tool_engine.termination_code == "TOOL_CALL_BUDGET_EXHAUSTED"
+    assert tool_engine.termination_stage == "initialization"
 
     class TokenSupervisor:
         def decide(self, snapshot):  # type: ignore[no-untyped-def]
@@ -437,6 +692,79 @@ def test_tool_token_runtime_and_replan_budgets_are_enforced(tmp_path: Path) -> N
     assert second_replan.code == "INVALID_SUPERVISOR_DECISION"
 
 
+def test_approved_replan_budget_zero_still_allows_target_recovery_node(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path, budget=EngineBudget(max_replans=1))
+    _validated_patch_pair(engine)
+    resolution = engine.blackboard.hypothesis_resolution
+    validation_ref = next(
+        item.ref
+        for item in engine.blackboard.artifacts.latest_values()
+        if item.artifact_type is ArtifactType.VALIDATION_RESULT
+    )
+    engine.blackboard.set_stage("validation")
+
+    requested = engine.apply_decision(
+        SupervisorDecision(
+            "D-replan-patch",
+            DecisionAction.REQUEST_REPLAN,
+            "回退补丁阶段修复回归失败",
+            evidence_refs=(validation_ref,),
+            next_workflow_stage="patch",
+            failure_class="regression_failure",
+        )
+    )
+
+    assert requested.ok
+    recovery = engine.snapshot()["recovery"]
+    assert recovery["pending_replan"] is True
+    assert recovery["remaining_replans"] == 0
+    rejected_termination = engine.apply_decision(
+        SupervisorDecision(
+            "D-wrong-termination",
+            DecisionAction.TERMINATE_TASK,
+            "错误地把重规划次数耗尽解释为不能执行恢复",
+        )
+    )
+    assert not rejected_termination.ok
+    assert engine.status is EngineStatus.ACTIVE
+
+    replan_ref = str(recovery["replan_ref"])
+    created = engine.apply_decision(
+        SupervisorDecision(
+            "D-execute-replan",
+            DecisionAction.CREATE_TASK,
+            "执行已经获准的补丁恢复",
+            create_tasks=(
+                CreateTaskRequest(
+                    "PATCH_TASK",
+                    "PatchAgent",
+                    "minimal",
+                    "针对回归失败生成新的最小补丁",
+                    input_artifact_ids=(
+                        *resolution.accepted_refs,
+                        *resolution.review_refs,
+                    ),
+                ),
+            ),
+            evidence_refs=(replan_ref, validation_ref),
+            gate_record=GateRecord(
+                "approved_replan_recovery",
+                (replan_ref, validation_ref),
+                "已有定向重规划授权",
+                1,
+                "执行已批准的一个恢复节点，不新增重规划次数",
+            ),
+            next_workflow_stage="patch",
+        )
+    )
+
+    assert created.ok
+    assert engine.snapshot()["recovery"]["pending_replan"] is False
+    assert engine.budget.replans == 1
+
+
 def test_remaining_global_supervisor_actions(tmp_path: Path) -> None:
     engine = _engine(tmp_path)
     for decision_id, target in (
@@ -451,19 +779,26 @@ def test_remaining_global_supervisor_actions(tmp_path: Path) -> None:
                 next_workflow_stage=target,
             )
         ).ok
-    hypothesis = Artifact(
-        "hypothesis-1",
-        ArtifactType.HYPOTHESIS,
-        "N1",
-        {"root_cause": "缺少最终深度检查"},
-    )
+    evidence = _root_evidence()
+    engine.add_artifact(evidence)
+    hypothesis = _root_hypothesis(evidence)
     engine.add_artifact(hypothesis)
+    review = _review_artifact(
+        "global-root-review",
+        "root_cause_recommendation",
+        hypothesis.ref,
+        evidence.ref,
+    )
+    engine.add_artifact(review)
     assert engine.apply_decision(
         SupervisorDecision(
             "D-hypothesis",
             DecisionAction.ACCEPT_HYPOTHESIS,
             "证据支持该根因",
-            hypothesis_ref=hypothesis.ref,
+            hypothesis_refs=(hypothesis.ref,),
+            primary_hypothesis_ref=hypothesis.ref,
+            review_refs=(review.ref,),
+            evidence_refs=(evidence.ref, review.ref),
         )
     ).ok
     for decision_id, target in (("D-stage-3", "patch"), ("D-stage-4", "validation")):
@@ -493,3 +828,5 @@ def test_remaining_global_supervisor_actions(tmp_path: Path) -> None:
         )
     ).ok
     assert engine.status is EngineStatus.TERMINATED
+    assert engine.termination_code == "SUPERVISOR_TERMINATED"
+    assert engine.termination_stage == "validation"

@@ -1,0 +1,54 @@
+{
+  "tasks": [
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/get_factors",
+      "status": "pending",
+      "task_id": "quixbugs_get_factors"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/hanoi",
+      "status": "pending",
+      "task_id": "quixbugs_hanoi"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/knapsack",
+      "status": "pending",
+      "task_id": "quixbugs_knapsack"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/lcs_length",
+      "status": "pending",
+      "task_id": "quixbugs_lcs_length"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/lis",
+      "status": "pending",
+      "task_id": "quixbugs_lis"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/max_sublist_sum",
+      "status": "pending",
+      "task_id": "quixbugs_max_sublist_sum"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/next_permutation",
+      "status": "pending",
+      "task_id": "quixbugs_next_permutation"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/powerset",
+      "status": "pending",
+      "task_id": "quixbugs_powerset"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/quicksort",
+      "status": "pending",
+      "task_id": "quixbugs_quicksort"
+    },
+    {
+      "repository_path": "/home/user50305/yjh/repo-pilot-mas/data/quixbugs/sieve",
+      "status": "pending",
+      "task_id": "quixbugs_sieve"
+    }
+  ]
+}

@@ -58,6 +58,12 @@ class _RecordingWorker:
                     "findings": ["输入证据支持当前根因假设"],
                     "risk_notes": [],
                     "recommendation": "进入后续修复阶段",
+                    "failure_explained": True,
+                    "causal_chain_complete": True,
+                    "alternative_causes": ["排除了测试配置问题"],
+                    "counterexample_checked": True,
+                    "verification_steps_executed": ["核对 Evidence 与源码分支"],
+                    "remaining_uncertainty": [],
                 },
             )
         elif node_type is NodeType.DIAGNOSIS_TASK:
@@ -207,7 +213,7 @@ def _collect_single_worker(
     return _merge_runtime_state(collector_state, collector_update)
 
 
-def test_invalid_reviewer_is_rejected_before_worker_execution(tmp_path: Path) -> None:
+def test_contract_error_is_rejected_before_dispatch(tmp_path: Path) -> None:
     engine = OrchestrationEngine(_task(tmp_path, "contract-invalid"))
     hypothesis_ref = _add_hypothesis(engine)
     _add_review_node(

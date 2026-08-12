@@ -46,7 +46,11 @@ def _evidence() -> Artifact:
         "N1",
         {
             "mode": "code_retrieval",
+            "evidence_kind": "source",
             "claim": "函数结束时没有检查 depth 是否回到零",
+            "supports_claims": ["函数结束时没有检查 depth 是否回到零"],
+            "contradicts_claims": [],
+            "verified": True,
             "source": {"path": "target.py", "line_start": 1, "line_end": 9},
             "content": "未闭合左括号会留下正 depth，但函数固定返回 True。",
             "observation_type": "direct",
@@ -168,6 +172,78 @@ def test_two_diagnosticians_receive_only_evidence_and_not_each_other(tmp_path: P
         )
 
 
+def test_evidence_review_target_is_constrained_to_input_evidence(
+    tmp_path: Path,
+) -> None:
+    evidence = _evidence()
+    model = FakeModelAdapter(
+        [
+            {
+                "mode": "evidence_review",
+                "target_artifact_ref": evidence.ref,
+                "evidence_refs": [evidence.ref],
+                "verdict": "needs_more_evidence",
+                "findings": ["源码证据存在，但尚未复现真实失败"],
+                "risk_notes": ["单独源码观察不足以接受根因"],
+                "recommendation": "先补充失败复现 Evidence",
+                "failure_explained": False,
+                "causal_chain_complete": False,
+                "alternative_causes": ["测试配置可能影响观察"],
+                "counterexample_checked": False,
+                "verification_steps_executed": ["核对源码定位"],
+                "remaining_uncertainty": ["真实失败输出未知"],
+            }
+        ]
+    )
+
+    review = ReviewerAgent(model).run(
+        _task(tmp_path),
+        "N2",
+        "evidence_review",
+        "检查现有证据是否充分",
+        (evidence,),
+    )
+
+    assert review.content["target_artifact_ref"] == evidence.ref
+
+
+def test_reviewer_conservatively_downgrades_inconsistent_acceptable_verdict(
+    tmp_path: Path,
+) -> None:
+    evidence = _evidence()
+    hypothesis = _hypothesis()
+    model = FakeModelAdapter(
+        [
+            {
+                "mode": "root_cause_recommendation",
+                "target_artifact_ref": hypothesis.ref,
+                "evidence_refs": [evidence.ref],
+                "verdict": "supported",
+                "findings": ["根因大体符合证据"],
+                "risk_notes": ["仍有未解决的边界问题"],
+                "recommendation": "先补证再接受",
+                "failure_explained": True,
+                "causal_chain_complete": True,
+                "alternative_causes": ["可能存在第二个边界错误"],
+                "counterexample_checked": True,
+                "verification_steps_executed": ["核对失败路径"],
+                "remaining_uncertainty": ["空数组路径尚未确认"],
+            }
+        ]
+    )
+
+    review = ReviewerAgent(model).run(
+        _task(tmp_path),
+        "N5",
+        "root_cause_recommendation",
+        "审查根因",
+        (hypothesis, evidence),
+    )
+
+    assert review.content["verdict"] == "needs_more_evidence"
+    assert review.content["remaining_uncertainty"] == ("空数组路径尚未确认",)
+
+
 def test_reviewer_cites_target_and_direct_evidence(tmp_path: Path) -> None:
     evidence = _evidence()
     hypothesis = _hypothesis()
@@ -181,6 +257,12 @@ def test_reviewer_cites_target_and_direct_evidence(tmp_path: Path) -> None:
                 "findings": ["根因与直接代码观察一致"],
                 "risk_notes": ["仍需目标测试验证"],
                 "recommendation": "建议 Supervisor 考虑接受该根因",
+                "failure_explained": True,
+                "causal_chain_complete": True,
+                "alternative_causes": ["排除了字符分类错误"],
+                "counterexample_checked": True,
+                "verification_steps_executed": ["核对未闭合输入的控制流"],
+                "remaining_uncertainty": [],
             }
         ]
     )
@@ -200,6 +282,51 @@ def test_reviewer_cites_target_and_direct_evidence(tmp_path: Path) -> None:
     assert review.content["evidence_refs"] == (evidence.ref,)
 
 
+def test_hypothesis_comparison_schema_repairs_non_hypothesis_target(
+    tmp_path: Path,
+) -> None:
+    evidence = _evidence()
+    first = _hypothesis("N3")
+    second = _hypothesis("N4")
+    common = {
+        "mode": "hypothesis_comparison",
+        "evidence_refs": [evidence.ref],
+        "verdict": "supported",
+        "findings": ["第二个假设更完整地解释边界失败"],
+        "risk_notes": [],
+        "recommendation": "推荐第二个假设",
+        "failure_explained": True,
+        "causal_chain_complete": True,
+        "alternative_causes": ["已排除测试配置问题"],
+        "counterexample_checked": True,
+        "verification_steps_executed": ["逐项核对两个因果链"],
+        "remaining_uncertainty": [],
+    }
+    invalid = {
+        **common,
+        "target_artifact_ref": evidence.ref,
+    }
+    valid = {
+        **common,
+        "target_artifact_ref": second.ref,
+        "target_artifact_refs": [first.ref, second.ref],
+    }
+
+    review = ReviewerAgent(
+        FakeModelAdapter([invalid, valid]),
+        generation_config=GenerationConfig(max_retries=1),
+    ).run(
+        _task(tmp_path),
+        "N5",
+        "hypothesis_comparison",
+        "比较两个候选根因",
+        (evidence, first, second),
+    )
+
+    assert review.content["target_artifact_ref"] == second.ref
+    assert set(review.content["target_artifact_refs"]) == {first.ref, second.ref}
+
+
 def test_two_patch_strategies_use_independent_workspaces(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()
@@ -217,7 +344,12 @@ def test_two_patch_strategies_use_independent_workspaces(tmp_path: Path) -> None
         encoding="utf-8",
     )
     (source / "tests").mkdir()
-    (source / "tests" / "test_target.py").write_text("# protected\n", encoding="utf-8")
+    (source / "tests" / "test_target.py").write_text(
+        "from target import is_valid_parenthesization\n\n"
+        "def test_balanced_is_accepted():\n"
+        "    assert is_valid_parenthesization('()') is True\n",
+        encoding="utf-8",
+    )
     task = _task(source)
     manager = WorkspaceManager(source, tmp_path / "workspaces")
     hypothesis = _hypothesis()
@@ -267,11 +399,109 @@ def test_two_patch_strategies_use_independent_workspaces(tmp_path: Path) -> None
     assert "# all opens" not in (patches[0][1].root / "target.py").read_text()
     assert "# all opens" in (patches[1][1].root / "target.py").read_text()
     assert "return True" in (source / "target.py").read_text()
-    assert (source / "tests" / "test_target.py").read_text() == "# protected\n"
+    assert "test_balanced_is_accepted" in (
+        source / "tests" / "test_target.py"
+    ).read_text()
     for patch, _workspace in patches:
         validate_worker_artifact(patch, expected_type=ArtifactType.PATCH_CANDIDATE)
         assert patch.content["protected_path_check"] is True
         assert len(patch.content["diff_sha256"]) == 64
+
+
+def test_patch_agent_uses_target_precheck_to_correct_failed_draft(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "target.py").write_text(
+        "def is_valid_parenthesization(parens):\n"
+        "    depth = 0\n"
+        "    for paren in parens:\n"
+        "        depth += 1 if paren == '(' else -1\n"
+        "    return True\n",
+        encoding="utf-8",
+    )
+    tests = source / "tests"
+    tests.mkdir()
+    (tests / "test_target.py").write_text(
+        "from target import is_valid_parenthesization\n\n"
+        "def test_unclosed_is_rejected():\n"
+        "    assert is_valid_parenthesization('(') is False\n",
+        encoding="utf-8",
+    )
+    task = _task(source)
+    workspace = WorkspaceManager(
+        source,
+        tmp_path / "workspaces",
+    ).create(task.task_id, "target-precheck")
+    model = FakeModelAdapter(
+        [
+            {
+                "thought_summary": "检查首个候选",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "inspect_code",
+                    "arguments": {"file_path": "target.py"},
+                }
+            },
+            {
+                "thought_summary": "提交首个候选",
+                "action": {
+                    "type": "final",
+                    "status": "success",
+                    "reason": "首个候选",
+                    "artifact": {
+                        "file_path": "target.py",
+                        "old_text": "    return True",
+                        "new_text": "    return depth >= 0",
+                        "rationale": "尝试检查深度",
+                        "risk_notes": [],
+                    },
+                }
+            },
+            {
+                "thought_summary": "根据测试失败重新检查",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "inspect_code",
+                    "arguments": {"file_path": "target.py"},
+                }
+            },
+            {
+                "thought_summary": "提交修正候选",
+                "action": {
+                    "type": "final",
+                    "status": "success",
+                    "reason": "根据失败测试修正",
+                    "artifact": {
+                        "file_path": "target.py",
+                        "old_text": "    return True",
+                        "new_text": "    return depth == 0",
+                        "rationale": "未闭合括号必须留下非零深度",
+                        "risk_notes": [],
+                    },
+                }
+            },
+        ]
+    )
+
+    patch = PatchAgent(
+        model,
+        build_workspace_tool_registry(task, workspace),
+        workspace,
+    ).run(
+        task,
+        "N6",
+        "minimal",
+        "生成并预检候选修复",
+        (_hypothesis(), _evidence()),
+    )
+
+    assert patch.content["precheck_result"]["ok"] is True
+    assert patch.content["precheck_command"][-1] == "tests/test_target.py"
+    assert "return depth == 0" in (
+        workspace.root / "target.py"
+    ).read_text(encoding="utf-8")
 
 
 class _AdaptiveInvestigatorModel(ModelAdapter):

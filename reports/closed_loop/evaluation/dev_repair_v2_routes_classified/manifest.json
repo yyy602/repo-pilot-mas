@@ -1,0 +1,157 @@
+{
+  "baseline_protocol": "phase6_v1",
+  "command": [
+    "scripts/run_closed_loop_final_evaluation.py",
+    "--split",
+    "development",
+    "--task-id",
+    "quixbugs_find_first_in_sorted",
+    "--run-id",
+    "dev_repair_v2_routes_classified"
+  ],
+  "config_sha256": {
+    "closed_loop": "18304d1bc468eb46c61ec708ad9ac036468063678a59583de2d6baabbe131e6f",
+    "model": "3db198581be02799c484466cf0b405b47ea67e69be1702aa57041d79cefb7d03",
+    "phase6": "1cb3d2dbeefc7f9e0428a095811c732c1679111ceb6f551d8c211bd723d5b69e",
+    "runtime": "1878eb9a17941af87491b43cee6531563042206f3361fadf7acbcb8d75659377",
+    "suite": "be4fa494c06af656f79d130fa2076b7c193021c3a54f32c2fc87cc371b1068fb",
+    "supervisor": "5cd89cf8ffbfb204a72db8338c5e26f5170324077d37427e388f812db2c8247e"
+  },
+  "dataset": "QuixBugs Python",
+  "development_task_ids": [
+    "quixbugs_find_first_in_sorted",
+    "quixbugs_gcd",
+    "quixbugs_is_valid_parenthesization",
+    "quixbugs_bucketsort",
+    "quixbugs_flatten"
+  ],
+  "effective_engine_limits": {
+    "max_concurrent_nodes": 4,
+    "max_input_tokens": 600000,
+    "max_no_progress_decisions": 2,
+    "max_nodes": 64,
+    "max_output_tokens": 100000,
+    "max_replans": 1,
+    "max_retries_per_node": 1,
+    "max_runtime_seconds": 1200,
+    "max_supervisor_calls": 24,
+    "max_tool_calls": 120
+  },
+  "evaluation_split": "development",
+  "execution_mode": "runtime",
+  "fail_fast": false,
+  "final_evaluation_executed": false,
+  "finished_at": "2026-08-12T07:00:08.224013+00:00",
+  "freeze_verification": null,
+  "frozen_test_task_ids": [
+    "quixbugs_get_factors",
+    "quixbugs_hanoi",
+    "quixbugs_knapsack",
+    "quixbugs_lcs_length",
+    "quixbugs_lis",
+    "quixbugs_max_sublist_sum",
+    "quixbugs_next_permutation",
+    "quixbugs_powerset",
+    "quixbugs_quicksort",
+    "quixbugs_sieve"
+  ],
+  "generation_temperature": 0.0,
+  "hybrid_limits": {
+    "max_input_tokens": 600000,
+    "max_output_tokens": 100000,
+    "max_patch_candidates": 2,
+    "max_runtime_seconds": 1200,
+    "max_supervisor_api_calls": 40,
+    "max_supervisor_decisions": 24,
+    "max_tool_calls": 120,
+    "max_worker_model_calls": 120
+  },
+  "model_routing": {
+    "api_key_envs": [
+      "DASHSCOPE_API_KEY_1",
+      "DASHSCOPE_API_KEY_2"
+    ],
+    "model_order": [
+      "qwen3.7-max-2026-06-08",
+      "qwen3.7-flash",
+      "qwen3.7-flash-2026-07-15"
+    ],
+    "strategy": "model_first_account_second"
+  },
+  "phase": 6,
+  "pre_freeze_verification": null,
+  "pricing": {
+    "currency": "CNY",
+    "models": {
+      "qwen3.7-flash": [
+        {
+          "input_cny_per_million": 0.2,
+          "max_input_tokens": 32000,
+          "output_cny_per_million": 0.8
+        },
+        {
+          "input_cny_per_million": 0.6,
+          "max_input_tokens": 256000,
+          "output_cny_per_million": 2.4
+        },
+        {
+          "input_cny_per_million": 1.2,
+          "max_input_tokens": 1000000,
+          "output_cny_per_million": 4.8
+        }
+      ],
+      "qwen3.7-flash-2026-07-15": [
+        {
+          "input_cny_per_million": 0.2,
+          "max_input_tokens": 32000,
+          "output_cny_per_million": 0.8
+        },
+        {
+          "input_cny_per_million": 0.6,
+          "max_input_tokens": 256000,
+          "output_cny_per_million": 2.4
+        },
+        {
+          "input_cny_per_million": 1.2,
+          "max_input_tokens": 1000000,
+          "output_cny_per_million": 4.8
+        }
+      ],
+      "qwen3.7-max-2026-06-08": [
+        {
+          "input_cny_per_million": 12,
+          "max_input_tokens": 1000000,
+          "output_cny_per_million": 36
+        }
+      ]
+    },
+    "snapshot_date": "2026-08-02",
+    "source": "https://help.aliyun.com/zh/model-studio/model-pricing"
+  },
+  "protocol_version": "closed_loop_v1",
+  "python": "/home/user50305/.conda/envs/multi_agent/bin/python",
+  "repository_commit": "1a0fb9f04c616d20b5b984cf6d096f1b6a778a71",
+  "repository_fingerprint": "185e6ae650e58d9f1eeec7ddae9f7d6b7393f08e46b8d764f508c8ca96d702ac",
+  "repository_fingerprint_scope": [
+    "pyproject.toml",
+    "configs/",
+    "data/",
+    "scripts/",
+    "src/",
+    "tests/"
+  ],
+  "require_human_approval": false,
+  "run_id": "dev_repair_v2_routes_classified",
+  "runtime_class": "repo_pilot_mas.orchestration.final_runtime.AsyncLangGraphRuntime",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_task_ids": [
+    "quixbugs_find_first_in_sorted"
+  ],
+  "started_at": "2026-08-12T06:59:56.817454+00:00",
+  "suite_id": "quixbugs_python_phase6_v1",
+  "supervisor_prompt_sha256": "d934b097bdeb792e5d42024f4702430e082500d103da8903c0c1adc692b8000c",
+  "system_id": "closed_loop_dynamic",
+  "task_count": 1,
+  "upstream_commit": "4257f44b0ff1181dedaedee6a447e133219fcebf"
+}

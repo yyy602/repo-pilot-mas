@@ -1,6 +1,8 @@
 # RepoPilot-MAS
 
-基于 API Supervisor、动态任务图与确定性验证的多智能体代码修复系统。Phase 0～Phase 6 已全部完成，阶段状态和验收口径以 `docs/RepoPilot-MAS_完整计划.md` 为唯一基线。
+基于 API Supervisor、动态任务图与确定性验证的多智能体代码修复系统。Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 的实现与本地回归已完成，正式重新验收正等待 Supervisor API 配额恢复。阶段状态和验收口径以 `docs/RepoPilot-MAS_完整计划.md` 为唯一基线。
+
+下文的冻结结果和简历数字均来自历史运行 `phase6_quixbugs_final_v1`。当前分支不能沿用该运行证明加固 v2 已验收；v2 还必须重新通过完整 Development、冻结身份、Frozen Test 和独立审计。
 
 ![RepoPilot-MAS 分层架构](docs/images/phase6_architecture.svg)
 
@@ -103,7 +105,7 @@ Dynamic Hybrid 在这个小型固定协议内完成更多任务，但也更慢�
 git diff --check
 ```
 
-Phase 6 最终验收环境中，全量 `130 passed`，Ruff 与 `git diff --check` 均通过。
+历史 Phase 6 v1 最终验收环境中全量 `130 passed`。当前闭环加固 v2 在 `multi_agent` 环境中通过全量 `239 tests`、Ruff、compileall 与 `git diff --check`，但这些代码检查不能代替尚未运行的完整 Development 和 Frozen Test。正式 Development 前还必须在提交运行时代码后执行 `python -m scripts.run_phase6_pre_freeze_checks`，dirty tree 会失败关闭。
 
 ## 当前限制
 
@@ -118,6 +120,8 @@ Phase 6 最终验收环境中，全量 `130 passed`，Ruff 与 `git diff --check
 - 唯一计划基线：`docs/RepoPilot-MAS_完整计划.md`；
 - Phase 6 设计与结果：`docs/Phase6_评测观测与简历交付.md`；
 - Phase 6 验收报告：`docs/Phase6_验收报告.md`；
+- 闭环加固 v2 修复计划：`docs/RepoPilot-MAS闭环评测异常修复计划_修订版.md`；
+- 闭环加固 v2 完成性审计：`docs/Phase6_闭环加固v2完成性审计.md`；
 - 真实框架问题复盘：`docs/Phase6_真实问题复盘与排障.md`；
 - 面试讲解与简历表述：`docs/Phase6_面试讲解.md`；
 - Phase 1～Phase 5 的设计和验收报告均位于 `docs/`。

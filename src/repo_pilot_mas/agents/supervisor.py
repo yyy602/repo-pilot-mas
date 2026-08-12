@@ -17,8 +17,11 @@ from repo_pilot_mas.models import (
 from repo_pilot_mas.runtime.trace import TraceWriter, redact_secrets
 from repo_pilot_mas.schemas.json_schema import validate_json_schema
 from repo_pilot_mas.schemas.supervisor_decision import (
+    CreateTaskRequest,
+    GateRecord,
     SupervisorDecision,
     supervisor_decision_schema,
+    supervisor_decision_schema_for_state,
 )
 
 DYNAMIC_SUPERVISOR_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
@@ -79,6 +82,19 @@ DYNAMIC_SUPERVISOR_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
 19. selections.hypothesis_resolution 是根因状态机的只读真相：unresolved 表示需要 Review；
     under_review 表示可考虑 ACCEPT_HYPOTHESIS；needs_evidence/needs_revision/conflict/rejected 表示必须
     按第16条回退或扩展；accepted 才允许进入 Patch。不得仅凭模型 confidence 越过该状态机。
+20. recovery.pending_replan=true 表示一次 REQUEST_REPLAN 已获准但恢复节点尚未创建。此时
+    remaining_replans=0 只禁止再次 REQUEST_REPLAN，不禁止执行本次恢复；必须按 target_stage 创建
+    对应 Worker 节点，并引用 replan_ref 与 trigger_refs 填写 gate_record，禁止直接 TERMINATE_TASK。
+    Patch 恢复还应把失败的 ValidationResult 和原 PatchCandidate 加入 Worker 输入，使新候选能针对
+    真实失败修正，而不是重复生成同一补丁。
+21. Hypothesis.missing_evidence 非空时禁止 ACCEPT_HYPOTHESIS。补证完成后必须创建新的
+    DIAGNOSIS_TASK；该任务只能输入 Evidence，必须包含新增 Evidence，不得输入旧 Hypothesis、Review
+    或 ArtifactRejection。使新 Hypothesis 引用新增 Evidence 并清空已满足的 missing_evidence，随后
+    针对新 Hypothesis 重新 Review；重复接受或重复审查旧 Hypothesis 都不能消除证据缺口。
+22. 已有带成功工具 Trace 的源码定位与失败复现/执行 Evidence，且 Hypothesis 或 Review 没有在其后
+    提出新的明确证据缺口时，禁止继续创建 INVESTIGATION_TASK，应立即进入 Diagnosis。只有
+    Hypothesis.missing_evidence、Review.needs_more_evidence/remaining_uncertainty 明确提出新缺口时才可
+    重新补证；新增 verified Evidence 回应缺口后必须再次关闭 Investigation。
 """
 
 
@@ -105,6 +121,7 @@ class SupervisorAgentError(RuntimeError):
         *,
         usage: TokenUsage | None = None,
         details: Mapping[str, Any] | None = None,
+        recoverable: bool = True,
     ) -> None:
         safe_message = str(redact_secrets(message))
         safe_details = redact_secrets(dict(details or {}))
@@ -112,6 +129,7 @@ class SupervisorAgentError(RuntimeError):
         self.code = code
         self.usage = usage or TokenUsage()
         self.details = dict(safe_details)
+        self.recoverable = bool(recoverable)
 
 
 class SupervisorAgent:
@@ -122,6 +140,8 @@ class SupervisorAgent:
         generation_config: GenerationConfig | None = None,
         trace_writer: TraceWriter | None = None,
         system_prompt: str = DYNAMIC_SUPERVISOR_PROMPT,
+        additional_schema_retries: int = 1,
+        safe_fallback_enabled: bool = True,
     ) -> None:
         if not system_prompt.strip():
             raise ValueError("system_prompt must not be empty")
@@ -133,63 +153,202 @@ class SupervisorAgent:
         )
         self.trace_writer = trace_writer
         self.system_prompt = system_prompt
+        if additional_schema_retries < 0:
+            raise ValueError("additional_schema_retries must be non-negative")
+        self.additional_schema_retries = additional_schema_retries
+        self.safe_fallback_enabled = bool(safe_fallback_enabled)
 
     def decide(self, snapshot: Mapping[str, Any]) -> SupervisorOutcome:
+        begin_recovery = getattr(
+            self.model,
+            "begin_structured_recovery",
+            None,
+        )
+        if callable(begin_recovery):
+            begin_recovery()
+        snapshot_view = _supervisor_snapshot_view(snapshot)
+        original_chars = len(
+            json.dumps(snapshot, ensure_ascii=False, sort_keys=True)
+        )
+        compact_chars = len(
+            json.dumps(snapshot_view, ensure_ascii=False, sort_keys=True)
+        )
+        self._trace(
+            "supervisor_snapshot_compacted",
+            {
+                "workflow_stage": str(
+                    snapshot.get("workflow_stage", "initialization")
+                ),
+                "original_chars": original_chars,
+                "compact_chars": compact_chars,
+                "reduction_ratio": (
+                    1.0 - compact_chars / original_chars
+                    if original_chars
+                    else 0.0
+                ),
+                "node_count": len(snapshot_view.get("nodes", ())),
+                "artifact_count": len(snapshot_view.get("artifacts", ())),
+            },
+        )
         messages = (
             Message("system", self.system_prompt),
             Message(
                 "user",
                 "请基于以下只读状态快照给出下一步唯一决策：\n"
-                + json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
+                + json.dumps(
+                    snapshot_view,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
             ),
         )
-        try:
-            response = self.model.generate(
-                messages,
-                response_schema=supervisor_decision_schema(),
-                config=self.generation_config,
-            )
-            if response.structured_output is None:
-                raise SupervisorAgentError(
-                    "SUPERVISOR_EMPTY_DECISION",
-                    "supervisor response has no structured decision",
-                    usage=response.usage,
+        schema = supervisor_decision_schema_for_state(snapshot)
+        self._trace(
+            "supervisor_schema_reduced",
+            {
+                "workflow_stage": str(snapshot.get("workflow_stage", "initialization")),
+                "action_count": len(schema["oneOf"]),
+                "actions": _schema_actions(schema),
+                "create_node_types": _schema_node_types(schema),
+            },
+        )
+        total_usage = TokenUsage()
+        total_latency_ms = 0
+        total_attempts = 0
+        raw_response_refs: list[str] = []
+        last_error: SupervisorAgentError | None = None
+        response = None
+
+        for schema_attempt in range(self.additional_schema_retries + 1):
+            try:
+                response = self.model.generate(
+                    messages,
+                    response_schema=schema,
+                    config=self.generation_config,
                 )
-            decision = SupervisorDecision.from_dict(response.structured_output)
-        except SupervisorAgentError as exc:
-            self._trace_failure(exc.code, str(exc), exc.usage, exc.details)
-            raise
-        except ModelAdapterError as exc:
-            details = {
-                "model_error_code": exc.code,
-                "attempts": exc.attempts,
-                "raw_response_refs": list(exc.raw_response_refs),
-                **exc.details,
-            }
-            self._trace_failure(exc.code, str(exc), exc.usage, details)
-            raise SupervisorAgentError(
-                exc.code,
-                str(exc),
-                usage=exc.usage,
-                details=details,
-            ) from exc
-        except (KeyError, TypeError, ValueError) as exc:
-            usage = response.usage if "response" in locals() else TokenUsage()
-            details = (
-                {
-                    "attempts": response.attempts,
-                    "raw_response_refs": [response.raw_response_ref],
-                }
-                if "response" in locals()
-                else {}
-            )
-            self._trace_failure("SUPERVISOR_DECISION_ERROR", str(exc), usage, details)
-            raise SupervisorAgentError(
+                total_usage = _add_usage(total_usage, response.usage)
+                total_latency_ms += response.latency_ms
+                total_attempts += response.attempts
+                raw_response_refs.append(response.raw_response_ref)
+                if response.attempts > 1:
+                    self._trace_format_repair(
+                        "model_adapter",
+                        schema_attempt=schema_attempt,
+                        attempts=response.attempts,
+                    )
+                if response.structured_output is None:
+                    raise SupervisorAgentError(
+                        "SUPERVISOR_EMPTY_DECISION",
+                        "supervisor response has no structured decision",
+                        usage=total_usage,
+                    )
+                decision = SupervisorDecision.from_dict(response.structured_output)
+                break
+            except ModelAdapterError as exc:
+                total_usage = _add_usage(total_usage, exc.usage)
+                total_latency_ms += exc.latency_ms
+                total_attempts += exc.attempts
+                raw_response_refs.extend(exc.raw_response_refs)
+                last_error = SupervisorAgentError(
+                    exc.code,
+                    str(exc),
+                    usage=total_usage,
+                    details={
+                        "model_error_code": exc.code,
+                        "attempts": total_attempts,
+                        "raw_response_refs": list(raw_response_refs),
+                        **exc.details,
+                    },
+                    recoverable=exc.code
+                    not in {
+                        "SUPERVISOR_CONFIGURATION_ERROR",
+                        "SUPERVISOR_ROUTES_EXHAUSTED",
+                    },
+                )
+                if (
+                    exc.code == "STRUCTURED_OUTPUT_ERROR"
+                    and schema_attempt < self.additional_schema_retries
+                ):
+                    self._trace_format_repair(
+                        "stage_schema_retry",
+                        schema_attempt=schema_attempt + 1,
+                        attempts=exc.attempts,
+                    )
+                    continue
+                break
+            except SupervisorAgentError as exc:
+                last_error = exc
+                break
+            except (KeyError, TypeError, ValueError) as exc:
+                if response is not None:
+                    reject_response = getattr(
+                        self.model,
+                        "reject_structured_response",
+                        None,
+                    )
+                    if callable(reject_response):
+                        reject_response(
+                            response.model_id,
+                            response.metadata,
+                            str(exc),
+                        )
+                last_error = SupervisorAgentError(
+                    "SUPERVISOR_DECISION_ERROR",
+                    str(exc),
+                    usage=total_usage,
+                    details={
+                        "attempts": total_attempts,
+                        "raw_response_refs": list(raw_response_refs),
+                    },
+                )
+                if schema_attempt < self.additional_schema_retries:
+                    self._trace_format_repair(
+                        "stage_schema_retry",
+                        schema_attempt=schema_attempt + 1,
+                        attempts=1,
+                    )
+                    continue
+                break
+        else:  # pragma: no cover - bounded loop always exits through break
+            raise AssertionError("unreachable supervisor recovery state")
+
+        if response is None or "decision" not in locals():
+            if (
+                self.safe_fallback_enabled
+                and last_error is not None
+                and last_error.recoverable
+                and (fallback := _safe_fallback_decision(snapshot)) is not None
+            ):
+                self._trace(
+                    "supervisor_decision_recovery",
+                    {
+                        "recovery": "deterministic_safe_fallback",
+                        "source_error_code": last_error.code,
+                        "decision_id": fallback.decision_id,
+                        "action": fallback.action.value,
+                    },
+                )
+                return SupervisorOutcome(
+                    decision=fallback,
+                    input_tokens=total_usage.input_tokens,
+                    output_tokens=total_usage.output_tokens,
+                    latency_ms=total_latency_ms,
+                    model_id="deterministic-safe-fallback",
+                    raw_response_ref=(raw_response_refs[-1] if raw_response_refs else None),
+                    attempts=total_attempts,
+                    metadata={
+                        "recovery": "deterministic_safe_fallback",
+                        "source_error_code": last_error.code,
+                    },
+                )
+            error = last_error or SupervisorAgentError(
                 "SUPERVISOR_DECISION_ERROR",
-                str(exc),
-                usage=usage,
-                details=details,
-            ) from exc
+                "supervisor did not produce a decision",
+                usage=total_usage,
+            )
+            self._trace_failure(error.code, str(error), error.usage, error.details)
+            raise error
 
         metadata = _safe_metadata(response.metadata)
         self._trace(
@@ -198,10 +357,10 @@ class SupervisorAgent:
                 "decision_id": decision.decision_id,
                 "action": decision.action.value,
                 "model_id": response.model_id,
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-                "latency_ms": response.latency_ms,
-                "attempts": response.attempts,
+                "input_tokens": total_usage.input_tokens,
+                "output_tokens": total_usage.output_tokens,
+                "latency_ms": total_latency_ms,
+                "attempts": total_attempts,
                 "raw_response_ref": response.raw_response_ref,
                 **metadata,
             },
@@ -209,14 +368,30 @@ class SupervisorAgent:
         )
         return SupervisorOutcome(
             decision=decision,
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
-            latency_ms=response.latency_ms,
+            input_tokens=total_usage.input_tokens,
+            output_tokens=total_usage.output_tokens,
+            latency_ms=total_latency_ms,
             model_id=response.model_id,
             raw_response_ref=response.raw_response_ref,
             trace_id=response.trace_id,
-            attempts=response.attempts,
+            attempts=total_attempts,
             metadata=metadata,
+        )
+
+    def _trace_format_repair(
+        self,
+        layer: str,
+        *,
+        schema_attempt: int,
+        attempts: int,
+    ) -> None:
+        self._trace(
+            "supervisor_format_repair_attempted",
+            {
+                "layer": layer,
+                "schema_attempt": schema_attempt,
+                "attempts": attempts,
+            },
         )
 
     def _trace_failure(
@@ -287,5 +462,555 @@ def _safe_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
         "route_attempts",
         "raw_response_refs",
         "transient_failures",
+        "recovery",
+        "source_error_code",
     }
     return {key: item for key, item in value.items() if key in allowed}
+
+
+def _supervisor_snapshot_view(
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return the minimal semantic state sent to the API Supervisor."""
+
+    task = snapshot.get("task", {})
+    task = task if isinstance(task, Mapping) else {}
+    nodes = snapshot.get("nodes", ())
+    nodes = (
+        nodes
+        if isinstance(nodes, Sequence) and not isinstance(nodes, (str, bytes))
+        else ()
+    )
+    artifacts = snapshot.get("artifacts", ())
+    artifacts = (
+        artifacts
+        if isinstance(artifacts, Sequence)
+        and not isinstance(artifacts, (str, bytes))
+        else ()
+    )
+    history = snapshot.get("decision_history", {})
+    history = history if isinstance(history, Mapping) else {}
+    processed_ids = _string_list(history.get("processed_decision_ids", ()))
+    return {
+        "task": {
+            key: task[key]
+            for key in (
+                "task_id",
+                "issue",
+                "acceptance_criteria",
+                "protected_paths",
+                "failing_tests",
+                "target_files",
+                "max_runtime_seconds",
+                "requires_failure_reproduction",
+                "confirmed_failure_reproduction_refs",
+            )
+            if key in task
+        },
+        "engine_status": snapshot.get("engine_status"),
+        "termination": snapshot.get("termination"),
+        "workflow_stage": snapshot.get("workflow_stage"),
+        "execution_path_class": snapshot.get("execution_path_class"),
+        "state_version": snapshot.get("state_version"),
+        "nodes": [
+            _compact_node(item) for item in nodes if isinstance(item, Mapping)
+        ],
+        "artifacts": [
+            _compact_artifact(item)
+            for item in artifacts
+            if isinstance(item, Mapping)
+        ],
+        "selections": snapshot.get("selections", {}),
+        "decision_history": {
+            "processed_decision_ids": list(processed_ids[-12:]),
+            "processed_decision_count": len(processed_ids),
+            "last_supervisor_call": _compact_last_supervisor_call(
+                history.get("last_supervisor_call")
+            ),
+        },
+        "recovery": snapshot.get("recovery", {}),
+        "budget": snapshot.get("budget", {}),
+    }
+
+
+def _compact_node(item: Mapping[str, Any]) -> dict[str, Any]:
+    result = {
+        key: item[key]
+        for key in (
+            "node_id",
+            "node_type",
+            "status",
+            "agent_type",
+            "mode",
+            "dependencies",
+            "input_artifact_ids",
+            "output_artifact_ids",
+            "dependency_policy",
+            "critical",
+            "retry_count",
+        )
+        if key in item
+    }
+    if item.get("objective"):
+        result["objective"] = _bounded_text(item["objective"], 240)
+    if item.get("failure_reason"):
+        result["failure_reason"] = _bounded_text(
+            item["failure_reason"],
+            240,
+        )
+    return result
+
+
+def _compact_artifact(item: Mapping[str, Any]) -> dict[str, Any]:
+    artifact_type = str(item.get("artifact_type", ""))
+    content = item.get("content", {})
+    content = content if isinstance(content, Mapping) else {}
+    fields_by_type = {
+        "evidence": (
+            "mode",
+            "evidence_kind",
+            "claim",
+            "supports_claims",
+            "contradicts_claims",
+            "verified",
+            "source",
+            "observation_type",
+            "confidence",
+            "status",
+            "tool_trace_ids",
+            "missing_evidence",
+        ),
+        "hypothesis": (
+            "perspective",
+            "root_cause",
+            "direct_cause",
+            "supporting_evidence",
+            "counter_evidence",
+            "affected_symbols",
+            "verification_plan",
+            "missing_evidence",
+            "confidence",
+        ),
+        "review": (
+            "mode",
+            "target_artifact_ref",
+            "target_artifact_refs",
+            "evidence_refs",
+            "verdict",
+            "findings",
+            "risk_notes",
+            "recommendation",
+            "failure_explained",
+            "causal_chain_complete",
+            "alternative_causes",
+            "counterexample_checked",
+            "verification_steps_executed",
+            "remaining_uncertainty",
+        ),
+        "patch_candidate": (
+            "strategy",
+            "based_on_hypothesis_refs",
+            "primary_hypothesis_ref",
+            "covered_root_causes",
+            "changed_files",
+            "rationale",
+            "semantic_rationale",
+            "pre_patch_behavior",
+            "post_patch_expected_behavior",
+            "failure_input_walkthrough",
+            "risk_notes",
+            "protected_path_check",
+            "workspace_id",
+            "diff_sha256",
+        ),
+        "validation_result": (
+            "patch_ref",
+            "patch_review_refs",
+            "patch_sha256",
+            "applied",
+            "protected_path_check",
+            "changed_files",
+            "changed_lines",
+            "passed",
+            "failure_class",
+            "recommended_stage",
+            "invalidated_refs",
+            "recoverable",
+            "tool_trace_ids",
+        ),
+        "artifact_rejection": (
+            "node_id",
+            "code",
+            "reason",
+            "origin",
+            "terminal_status",
+            "recoverable",
+            "recommended_stage",
+            "allowed_next_actions",
+            "attempt",
+            "max_attempts",
+            "expected_artifact_type",
+            "actual_artifact_refs",
+        ),
+        "replan_record": (
+            "decision_id",
+            "attempt",
+            "from_stage",
+            "target_stage",
+            "failure_class",
+            "trigger_refs",
+            "reason",
+            "remaining_replans",
+        ),
+    }
+    selected = {
+        key: _compact_value(content[key])
+        for key in fields_by_type.get(artifact_type, tuple(content))
+        if key in content
+    }
+    if artifact_type == "evidence" and isinstance(
+        content.get("reproduction"),
+        Mapping,
+    ):
+        reproduction = content["reproduction"]
+        selected["reproduction"] = {
+            key: _compact_value(reproduction[key])
+            for key in (
+                "attempted",
+                "succeeded",
+                "exit_code",
+                "failure_type",
+            )
+            if key in reproduction
+        }
+    if artifact_type == "validation_result":
+        for label in ("target_test", "regression_test", "static_check"):
+            command = content.get(label)
+            if isinstance(command, Mapping):
+                selected[label] = {
+                    key: _compact_value(command[key])
+                    for key in ("exit_code", "trace_id", "duration_ms")
+                    if key in command
+                }
+    return {
+        key: item[key]
+        for key in (
+            "artifact_ref",
+            "artifact_type",
+            "status",
+            "created_by",
+        )
+        if key in item
+    } | {"content": selected}
+
+
+def _compact_last_supervisor_call(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, Mapping):
+        return None
+    result = {
+        key: _compact_value(value[key])
+        for key in (
+            "ok",
+            "code",
+            "decision_id",
+            "action",
+            "model_id",
+            "recoverable",
+            "recommended_stage",
+            "allowed_next_actions",
+        )
+        if key in value
+    }
+    decision_result = value.get("decision_result")
+    if isinstance(decision_result, Mapping):
+        result["decision_result"] = {
+            key: _compact_value(decision_result[key])
+            for key in (
+                "ok",
+                "code",
+                "message",
+                "decision_id",
+                "recoverable",
+                "recommended_stage",
+                "allowed_next_actions",
+                "trigger_artifact_refs",
+            )
+            if key in decision_result
+        }
+    return result
+
+
+def _compact_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return _bounded_text(value, 600)
+    if isinstance(value, Mapping):
+        return {
+            str(key): _compact_value(item) for key, item in value.items()
+        }
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        return [_compact_value(item) for item in value]
+    return value
+
+
+def _bounded_text(value: Any, limit: int) -> str:
+    text = str(value)
+    return text if len(text) <= limit else f"{text[: limit - 1]}…"
+
+
+def _add_usage(left: TokenUsage, right: TokenUsage) -> TokenUsage:
+    return TokenUsage(
+        left.input_tokens + right.input_tokens,
+        left.output_tokens + right.output_tokens,
+    )
+
+
+def _schema_actions(schema: Mapping[str, Any]) -> list[str]:
+    return list(
+        dict.fromkeys(
+            str(variant["properties"]["action"]["const"])
+            for variant in schema.get("oneOf", ())
+        )
+    )
+
+
+def _schema_node_types(schema: Mapping[str, Any]) -> list[str]:
+    node_types: set[str] = set()
+    for variant in schema.get("oneOf", ()):
+        properties = variant.get("properties", {})
+        if properties.get("action", {}).get("const") != "CREATE_TASK":
+            continue
+        task_variants = (
+            properties.get("create_tasks", {})
+            .get("items", {})
+            .get("oneOf", ())
+        )
+        node_types.update(
+            str(item["properties"]["node_type"]["const"])
+            for item in task_variants
+        )
+    return sorted(node_types)
+
+
+def _safe_fallback_decision(
+    snapshot: Mapping[str, Any],
+) -> SupervisorDecision | None:
+    """Build only low-risk task-creation decisions from existing artifacts."""
+
+    artifacts = [
+        item
+        for item in snapshot.get("artifacts", ())
+        if isinstance(item, Mapping) and item.get("artifact_ref")
+    ]
+    by_type: dict[str, list[Mapping[str, Any]]] = {}
+    by_ref = {str(item["artifact_ref"]): item for item in artifacts}
+    for item in artifacts:
+        by_type.setdefault(str(item.get("artifact_type", "")), []).append(item)
+    stage = str(snapshot.get("workflow_stage", "initialization"))
+    state_version = int(snapshot.get("state_version", 0))
+    nodes = [item for item in snapshot.get("nodes", ()) if isinstance(item, Mapping)]
+
+    hypotheses = by_type.get("hypothesis", [])
+    root_reviews = [
+        item
+        for item in by_type.get("review", [])
+        if _artifact_content(item).get("mode")
+        in {"root_cause_recommendation", "hypothesis_comparison"}
+    ]
+    active_root_review = any(
+        str(item.get("node_type", "")) == "REVIEW_TASK"
+        and str(item.get("mode", ""))
+        in {"root_cause_recommendation", "hypothesis_comparison"}
+        and str(item.get("status", ""))
+        not in {"FAILED", "TIMED_OUT", "BLOCKED", "CANCELLED"}
+        for item in nodes
+    )
+    if hypotheses and not root_reviews and not active_root_review and stage in {"diagnosis", "review"}:
+        selected = hypotheses if len(hypotheses) > 1 else hypotheses[-1:]
+        hypothesis_refs = tuple(str(item["artifact_ref"]) for item in selected)
+        evidence_refs = tuple(
+            dict.fromkeys(
+                ref
+                for item in selected
+                for ref in _string_list(_artifact_content(item).get("supporting_evidence", ()))
+                if ref in by_ref and str(by_ref[ref].get("artifact_type")) == "evidence"
+            )
+        )
+        if evidence_refs:
+            inputs = (*evidence_refs, *hypothesis_refs)
+            mode = (
+                "hypothesis_comparison"
+                if len(hypothesis_refs) > 1
+                else "root_cause_recommendation"
+            )
+            return _fallback_create(
+                decision_id=f"fallback-review-{state_version}",
+                reason="结构化决策恢复：为现有根因假设补建独立审查任务",
+                stage="review",
+                node_type="REVIEW_TASK",
+                agent_type="ReviewerAgent",
+                mode=mode,
+                objective="基于直接证据独立审查候选根因，并检查替代原因或反例",
+                input_refs=inputs,
+            )
+
+    selections = snapshot.get("selections", {})
+    selections = selections if isinstance(selections, Mapping) else {}
+    resolution = selections.get("hypothesis_resolution", {})
+    resolution = resolution if isinstance(resolution, Mapping) else {}
+    recovery = snapshot.get("recovery", {})
+    recovery = recovery if isinstance(recovery, Mapping) else {}
+    pending_replan_target = (
+        str(recovery.get("target_stage", ""))
+        if recovery.get("pending_replan") is True
+        else ""
+    )
+    replan_trigger_refs = tuple(
+        ref
+        for ref in (
+            str(recovery.get("replan_ref", "")),
+            *_string_list(recovery.get("trigger_refs", ())),
+        )
+        if ref in by_ref
+    )
+    replan_patch_context_refs = tuple(
+        str(item["artifact_ref"])
+        for artifact_type in ("patch_candidate", "validation_result")
+        for item in by_type.get(artifact_type, [])[-1:]
+    )
+    accepted_refs = tuple(
+        ref for ref in _string_list(resolution.get("accepted_refs", ())) if ref in by_ref
+    )
+    review_refs = tuple(
+        ref for ref in _string_list(resolution.get("review_refs", ())) if ref in by_ref
+    )
+    active_patch = any(
+        str(item.get("node_type", "")) == "PATCH_TASK"
+        and str(item.get("status", ""))
+        not in {"FAILED", "TIMED_OUT", "BLOCKED", "CANCELLED"}
+        for item in nodes
+    )
+    if (
+        resolution.get("status") == "accepted"
+        and accepted_refs
+        and review_refs
+        and (
+            pending_replan_target == "patch"
+            or (not by_type.get("patch_candidate") and not active_patch)
+        )
+        and stage in {"review", "patch"}
+    ):
+        return _fallback_create(
+            decision_id=(
+                f"fallback-replan-patch-{state_version}"
+                if pending_replan_target == "patch"
+                else f"fallback-patch-{state_version}"
+            ),
+            reason=(
+                "结构化决策恢复：执行已经获准的定向 Patch 重规划"
+                if pending_replan_target == "patch"
+                else "结构化决策恢复：根据已接受根因集合创建最小补丁任务"
+            ),
+            stage="patch",
+            node_type="PATCH_TASK",
+            agent_type="PatchAgent",
+            mode="minimal",
+            objective=(
+                "针对上一 Validation 失败生成新的最小补丁，并保持与完整 accepted Hypothesis 集合严格绑定"
+                if pending_replan_target == "patch"
+                else "生成与完整 accepted Hypothesis 集合严格绑定的最小补丁"
+            ),
+            input_refs=(
+                *accepted_refs,
+                *review_refs,
+                *(replan_patch_context_refs if pending_replan_target == "patch" else ()),
+            ),
+            trigger_refs=replan_trigger_refs or None,
+        )
+
+    active_validation = any(
+        str(item.get("node_type", "")) == "VALIDATION_TASK"
+        and str(item.get("status", ""))
+        not in {"FAILED", "TIMED_OUT", "BLOCKED", "CANCELLED"}
+        for item in nodes
+    )
+    if not active_validation and stage in {"patch", "validation"}:
+        validated_patch_refs = {
+            str(_artifact_content(item).get("patch_ref", ""))
+            for item in by_type.get("validation_result", [])
+        }
+        for patch in reversed(by_type.get("patch_candidate", [])):
+            patch_ref = str(patch["artifact_ref"])
+            if patch_ref in validated_patch_refs:
+                continue
+            reviews = [
+                item
+                for item in by_type.get("review", [])
+                if _artifact_content(item).get("mode") == "patch_review"
+                and _artifact_content(item).get("verdict")
+                in {"approved", "compatible", "supported"}
+                and _artifact_content(item).get("target_artifact_ref") == patch_ref
+            ]
+            if reviews:
+                review_ref = str(reviews[-1]["artifact_ref"])
+                return _fallback_create(
+                    decision_id=f"fallback-validation-{state_version}",
+                    reason="结构化决策恢复：验证已通过独立审查的补丁候选",
+                    stage="validation",
+                    node_type="VALIDATION_TASK",
+                    agent_type="ValidationExecutor",
+                    mode="deterministic",
+                    objective="应用当前补丁并执行目标测试与完整回归",
+                    input_refs=(patch_ref, review_ref),
+                )
+    return None
+
+
+def _fallback_create(
+    *,
+    decision_id: str,
+    reason: str,
+    stage: str,
+    node_type: str,
+    agent_type: str,
+    mode: str,
+    objective: str,
+    input_refs: Sequence[str],
+    trigger_refs: Sequence[str] | None = None,
+) -> SupervisorDecision:
+    refs = tuple(dict.fromkeys(input_refs))
+    triggers = tuple(dict.fromkeys(trigger_refs or refs))
+    evidence_refs = tuple(dict.fromkeys((*refs, *triggers)))
+    return SupervisorDecision(
+        decision_id=decision_id,
+        action="CREATE_TASK",
+        reason=reason,
+        create_tasks=(
+            CreateTaskRequest(
+                node_type=node_type,
+                agent_type=agent_type,
+                mode=mode,
+                objective=objective,
+                input_artifact_ids=refs,
+            ),
+        ),
+        next_workflow_stage=stage,
+        evidence_refs=evidence_refs,
+        gate_record=GateRecord(
+            gate_name="supervisor_safe_recovery",
+            trigger_artifact_refs=triggers,
+            reason=reason,
+            added_node_count=1,
+            budget_effect="新增 1 个受限恢复节点，不执行语义接受或最终选择",
+        ),
+    )
+
+
+def _artifact_content(item: Mapping[str, Any]) -> Mapping[str, Any]:
+    content = item.get("content", {})
+    return content if isinstance(content, Mapping) else {}
+
+
+def _string_list(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return ()
+    return tuple(str(item) for item in value if str(item))

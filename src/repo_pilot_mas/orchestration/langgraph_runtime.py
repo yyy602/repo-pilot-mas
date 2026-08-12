@@ -158,8 +158,23 @@ class FakeWorkerExecutor:
             artifact_type=ArtifactType.EVIDENCE,
             created_by=node_id,
             content={
+                "mode": "code_retrieval",
+                "evidence_kind": "source",
                 "claim": f"Fake Worker 已完成：{node['objective']}",
+                "supports_claims": [f"Fake Worker 已完成：{node['objective']}"],
+                "contradicts_claims": [],
+                "verified": True,
+                "source": {
+                    "path": "fake_worker.py",
+                    "line_start": 1,
+                    "line_end": 1,
+                },
+                "content": "仅用于运行时控制流测试的确定性证据",
+                "observation_type": "direct",
+                "confidence": 1.0,
                 "status": "verified",
+                "tool_trace_ids": [f"fake-tool-{node_id}"],
+                "missing_evidence": [],
             },
         )
         return WorkerOutcome(node_id, NodeStatus.SUCCEEDED, (artifact,))

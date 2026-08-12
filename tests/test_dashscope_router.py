@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
 import os
 import time
+import urllib.request
 from pathlib import Path
 
 import pytest
 
-from repo_pilot_mas.config import load_env_file
+from repo_pilot_mas.config import load_env_file, load_yaml
 from repo_pilot_mas.models import (
     DashScopeHTTPResponse,
     DashScopeRequestError,
@@ -16,6 +18,11 @@ from repo_pilot_mas.models import (
     ModelAdapterError,
     SupervisorModelRouter,
 )
+from repo_pilot_mas.models.dashscope import (
+    _request_dashscope,
+    create_supervisor_model_router,
+)
+from repo_pilot_mas.runtime import TraceWriter
 
 _MODELS = ("max", "flash", "flash-versioned")
 _KEY_ENVS = ("DASHSCOPE_TEST_KEY_1", "DASHSCOPE_TEST_KEY_2")
@@ -55,6 +62,81 @@ def test_routes_are_model_major_then_account_minor() -> None:
     ]
 
 
+def test_repository_config_matches_frozen_six_route_policy() -> None:
+    config = DashScopeRouterConfig.from_mapping(
+        load_yaml("configs/supervisor.yaml")["supervisor"]
+    )
+
+    assert [(route.model_id, route.api_key_env) for route in config.routes] == [
+        ("qwen3.7-max-2026-06-08", "DASHSCOPE_API_KEY_1"),
+        ("qwen3.7-max-2026-06-08", "DASHSCOPE_API_KEY_2"),
+        ("qwen3.7-flash", "DASHSCOPE_API_KEY_1"),
+        ("qwen3.7-flash", "DASHSCOPE_API_KEY_2"),
+        ("qwen3.7-flash-2026-07-15", "DASHSCOPE_API_KEY_1"),
+        ("qwen3.7-flash-2026-07-15", "DASHSCOPE_API_KEY_2"),
+    ]
+    assert config.per_route_timeout_seconds == 60
+
+
+def test_repository_supervisor_disables_thinking_for_structured_json(
+    tmp_path: Path,
+) -> None:
+    router, generation = create_supervisor_model_router(
+        "configs/supervisor.yaml",
+        raw_log_dir=tmp_path / "raw",
+    )
+    try:
+        assert generation.enable_thinking is False
+    finally:
+        router.close()
+
+
+def test_raw_dashscope_request_sends_enable_thinking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class Response:
+        def __init__(self) -> None:
+            self.headers: dict[str, str] = {}
+
+        def __enter__(self):  # type: ignore[no-untyped-def]
+            return self
+
+        def __exit__(self, *args):  # type: ignore[no-untyped-def]
+            del args
+
+        @staticmethod
+        def read() -> bytes:
+            return json.dumps(
+                {
+                    "choices": [{"message": {"content": "{}"}}],
+                    "usage": {
+                        "prompt_tokens": 1,
+                        "completion_tokens": 2,
+                    },
+                }
+            ).encode()
+
+    def urlopen(request, timeout):  # type: ignore[no-untyped-def]
+        assert isinstance(request, urllib.request.Request)
+        captured.update(json.loads(request.data.decode()))
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    response = _request_dashscope(
+        "https://example.test/v1",
+        _config().routes[0],
+        "secret",
+        [Message("user", "decide")],
+        GenerationConfig(enable_thinking=False),
+    )
+
+    assert response.text == "{}"
+    assert captured["enable_thinking"] is False
+
+
 def test_quota_exhaustion_switches_to_same_model_other_account(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -79,7 +161,7 @@ def test_quota_exhaustion_switches_to_same_model_other_account(
     assert router.exhausted_routes == (f"max|{_KEY_ENVS[0]}",)
 
 
-def test_both_max_accounts_exhausted_then_switches_to_flash(
+def test_model_fallback_is_recorded_not_treated_as_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _set_keys(monkeypatch)
@@ -100,6 +182,61 @@ def test_both_max_accounts_exhausted_then_switches_to_flash(
         ("max", _KEY_ENVS[1]),
         ("flash", _KEY_ENVS[0]),
     ]
+
+
+def test_structured_output_recovery_advances_route_without_exhausting_it(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _set_keys(monkeypatch)
+    calls: list[tuple[str, str]] = []
+
+    def requester(base_url, route, api_key, messages, config):  # type: ignore[no-untyped-def]
+        del base_url, api_key, messages, config
+        calls.append((route.model_id, route.api_key_env))
+        text = '{"wrong":true}' if route.api_key_env == _KEY_ENVS[0] else '{"ok":true}'
+        return DashScopeHTTPResponse(text, 2, 1)
+
+    trace_path = tmp_path / "route-format-recovery.jsonl"
+    router = SupervisorModelRouter(
+        _config(retries=0),
+        requester=requester,
+        sleeper=lambda _: None,
+        trace_writer=TraceWriter(trace_path),
+    )
+    schema = {
+        "type": "object",
+        "properties": {"ok": {"const": True}},
+        "required": ["ok"],
+        "additionalProperties": False,
+    }
+    router.begin_structured_recovery()
+
+    response = router.generate(
+        [Message("user", "decide")],
+        response_schema=schema,
+        config=GenerationConfig(max_retries=1),
+    )
+
+    assert response.structured_output == {"ok": True}
+    assert calls == [
+        ("max", _KEY_ENVS[0]),
+        ("max", _KEY_ENVS[1]),
+    ]
+    assert router.exhausted_routes == ()
+    events = [
+        json.loads(line)["event_type"]
+        for line in trace_path.read_text(encoding="utf-8").splitlines()
+    ]
+    assert events.count("supervisor_route_format_rejected") == 1
+
+    router.begin_structured_recovery()
+    router.generate(
+        [Message("user", "decide again")],
+        response_schema=schema,
+        config=GenerationConfig(max_retries=1),
+    )
+    assert calls[2] == ("max", _KEY_ENVS[0])
 
 
 def test_all_routes_exhausted_is_structured_and_restorable(

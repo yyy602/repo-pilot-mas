@@ -32,7 +32,19 @@ _NO_SAME_NODE_RETRY_CODES = frozenset(
         "AGENT_TYPE_MISMATCH",
         "UNSUPPORTED_WORKER_NODE",
         "ARTIFACT_REJECTION_NODE_MISMATCH",
+        "BUSINESS_EVIDENCE_INSUFFICIENT",
+    }
+)
+
+_RECOVERY_ERROR_CODES = frozenset(
+    {
+        "TRANSIENT_WORKER_ERROR",
+        "AGENT_INPUT_CONTRACT_VIOLATION",
         "ARTIFACT_SCHEMA_ERROR",
+        "TOOL_EXECUTION_ERROR",
+        "MODEL_TIMEOUT",
+        "MODEL_FORMAT_ERROR",
+        "BUSINESS_EVIDENCE_INSUFFICIENT",
     }
 )
 
@@ -126,9 +138,7 @@ def artifact_rejection(
 
     if attempt <= 0 or max_attempts <= 0 or attempt > max_attempts:
         raise ValueError("invalid Worker attempt range")
-    actions = tuple(
-        dict.fromkeys(str(item) for item in allowed_next_actions if str(item))
-    )
+    actions = tuple(dict.fromkeys(str(item) for item in allowed_next_actions if str(item)))
     if not actions:
         raise ValueError("artifact rejection requires allowed_next_actions")
     content = {
@@ -281,7 +291,7 @@ def worker_outcome_from_artifact_path(
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         return rejection_outcome(
             node_id,
-            "ARTIFACT_CONTENT_INVALID",
+            "ARTIFACT_SCHEMA_ERROR",
             f"Worker artifact content is invalid: {type(exc).__name__}: {exc}",
             attempt=attempt,
             max_attempts=max_attempts,
@@ -371,13 +381,9 @@ def collect_worker_outcome(
                 recommended_stage=exc.recommended_stage,
                 allowed_next_actions=exc.allowed_next_actions,
                 expected_artifact_type=_EXPECTED_ARTIFACTS.get(node.node_type),
-                actual_artifact_refs=tuple(
-                    artifact.ref for artifact in tuple(outcome.artifacts)
-                ),
+                actual_artifact_refs=tuple(artifact.ref for artifact in tuple(outcome.artifacts)),
                 details={
-                    key: value
-                    for key, value in exc.details.items()
-                    if key != "provided_rejection"
+                    key: value for key, value in exc.details.items() if key != "provided_rejection"
                 },
             )
         rejection_ref = _commit_artifact(engine, rejection)
@@ -428,9 +434,7 @@ def collect_worker_outcome(
                 "allowed_next_actions": list(allowed_next_actions),
                 "recovery_class": _recovery_class(code),
                 "recovery_action": (
-                    "retry_same_node"
-                    if retry_scheduled
-                    else "return_to_supervisor"
+                    "retry_same_node" if retry_scheduled else "return_to_supervisor"
                 ),
             },
         )
@@ -486,9 +490,7 @@ def _preflight_success(
         raise ArtifactCollectionError(
             "ARTIFACT_SET_INVALID",
             f"Worker must emit exactly one {expected_type.value} Artifact",
-            details={
-                "actual_types": [artifact.artifact_type.value for artifact in artifacts]
-            },
+            details={"actual_types": [artifact.artifact_type.value for artifact in artifacts]},
         )
 
     staged = ArtifactStore.from_list(engine.blackboard.artifacts.to_list())
@@ -511,16 +513,12 @@ def _preflight_success(
         try:
             validate_worker_artifact(
                 artifact,
-                expected_type=(
-                    None
-                    if node.node_type is NodeType.REBUTTAL_TASK
-                    else expected_type
-                ),
+                expected_type=(None if node.node_type is NodeType.REBUTTAL_TASK else expected_type),
                 allowed_input_refs=tuple(available_refs),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ArtifactCollectionError(
-                "ARTIFACT_CONTENT_INVALID",
+                "ARTIFACT_SCHEMA_ERROR",
                 f"Worker Artifact failed schema/reference validation: {exc}",
                 details={"artifact_ref": artifact.ref},
             ) from exc
@@ -542,7 +540,50 @@ def _preflight_success(
 
     if node.node_type is NodeType.PATCH_TASK:
         _validate_patch_binding(engine, artifacts[0])
+    elif node.node_type is NodeType.REVIEW_TASK:
+        _validate_review_targets(engine, node, artifacts[0])
     return artifacts
+
+
+def _validate_review_targets(
+    engine: Any,
+    node: TaskNode,
+    review: Artifact,
+) -> None:
+    mode = str(review.content.get("mode", ""))
+    if mode not in {"root_cause_recommendation", "hypothesis_comparison"}:
+        return
+    hypothesis_refs = {
+        engine.blackboard.artifacts.get(ref).ref
+        for ref in node.input_artifact_ids
+        if engine.blackboard.artifacts.get(ref).artifact_type
+        is ArtifactType.HYPOTHESIS
+    }
+    raw_targets = review.content.get("target_artifact_refs")
+    if raw_targets is None:
+        raw_targets = (review.content.get("target_artifact_ref"),)
+    if isinstance(raw_targets, (str, bytes)):
+        raw_targets = (raw_targets,)
+    actual_targets = {str(item) for item in raw_targets if str(item)}
+    selected_target = str(review.content.get("target_artifact_ref", ""))
+    if (
+        not actual_targets
+        or selected_target not in hypothesis_refs
+        or not actual_targets.issubset(hypothesis_refs)
+        or (mode == "root_cause_recommendation" and len(actual_targets) != 1)
+        or (mode == "hypothesis_comparison" and actual_targets != hypothesis_refs)
+    ):
+        raise ArtifactCollectionError(
+            "ARTIFACT_SCHEMA_ERROR",
+            "root-cause Review targets must match the input Hypothesis set",
+            details={
+                "mode": mode,
+                "expected_hypothesis_refs": sorted(hypothesis_refs),
+                "actual_target_refs": sorted(actual_targets),
+                "selected_target_ref": selected_target,
+            },
+            recommended_stage="review",
+        )
 
 
 def _validate_patch_binding(engine: Any, patch: Artifact) -> None:
@@ -553,10 +594,7 @@ def _validate_patch_binding(engine: Any, patch: Artifact) -> None:
             "PatchCandidate cannot be collected before Hypothesis acceptance",
             recommended_stage="review",
         )
-    raw_refs = patch.content.get("based_on_hypothesis_refs")
-    if raw_refs is None:
-        legacy_ref = patch.content.get("based_on_hypothesis")
-        raw_refs = (legacy_ref,) if legacy_ref else ()
+    raw_refs = patch.content.get("based_on_hypothesis_refs", ())
     if isinstance(raw_refs, (str, bytes)):
         raw_refs = (raw_refs,)
     actual_refs = tuple(dict.fromkeys(str(item) for item in raw_refs if str(item)))
@@ -577,7 +615,7 @@ def _validate_patch_binding(engine: Any, patch: Artifact) -> None:
             ),
         )
     primary = patch.content.get("primary_hypothesis_ref")
-    if primary is not None and str(primary) != resolution.primary_ref:
+    if str(primary or "") != resolution.primary_ref:
         raise ArtifactCollectionError(
             "PATCH_PRIMARY_HYPOTHESIS_MISMATCH",
             "PatchCandidate primary Hypothesis does not match the accepted primary",
@@ -668,8 +706,10 @@ def _rejection_from_failed_outcome(
 
 def _failed_outcome_code(status: NodeStatus, reason: str) -> str:
     if status is NodeStatus.TIMED_OUT:
-        return "WORKER_TIMEOUT"
+        return "MODEL_TIMEOUT"
     prefix = reason.partition(":")[0].strip()
+    if prefix in _RECOVERY_ERROR_CODES:
+        return prefix
     if prefix in {
         "AGENT_INPUT_CONTRACT_VIOLATION",
         "AGENT_TYPE_MISMATCH",
@@ -677,13 +717,13 @@ def _failed_outcome_code(status: NodeStatus, reason: str) -> str:
     }:
         return prefix
     if prefix == "WORKER_EXECUTION_ERROR":
-        return "WORKER_EXECUTION_FAILED"
+        return "TRANSIENT_WORKER_ERROR"
     if prefix == "WORKER_AGENT_ERROR":
         error_type = reason.split(":", 2)[1].strip() if ":" in reason else ""
         if error_type == "SchemaValidationError":
             return "ARTIFACT_SCHEMA_ERROR"
-        return "WORKER_AGENT_FAILED"
-    return "WORKER_EXECUTION_FAILED"
+        return "MODEL_FORMAT_ERROR"
+    return "TRANSIENT_WORKER_ERROR"
 
 
 def _same_node_retry_allowed(
@@ -705,10 +745,16 @@ def _recovery_class(code: str) -> str:
         return "input_contract"
     if code in {"AGENT_TYPE_MISMATCH", "UNSUPPORTED_WORKER_NODE"}:
         return "dispatch_contract"
-    if code == "WORKER_TIMEOUT":
-        return "transient_timeout"
-    if code in {"WORKER_EXECUTION_FAILED", "WORKER_AGENT_FAILED"}:
-        return "worker_execution"
+    if code == "MODEL_TIMEOUT":
+        return "model_timeout"
+    if code == "TRANSIENT_WORKER_ERROR":
+        return "transient_worker"
+    if code == "TOOL_EXECUTION_ERROR":
+        return "tool_execution"
+    if code in {"MODEL_FORMAT_ERROR", "ARTIFACT_SCHEMA_ERROR"}:
+        return "model_format"
+    if code == "BUSINESS_EVIDENCE_INSUFFICIENT":
+        return "business_evidence"
     if code.startswith("ARTIFACT_"):
         return "artifact_validation"
     if code.startswith("PATCH_"):

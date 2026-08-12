@@ -41,9 +41,14 @@ _REQUIRED_TOOLS = {
     "evidence_completion": frozenset({"inspect_code", "run_tests"}),
     "regression_scope": frozenset({"find_references", "run_tests"}),
 }
-_FAILURE_TYPE_PATTERN = re.compile(
-    r"\b([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b"
-)
+_FAILURE_TYPE_PATTERN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\b")
+_EVIDENCE_KIND_BY_MODE = {
+    "code_retrieval": "source",
+    "failure_reproduction": "reproduction",
+    "dependency_trace": "dependency",
+    "evidence_completion": "execution",
+    "regression_scope": "execution",
+}
 
 
 class InvestigatorAgent:
@@ -82,6 +87,8 @@ class InvestigatorAgent:
                 "所有工具 path 都必须是候选工作区相对路径，仓库根目录只能写 '.'，绝不能写绝对路径。"
                 "如果目标文件未知，先 list_files(path='.')，再 inspect_code。"
                 "source 行号必须来自工具输出，tool_trace_ids 必须引用当前上下文中的工具结果 trace_id。"
+                "Evidence 必须填写 evidence_kind、supports_claims、contradicts_claims 和 verified；"
+                "supports_claims 要列出该证据直接支持的主张，不能把推测写成已验证事实。"
                 "模型输出不得包含 reproduction；该字段仅在 failure_reproduction 模式下由 Agent "
                 "根据真实 run_tests Observation 注入。"
                 "failure_reproduction 模式下，目标测试以非零退出并产生明确失败输出表示缺陷复现成功，"
@@ -105,9 +112,22 @@ class InvestigatorAgent:
         )
         result = loop.run(messages)
         if result.status != "completed" or result.final_action is None:
-            raise WorkerAgentError(f"Investigator 未完成：{result.reason}")
+            code = (
+                "MODEL_TIMEOUT"
+                if "MODEL_TIMEOUT" in result.reason
+                else "MODEL_FORMAT_ERROR"
+                if "STRUCTURED_OUTPUT_ERROR" in result.reason
+                else "TRANSIENT_WORKER_ERROR"
+            )
+            raise WorkerAgentError(
+                f"Investigator 未完成：{result.reason}",
+                code=code,
+            )
         if not _REQUIRED_TOOLS[mode].intersection(_called_tools(result.messages)):
-            raise WorkerAgentError(f"Investigator mode={mode} 缺少必要工具证据")
+            raise WorkerAgentError(
+                f"Investigator mode={mode} 缺少必要工具证据",
+                code="BUSINESS_EVIDENCE_INSUFFICIENT",
+            )
 
         content = dict(result.final_action["artifact"])
         # The model-facing schema no longer advertises reproduction, but accepts
@@ -118,25 +138,39 @@ class InvestigatorAgent:
             raise WorkerAgentError(
                 f"Investigator Artifact mode 不一致：expected={mode}, actual={content.get('mode')}"
             )
+        content["evidence_kind"] = _EVIDENCE_KIND_BY_MODE[mode]
+        content.setdefault("supports_claims", [str(content.get("claim", ""))])
+        content.setdefault("contradicts_claims", [])
+        content["verified"] = content.get("status") == "verified"
 
         reproduction: dict[str, Any] | None = None
         if mode == "failure_reproduction":
             reproduction = _reproduction_observation(result.messages)
             if reproduction is None:
-                raise WorkerAgentError("failure_reproduction 缺少可解析的 run_tests 结果")
+                raise WorkerAgentError(
+                    "failure_reproduction 缺少可解析的 run_tests 结果",
+                    code="BUSINESS_EVIDENCE_INSUFFICIENT",
+                )
+            tool_error_code = str(reproduction.pop("_tool_error_code"))
+            timed_out = bool(reproduction.pop("_timed_out"))
+            if timed_out or tool_error_code not in {"", "TEST_FAILED"}:
+                raise WorkerAgentError(
+                    "failure_reproduction 的 run_tests 工具执行失败："
+                    f"{tool_error_code or 'timeout'}",
+                    code="TOOL_EXECUTION_ERROR",
+                )
+            if not reproduction["succeeded"]:
+                raise WorkerAgentError(
+                    "目标测试没有复现声明的缺陷",
+                    code="BUSINESS_EVIDENCE_INSUFFICIENT",
+                )
             # Tool Observation is the source of truth. Never trust a
             # model-authored reproduction object.
             content["reproduction"] = reproduction
-            if (
-                result.final_action["status"] != "success"
-                and not reproduction["succeeded"]
-            ):
-                raise WorkerAgentError(
-                    f"Investigator 报告失败：{result.final_action['reason']}"
-                )
         elif result.final_action["status"] != "success":
             raise WorkerAgentError(
-                f"Investigator 报告失败：{result.final_action['reason']}"
+                f"Investigator 报告失败：{result.final_action['reason']}",
+                code="BUSINESS_EVIDENCE_INSUFFICIENT",
             )
 
         artifact = Artifact(
@@ -146,9 +180,7 @@ class InvestigatorAgent:
             content=content,
         )
         validate_worker_artifact(artifact, expected_type=ArtifactType.EVIDENCE)
-        if not set(content["tool_trace_ids"]).issubset(
-            _context_trace_ids(result.messages)
-        ):
+        if not set(content["tool_trace_ids"]).issubset(_context_trace_ids(result.messages)):
             raise WorkerAgentError("Evidence 引用了当前上下文中不存在的工具 trace_id")
         if self.trace_writer is not None:
             if reproduction is not None and reproduction["succeeded"]:
@@ -186,6 +218,16 @@ def _investigator_payload_schema(mode: str) -> dict[str, Any]:
         raise TypeError("Evidence schema properties must be a dictionary")
     properties["mode"] = {"const": mode}
     properties.pop("reproduction", None)
+    required = schema.get("required")
+    if not isinstance(required, list):
+        raise TypeError("Evidence schema required must be a list")
+    for field_name in (
+        "evidence_kind",
+        "supports_claims",
+        "contradicts_claims",
+        "verified",
+    ):
+        required.remove(field_name)
     schema["additionalProperties"] = True
     return schema
 
@@ -214,13 +256,9 @@ def _reproduction_observation(messages: Sequence[Message]) -> dict[str, Any] | N
         )
         stdout = str(result.get("stdout", ""))
         stderr = str(result.get("stderr", ""))
-        failure_output = "\n".join(
-            part for part in (stdout, stderr) if part
-        )[-4000:]
+        failure_output = "\n".join(part for part in (stdout, stderr) if part)[-4000:]
         matches = _FAILURE_TYPE_PATTERN.findall(failure_output)
-        failure_type = matches[-1] if matches else (
-            error_code if reproduction_succeeded else ""
-        )
+        failure_type = matches[-1] if matches else (error_code if reproduction_succeeded else "")
         return {
             "attempted": True,
             "succeeded": reproduction_succeeded,
@@ -228,6 +266,8 @@ def _reproduction_observation(messages: Sequence[Message]) -> dict[str, Any] | N
             "failure_type": failure_type,
             "failure_output": failure_output,
             "command": normalized_command,
+            "_tool_error_code": error_code,
+            "_timed_out": timed_out,
         }
     return None
 
