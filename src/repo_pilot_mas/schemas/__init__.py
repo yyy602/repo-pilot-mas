@@ -12,6 +12,7 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     GateRecord,
     SupervisorDecision,
     additional_investigation_required,
+    evidence_gap_recovery_stage,
     supervisor_decision_schema,
     supervisor_decision_schema_for_state,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "ToolError",
     "ToolResult",
     "additional_investigation_required",
+    "evidence_gap_recovery_stage",
     "supervisor_decision_schema",
     "supervisor_decision_schema_for_state",
     "validate_worker_artifact",

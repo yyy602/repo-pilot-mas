@@ -97,6 +97,8 @@ DYNAMIC_SUPERVISOR_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
     重新补证；新增 verified Evidence 回应缺口后必须再次关闭 Investigation。
 23. HypothesisResolution.status 不是 accepted 时，next_workflow_stage 不得为 patch、validation 或
     finalization；若快照已处于这些阶段但根因未接受，必须先退回 review/diagnosis 修复状态。
+24. 补充 verified Evidence 只表示证据缺口已回应，不会修改旧 Hypothesis。补证后必须先创建新的
+    DIAGNOSIS_TASK，并且只能审查这个新 Hypothesis；不得继续 Review 或接受仍带 missing_evidence 的旧版本。
 """
 
 

@@ -23,6 +23,7 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     DecisionAction,
     SupervisorDecision,
     additional_investigation_required,
+    evidence_gap_recovery_stage,
 )
 
 _ROOT_CAUSE_REVIEW_MODES = frozenset({"hypothesis_comparison", "root_cause_recommendation"})
@@ -385,6 +386,57 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                     "requested_stage": decision.next_workflow_stage,
                 },
             )
+        gap_recovery_stage = evidence_gap_recovery_stage(
+            self.blackboard.artifact_summaries()
+        )
+        if decision.action is DecisionAction.CREATE_TASK and gap_recovery_stage:
+            required_node_type = {
+                legacy_engine.WorkflowStage.INVESTIGATION.value: (
+                    NodeType.INVESTIGATION_TASK.value
+                ),
+                legacy_engine.WorkflowStage.DIAGNOSIS.value: (
+                    NodeType.DIAGNOSIS_TASK.value
+                ),
+            }[gap_recovery_stage]
+            if any(
+                request.node_type != required_node_type
+                for request in decision.create_tasks
+            ):
+                gap_refs = tuple(
+                    artifact.ref
+                    for artifact in self.blackboard.artifacts.latest_values()
+                    if (
+                        artifact.artifact_type is ArtifactType.HYPOTHESIS
+                        and artifact.content.get("missing_evidence")
+                    )
+                    or (
+                        artifact.artifact_type is ArtifactType.REVIEW
+                        and (
+                            artifact.content.get("verdict")
+                            == "needs_more_evidence"
+                            or artifact.content.get("remaining_uncertainty")
+                        )
+                    )
+                )
+                code = (
+                    "EVIDENCE_GAP_REQUIRES_INVESTIGATION"
+                    if gap_recovery_stage
+                    == legacy_engine.WorkflowStage.INVESTIGATION.value
+                    else "EVIDENCE_GAP_REQUIRES_REDIAGNOSIS"
+                )
+                raise DecisionPolicyViolation(
+                    code,
+                    "An explicit Evidence gap must be recovered before further "
+                    "Review or Patch work",
+                    recommended_stage=gap_recovery_stage,
+                    allowed_next_actions=(
+                        "CREATE_TASK",
+                        "CHANGE_WORKFLOW_STAGE",
+                        "TERMINATE_TASK",
+                    ),
+                    trigger_artifact_refs=gap_refs,
+                    details={"required_node_type": required_node_type},
+                )
         if decision.action is DecisionAction.CREATE_TASK:
             for request in decision.create_tasks:
                 exhausted = tuple(

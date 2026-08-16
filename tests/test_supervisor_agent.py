@@ -476,9 +476,8 @@ def test_explicit_gap_reopens_investigation_until_new_verified_evidence() -> Non
         }
     )
 
-    assert "INVESTIGATION_TASK" in _schema_node_types(before_completion)
-    assert "INVESTIGATION_TASK" not in _schema_node_types(after_completion)
-    assert "DIAGNOSIS_TASK" in _schema_node_types(after_completion)
+    assert _schema_node_types(before_completion) == {"INVESTIGATION_TASK"}
+    assert _schema_node_types(after_completion) == {"DIAGNOSIS_TASK"}
 
 
 def test_diagnosis_schema_only_accepts_evidence_inputs() -> None:
@@ -492,11 +491,6 @@ def test_diagnosis_schema_only_accepts_evidence_inputs() -> None:
                     "artifact_ref": "H1@v1",
                     "artifact_type": "hypothesis",
                     "content": {"missing_evidence": []},
-                },
-                {
-                    "artifact_ref": "R1@v1",
-                    "artifact_type": "review",
-                    "content": {"verdict": "needs_more_evidence"},
                 },
             ],
         }

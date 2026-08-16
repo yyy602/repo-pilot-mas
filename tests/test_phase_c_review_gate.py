@@ -9,6 +9,7 @@ from repo_pilot_mas.orchestration.policy_violation import DecisionPolicyViolatio
 from repo_pilot_mas.schemas import (
     Artifact,
     ArtifactType,
+    CreateTaskRequest,
     DecisionAction,
     SupervisorDecision,
     TaskSpec,
@@ -280,6 +281,70 @@ def test_engine_rejects_patch_stage_before_hypothesis_acceptance(
     assert result.recoverable is True
     assert result.recommended_stage == WorkflowStage.REVIEW.value
     assert engine.blackboard.workflow_stage == WorkflowStage.DIAGNOSIS.value
+
+
+def test_engine_requires_rediagnosis_after_gap_evidence(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    hypothesis = Artifact(
+        "N2.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N2",
+        {
+            **_hypothesis().to_dict()["content"],
+            "missing_evidence": ["大于最大值时的执行路径"],
+        },
+        input_refs=(evidence.ref,),
+    )
+    review = Artifact(
+        "N3.review",
+        ArtifactType.REVIEW,
+        "N3",
+        {
+            **_review(hypothesis).to_dict()["content"],
+            "verdict": "needs_more_evidence",
+            "remaining_uncertainty": ["缺少边界执行证据"],
+        },
+        input_refs=(hypothesis.ref, evidence.ref),
+    )
+    completion = Artifact(
+        "N4.evidence",
+        ArtifactType.EVIDENCE,
+        "N4",
+        {
+            **evidence.to_dict()["content"],
+            "claim": "已验证大于最大值时的执行路径",
+            "supports_claims": ["已验证大于最大值时的执行路径"],
+        },
+    )
+    for artifact in (evidence, hypothesis, review, completion):
+        engine.add_artifact(artifact)
+    engine.blackboard.set_stage(WorkflowStage.REVIEW.value)
+
+    result = engine.apply_decision(
+        SupervisorDecision(
+            "review-stale-hypothesis",
+            DecisionAction.CREATE_TASK,
+            "review the old hypothesis after evidence completion",
+            create_tasks=(
+                CreateTaskRequest(
+                    "REVIEW_TASK",
+                    "ReviewerAgent",
+                    "root_cause_recommendation",
+                    "review the stale hypothesis",
+                    input_artifact_ids=(evidence.ref, hypothesis.ref),
+                ),
+            ),
+            next_workflow_stage=WorkflowStage.REVIEW.value,
+        )
+    )
+
+    assert result.ok is False
+    assert result.code == "EVIDENCE_GAP_REQUIRES_REDIAGNOSIS"
+    assert result.recommended_stage == WorkflowStage.DIAGNOSIS.value
+    assert result.details["required_node_type"] == "DIAGNOSIS_TASK"
 
 
 def test_minimum_evidence_gate_rejects_source_only_hypothesis(tmp_path: Path) -> None:

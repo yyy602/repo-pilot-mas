@@ -808,6 +808,51 @@ def additional_investigation_required(
     )
 
 
+def evidence_gap_recovery_stage(
+    artifacts: Sequence[Mapping[str, Any]],
+) -> str | None:
+    """Return the mandatory stage after an explicit Evidence gap."""
+
+    latest_gap_index: int | None = None
+    verified_evidence_indexes: list[int] = []
+    hypothesis_indexes: list[int] = []
+    for index, item in enumerate(artifacts):
+        if not isinstance(item, Mapping):
+            continue
+        artifact_type = str(item.get("artifact_type", ""))
+        content = item.get("content", {})
+        if not isinstance(content, Mapping):
+            continue
+        if artifact_type == "hypothesis":
+            hypothesis_indexes.append(index)
+            if content.get("missing_evidence"):
+                latest_gap_index = index
+        elif artifact_type == "review" and (
+            content.get("verdict") == "needs_more_evidence"
+            or content.get("remaining_uncertainty")
+        ):
+            latest_gap_index = index
+        elif (
+            artifact_type == "evidence"
+            and content.get("verified") is True
+            and content.get("status") == "verified"
+            and content.get("tool_trace_ids")
+        ):
+            verified_evidence_indexes.append(index)
+
+    if latest_gap_index is None:
+        return None
+    completion_indexes = [
+        index for index in verified_evidence_indexes if index > latest_gap_index
+    ]
+    if not completion_indexes:
+        return "investigation"
+    latest_completion_index = max(completion_indexes)
+    if not any(index > latest_completion_index for index in hypothesis_indexes):
+        return "diagnosis"
+    return None
+
+
 def supervisor_decision_schema_for_state(
     snapshot: Mapping[str, Any],
 ) -> dict[str, Any]:
@@ -958,6 +1003,7 @@ def supervisor_decision_schema_for_state(
         for item in validations_by_patch.values()
     )
     investigation_required = additional_investigation_required(artifacts)
+    gap_recovery_stage = evidence_gap_recovery_stage(artifacts)
 
     allowed_actions = {
         DecisionAction.CREATE_TASK.value,
@@ -1012,6 +1058,12 @@ def supervisor_decision_schema_for_state(
         allowed_actions = {DecisionAction.CREATE_TASK.value}
         target_node_type = str(recovery.get("target_node_type", ""))
         allowed_node_types = {target_node_type} if target_node_type else set()
+    elif gap_recovery_stage == "investigation":
+        allowed_actions.discard(DecisionAction.ACCEPT_HYPOTHESIS.value)
+        allowed_node_types.intersection_update({"INVESTIGATION_TASK"})
+    elif gap_recovery_stage == "diagnosis":
+        allowed_actions.discard(DecisionAction.ACCEPT_HYPOTHESIS.value)
+        allowed_node_types.intersection_update({"DIAGNOSIS_TASK"})
     if accepted and stage in {"diagnosis", "review"}:
         allowed_node_types.add("PATCH_TASK")
     if not accepted:
