@@ -261,12 +261,25 @@ def test_stage_specific_schema_only_exposes_legal_actions() -> None:
                 {
                     "artifact_ref": "E1@v1",
                     "artifact_type": "evidence",
-                    "content": {},
+                    "content": {
+                        "evidence_kind": "reproduction",
+                        "verified": True,
+                        "status": "verified",
+                        "source": {"path": "target.py"},
+                        "tool_trace_ids": ["trace-1"],
+                        "reproduction": {
+                            "succeeded": True,
+                            "failure_output": "AssertionError",
+                        },
+                    },
                 },
                 {
                     "artifact_ref": "H1@v1",
                     "artifact_type": "hypothesis",
-                    "content": {"missing_evidence": []},
+                    "content": {
+                        "supporting_evidence": ["E1@v1"],
+                        "missing_evidence": [],
+                    },
                 },
                 {
                     "artifact_ref": "R1@v1",
@@ -275,6 +288,7 @@ def test_stage_specific_schema_only_exposes_legal_actions() -> None:
                         "mode": "root_cause_recommendation",
                         "verdict": "supported",
                         "target_artifact_ref": "H1@v1",
+                        "evidence_refs": ["E1@v1"],
                     },
                 },
             ],
@@ -314,6 +328,55 @@ def test_hypothesis_with_missing_evidence_cannot_be_accepted() -> None:
                         "mode": "root_cause_recommendation",
                         "verdict": "supported",
                         "target_artifact_ref": "H1@v1",
+                    },
+                },
+            ],
+            "selections": {
+                "hypothesis_resolution": {"status": "under_review"}
+            },
+        }
+    )
+
+    assert "ACCEPT_HYPOTHESIS" not in _schema_actions(schema)
+
+
+def test_hypothesis_with_unverified_support_cannot_be_accepted() -> None:
+    schema = supervisor_decision_schema_for_state(
+        {
+            "workflow_stage": "review",
+            "nodes": [],
+            "artifacts": [
+                {
+                    "artifact_ref": "E1@v1",
+                    "artifact_type": "evidence",
+                    "content": {
+                        "evidence_kind": "source",
+                        "verified": False,
+                        "status": "unverified",
+                        "source": {"path": "target.py"},
+                        "tool_trace_ids": ["trace-1"],
+                    },
+                },
+                {
+                    **_verified_reproduction(),
+                    "artifact_ref": "E2@v1",
+                },
+                {
+                    "artifact_ref": "H1@v1",
+                    "artifact_type": "hypothesis",
+                    "content": {
+                        "supporting_evidence": ["E1@v1", "E2@v1"],
+                        "missing_evidence": [],
+                    },
+                },
+                {
+                    "artifact_ref": "R1@v1",
+                    "artifact_type": "review",
+                    "content": {
+                        "mode": "root_cause_recommendation",
+                        "verdict": "supported",
+                        "target_artifact_ref": "H1@v1",
+                        "evidence_refs": ["E1@v1", "E2@v1"],
                     },
                 },
             ],

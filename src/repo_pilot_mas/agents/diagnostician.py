@@ -99,6 +99,8 @@ class DiagnosticianAgent:
                 "你是 RepoPilot-MAS DiagnosticianAgent 的独立第一轮实例。"
                 f"只从给定 Evidence 分析{focus}；不得假定或读取另一诊断实例的 Hypothesis。"
                 "supporting_evidence 必须使用完整 Evidence ref（artifact_id@vN）。"
+                "supporting_evidence 只能引用 verified=true、status=verified 且带成功工具 Trace 的"
+                "输入 Evidence；未验证 Evidence 只能作为上下文或反证，不能作为根因支持证据。"
                 "区分直接原因和根本原因，给出可执行验证计划，并列出反例与缺失证据。"
                 "missing_evidence 只能列出全部输入 Evidence 中确实不存在的证据；必须逐项检查输入。"
                 "若输入已包含 verified 的 failure_reproduction、退出码和失败输出，不得再声称缺少"

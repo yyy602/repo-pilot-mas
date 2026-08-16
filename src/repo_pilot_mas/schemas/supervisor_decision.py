@@ -843,21 +843,67 @@ def supervisor_decision_schema_for_state(
         if isinstance(item, Mapping)
     }
     artifact_refs_by_type: dict[str, list[str]] = {}
+    artifacts_by_ref: dict[str, Mapping[str, Any]] = {}
     for item in artifacts:
         if not isinstance(item, Mapping) or not item.get("artifact_ref"):
             continue
+        artifacts_by_ref[str(item["artifact_ref"])] = item
         artifact_refs_by_type.setdefault(
             str(item.get("artifact_type", "")), []
         ).append(str(item["artifact_ref"]))
-    hypothesis_ready_refs = {
-        str(item["artifact_ref"])
-        for item in artifacts
-        if isinstance(item, Mapping)
-        and item.get("artifact_type") == "hypothesis"
-        and item.get("artifact_ref")
-        and isinstance(item.get("content"), Mapping)
-        and not item.get("content", {}).get("missing_evidence")
-    }
+    hypothesis_supporting_refs: dict[str, set[str]] = {}
+    hypothesis_ready_refs: set[str] = set()
+    for item in artifacts:
+        if (
+            not isinstance(item, Mapping)
+            or item.get("artifact_type") != "hypothesis"
+            or not item.get("artifact_ref")
+            or not isinstance(item.get("content"), Mapping)
+            or item.get("content", {}).get("missing_evidence")
+        ):
+            continue
+        content = item["content"]
+        supporting_refs = {
+            str(ref) for ref in content.get("supporting_evidence", ()) if str(ref)
+        }
+        evidence = [artifacts_by_ref.get(ref) for ref in supporting_refs]
+        if not supporting_refs or any(
+            evidence_item is None
+            or evidence_item.get("artifact_type") != "evidence"
+            or not isinstance(evidence_item.get("content"), Mapping)
+            or evidence_item.get("content", {}).get("verified") is not True
+            or evidence_item.get("content", {}).get("status") != "verified"
+            or not evidence_item.get("content", {}).get("tool_trace_ids")
+            for evidence_item in evidence
+        ):
+            continue
+        evidence_content = [evidence_item["content"] for evidence_item in evidence]
+        has_source = any(
+            evidence_item.get("evidence_kind") == "source"
+            or isinstance(evidence_item.get("source"), Mapping)
+            for evidence_item in evidence_content
+        )
+        has_behavior = any(
+            (
+                evidence_item.get("evidence_kind") == "reproduction"
+                and isinstance(evidence_item.get("reproduction"), Mapping)
+                and evidence_item["reproduction"].get("succeeded") is True
+            )
+            or evidence_item.get("evidence_kind") in {"execution", "counterexample"}
+            for evidence_item in evidence_content
+        )
+        has_execution = any(
+            (
+                isinstance(evidence_item.get("reproduction"), Mapping)
+                and bool(evidence_item["reproduction"].get("failure_output"))
+            )
+            or evidence_item.get("evidence_kind") in {"execution", "dependency"}
+            for evidence_item in evidence_content
+        )
+        if has_source and has_behavior and has_execution:
+            ref = str(item["artifact_ref"])
+            hypothesis_ready_refs.add(ref)
+            hypothesis_supporting_refs[ref] = supporting_refs
     acceptable_review_refs: set[str] = set()
     reviewed_ready_refs: set[str] = set()
     for item in artifacts:
@@ -881,8 +927,14 @@ def supervisor_decision_schema_for_state(
             raw_targets = (content.get("target_artifact_ref"),)
         if isinstance(raw_targets, (str, bytes)):
             raw_targets = (raw_targets,)
+        review_evidence_refs = {
+            str(ref) for ref in content.get("evidence_refs", ()) if str(ref)
+        }
         covered = {
-            str(ref) for ref in raw_targets if str(ref) in hypothesis_ready_refs
+            str(ref)
+            for ref in raw_targets
+            if str(ref) in hypothesis_ready_refs
+            and hypothesis_supporting_refs[str(ref)].issubset(review_evidence_refs)
         }
         if covered:
             acceptable_review_refs.add(str(item["artifact_ref"]))
