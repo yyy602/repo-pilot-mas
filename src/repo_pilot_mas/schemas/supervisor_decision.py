@@ -1077,9 +1077,11 @@ def supervisor_decision_schema_for_state(
         allowed_node_types = {target_node_type} if target_node_type else set()
     elif gap_recovery_stage == "investigation":
         allowed_actions.discard(DecisionAction.ACCEPT_HYPOTHESIS.value)
+        allowed_actions.discard(DecisionAction.CHANGE_WORKFLOW_STAGE.value)
         allowed_node_types.intersection_update({"INVESTIGATION_TASK"})
     elif gap_recovery_stage == "diagnosis":
         allowed_actions.discard(DecisionAction.ACCEPT_HYPOTHESIS.value)
+        allowed_actions.discard(DecisionAction.CHANGE_WORKFLOW_STAGE.value)
         allowed_node_types.intersection_update({"DIAGNOSIS_TASK"})
     if accepted and stage in {"diagnosis", "review"}:
         allowed_node_types.add("PATCH_TASK")

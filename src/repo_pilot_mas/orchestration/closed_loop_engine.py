@@ -390,7 +390,11 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
         gap_recovery_stage = evidence_gap_recovery_stage(
             self.blackboard.artifact_summaries()
         )
-        if decision.action is DecisionAction.CREATE_TASK and gap_recovery_stage:
+        if (
+            decision.action
+            in {DecisionAction.CREATE_TASK, DecisionAction.CHANGE_WORKFLOW_STAGE}
+            and gap_recovery_stage
+        ):
             required_node_type = {
                 legacy_engine.WorkflowStage.INVESTIGATION.value: (
                     NodeType.INVESTIGATION_TASK.value
@@ -399,7 +403,7 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                     NodeType.DIAGNOSIS_TASK.value
                 ),
             }[gap_recovery_stage]
-            if any(
+            if decision.action is not DecisionAction.CREATE_TASK or any(
                 request.node_type != required_node_type
                 for request in decision.create_tasks
             ):
@@ -428,7 +432,6 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                     recommended_stage=gap_recovery_stage,
                     allowed_next_actions=(
                         "CREATE_TASK",
-                        "CHANGE_WORKFLOW_STAGE",
                         "TERMINATE_TASK",
                     ),
                     trigger_artifact_refs=gap_refs,

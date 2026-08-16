@@ -90,7 +90,14 @@ def _hypothesis(node_id: str = "N3") -> Artifact:
 def _dummy_tools() -> ToolRegistry:
     registry = ToolRegistry()
     schema = {"type": "object", "additionalProperties": True}
-    for name in ("list_files", "search_code", "inspect_code", "find_references"):
+    for name in (
+        "list_files",
+        "search_code",
+        "inspect_code",
+        "find_references",
+        "run_tests",
+        "static_check",
+    ):
         registry.register(
             ToolDefinition(
                 name,
@@ -153,6 +160,47 @@ def test_investigator_uses_mode_tools_and_returns_schema_valid_evidence(tmp_path
     )
     validate_worker_artifact(artifact, expected_type=ArtifactType.EVIDENCE)
     assert artifact.created_by == "N1"
+
+
+def test_evidence_completion_requires_real_test_execution(tmp_path: Path) -> None:
+    content = {
+        **_evidence().to_dict()["content"],
+        "mode": "evidence_completion",
+        "evidence_kind": "execution",
+        "claim": "边界行为仍待执行验证",
+        "status": "unverified",
+        "verified": False,
+        "missing_evidence": ["目标测试执行结果"],
+    }
+    model = FakeModelAdapter(
+        [
+            {
+                "thought_summary": "只读取源码",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "inspect_code",
+                    "arguments": {"file_path": "target.py"},
+                },
+            },
+            {
+                "thought_summary": "过早结束补证",
+                "action": {
+                    "type": "final",
+                    "status": "success",
+                    "reason": "仅取得源码观察",
+                    "artifact": content,
+                },
+            },
+        ]
+    )
+
+    with pytest.raises(WorkerAgentError, match="缺少 run_tests 执行证据"):
+        InvestigatorAgent(model, _dummy_tools()).run(
+            _task(tmp_path),
+            "N2",
+            "evidence_completion",
+            "补充边界输入的执行证据",
+        )
 
 
 def test_two_diagnosticians_receive_only_evidence_and_not_each_other(tmp_path: Path) -> None:

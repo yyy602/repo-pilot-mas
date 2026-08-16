@@ -93,6 +93,8 @@ class InvestigatorAgent:
                 "根据真实 run_tests Observation 注入。"
                 "failure_reproduction 模式下，目标测试以非零退出并产生明确失败输出表示缺陷复现成功，"
                 "此时仍应返回 action.status=success；只有工具调用或调查过程本身无法完成时才返回 failure。"
+                "evidence_completion 和 regression_scope 必须调用 run_tests 取得执行证据；"
+                "仅查看源码不能把待验证的边界行为标记为已完成。"
                 "最终在 action.artifact 返回 Evidence 内容。"
                 f"当前 mode={mode}。可用工具："
                 + json.dumps(tools.definitions_for_model(), ensure_ascii=False),
@@ -123,9 +125,17 @@ class InvestigatorAgent:
                 f"Investigator 未完成：{result.reason}",
                 code=code,
             )
-        if not _REQUIRED_TOOLS[mode].intersection(_called_tools(result.messages)):
+        called_tools = _called_tools(result.messages)
+        if not _REQUIRED_TOOLS[mode].intersection(called_tools):
             raise WorkerAgentError(
                 f"Investigator mode={mode} 缺少必要工具证据",
+                code="BUSINESS_EVIDENCE_INSUFFICIENT",
+            )
+        if mode in {"evidence_completion", "regression_scope"} and (
+            "run_tests" not in called_tools
+        ):
+            raise WorkerAgentError(
+                f"Investigator mode={mode} 缺少 run_tests 执行证据",
                 code="BUSINESS_EVIDENCE_INSUFFICIENT",
             )
 

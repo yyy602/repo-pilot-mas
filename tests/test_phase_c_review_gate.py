@@ -15,6 +15,7 @@ from repo_pilot_mas.schemas import (
     TaskSpec,
     additional_investigation_required,
     evidence_gap_recovery_stage,
+    supervisor_decision_schema_for_state,
 )
 from repo_pilot_mas.schemas.hypothesis_resolution import HypothesisResolutionStatus
 from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
@@ -370,6 +371,79 @@ def test_patch_review_uncertainty_is_not_a_root_cause_evidence_gap() -> None:
 
     assert additional_investigation_required(artifacts) is False
     assert evidence_gap_recovery_stage(artifacts) is None
+
+
+def test_unverified_gap_evidence_forces_investigation_work_not_stage_churn(
+    tmp_path: Path,
+) -> None:
+    evidence = _evidence()
+    hypothesis = _hypothesis()
+    review = Artifact(
+        "N3.review",
+        ArtifactType.REVIEW,
+        "N3",
+        {
+            **_review(hypothesis).to_dict()["content"],
+            "verdict": "needs_more_evidence",
+            "remaining_uncertainty": ["缺少边界执行证据"],
+        },
+        input_refs=(hypothesis.ref, evidence.ref),
+    )
+    unverified = Artifact(
+        "N4.evidence",
+        ArtifactType.EVIDENCE,
+        "N4",
+        {
+            **evidence.to_dict()["content"],
+            "mode": "evidence_completion",
+            "evidence_kind": "execution",
+            "verified": False,
+            "status": "unverified",
+            "missing_evidence": ["目标测试执行结果"],
+        },
+    )
+    artifacts = [
+        item.to_dict() for item in (evidence, hypothesis, review, unverified)
+    ]
+    schema = supervisor_decision_schema_for_state(
+        {
+            "workflow_stage": "investigation",
+            "nodes": [],
+            "artifacts": artifacts,
+            "selections": {
+                "hypothesis_resolution": {"status": "needs_evidence"}
+            },
+        }
+    )
+    actions = {
+        variant["properties"]["action"]["const"] for variant in schema["oneOf"]
+    }
+    create_types = {
+        task_variant["properties"]["node_type"]["const"]
+        for variant in schema["oneOf"]
+        if variant["properties"]["action"]["const"] == "CREATE_TASK"
+        for task_variant in variant["properties"]["create_tasks"]["items"]["oneOf"]
+    }
+
+    assert "CHANGE_WORKFLOW_STAGE" not in actions
+    assert create_types == {"INVESTIGATION_TASK"}
+
+    engine = _engine(tmp_path)
+    for artifact in (evidence, hypothesis, review, unverified):
+        engine.add_artifact(artifact)
+    engine.blackboard.set_stage(WorkflowStage.INVESTIGATION.value)
+    result = engine.apply_decision(
+        SupervisorDecision(
+            "stage-churn-with-open-gap",
+            DecisionAction.CHANGE_WORKFLOW_STAGE,
+            "只切换阶段而不补充执行证据",
+            next_workflow_stage=WorkflowStage.DIAGNOSIS.value,
+        )
+    )
+
+    assert result.ok is False
+    assert result.code == "EVIDENCE_GAP_REQUIRES_INVESTIGATION"
+    assert result.allowed_next_actions == ("CREATE_TASK", "TERMINATE_TASK")
 
 
 def test_minimum_evidence_gate_rejects_source_only_hypothesis(tmp_path: Path) -> None:
