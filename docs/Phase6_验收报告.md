@@ -94,4 +94,4 @@ git diff --check
 - 业务结果为 0/1 solved，Workspace Cleanup Rate 为 100%，Source Integrity Violations 为 0；
 - 单任务 `acceptance.json` 的通过只代表运行协议与安全门成立，不代表修复成功或具备冻结资格。
 
-2026-08-16 的新路由逐槽位真实探测中 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽，同模型账号 2 可接管，证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`。v2 当前结论因此是“实现完成，新路由等待提交与重新预冻结”，不是“Phase 6 v2 已验收完成”。后续目标模式必须依次执行完整 5 任务 Development、冻结代码/配置/Prompt/路由身份、一次性 10 任务 Frozen Test、独立审计；任何一步失败都应继续保留为失败结果。逐项完成证据和剩余门禁见 `docs/Phase6_闭环加固v2完成性审计.md`。
+2026-08-16 的新路由逐槽位真实探测中 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽，同模型账号 2 可接管，证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`。首次完整 Development 在前两题均出现 `NO_PROGRESS_LOOP` 后中止，修复 Review 选择 Gate 后的针对性 GCD 运行已真实 1/1 solved。v2 当前结论因此是“实现完成，Review Gate 修复等待提交与重新预冻结”，不是“Phase 6 v2 已验收完成”。后续必须依次重跑完整 5 任务 Development、冻结代码/配置/Prompt/路由身份、一次性 10 任务 Frozen Test、独立审计；任何一步失败都应继续保留为失败结果。逐项完成证据和剩余门禁见 `docs/Phase6_闭环加固v2完成性审计.md`。

@@ -1219,13 +1219,47 @@ Supervisor 的 JSON/Schema 恢复虽然会重试，但模型路由器每次仍�
 
 **验证**
 
-当前 239 项测试、Ruff、compileall 和 diff 均通过，但由于代码尚未提交，预冻结记录如实为 `passed=false`，仅 `preflight_declared_passed` 与 `preflight_runtime_tree_clean` 为假。提交后必须重新运行统一入口，不能手改记录为通过。
+当时 239 项测试、Ruff、compileall 和 diff 均通过，但由于代码尚未提交，预冻结记录如实为 `passed=false`，仅 `preflight_declared_passed` 与 `preflight_runtime_tree_clean` 为假。提交后必须重新运行统一入口，不能手改记录为通过。
 
 **面试要点**
 
 “保存了 commit SHA”不等于“实验来自这个 commit”。可复现实验必须同时保证代码树干净、运行时输入被纳入作用域，并在 Development、Test 和独立审计三处验证同一身份。
 
-## 47. Development Pilot 时间线
+## 47. 多候选 Hypothesis 选出单一根因后被 Review Gate 误拒
+
+**现象**
+
+在首次完整 Development 中，`find_first_in_sorted` 和 GCD 都完成了失败复现、两个 Hypothesis 以及 `hypothesis_comparison` Review；Review 覆盖完整候选集并推荐其中一个根因。Supervisor 随后仅接受被推荐的 Hypothesis，Engine 却返回 `ROOT_CAUSE_RECOMMENDATION_REQUIRED`，后续相同语义决策又被判定为 `NO_PROGRESS_LOOP`。两题均失败后，当次批次已不可能达到 4/5 冻结门。
+
+**原因**
+
+Engine 用“最终接受的 Hypothesis 数量”决定 Review 类型：只接受一个就强制要求 `root_cause_recommendation`，接受多个才认可 `hypothesis_comparison`。这混淆了“待比较的候选池”和“比较后的最终选择”：两个候选经完整比较选出一个，本来就是 comparison 的正常结果，不应再无条件增加一次 Review。
+
+**排查**
+
+- 从两题 Trace 对齐 `supervisor_decision_generated`、`hypothesis_resolution_updated`和 `supervisor_decision_rejected`；
+- 确认 comparison Review 的 `target_artifact_refs` 覆盖两个候选，`target_artifact_ref` 指向被推荐者；
+- 确认失败发生在 Worker 成功、Review 产物已入库之后，不是 API Schema、本地模型或 Evidence 引用故障；
+- 首版修复又过度限制为“多候选只认 comparison”，针对性运行随即证明“补证后为最终单候选新建 recommendation”也是合法路径。
+
+**修复**
+
+确定性 Gate 同时允许两种有证据的收敛方式：
+
+1. 合格 `hypothesis_comparison` 覆盖完整候选池，可接受其推荐的单一候选；
+2. 合格 `root_cause_recommendation` 直接覆盖最终接受的单一候选。
+
+接受多个 Hypothesis 时仍必须有覆盖完整候选集的 comparison；Review verdict、独立验证字段、Evidence 覆盖和最小 Evidence Gate 均未放宽。
+
+**验证**
+
+回归测试分别覆盖“comparison 选出一个”和“多候选后的单候选 recommendation”。真实针对性运行 `dev_repair_v2_review_selection_gatefix_gcd` 最终 1/1 solved，Hypothesis、Review、Patch Binding、目标测试、完整回归和 Validation 全部通过，终态为 `VALIDATION_PASSED`，Workspace Cleanup Rate 为 100%，Source Integrity Violations 为 0。
+
+**面试要点**
+
+多 Agent 状态机最难的问题常不是“缺一个规则”，而是规则绑错了语义对象。候选池大小决定需要哪种比较证据，最终接受集合决定后续 Patch 绑定；两者不能用同一个数量条件代替。
+
+## 48. Development Pilot 时间线
 
 | Pilot | 主要目的与结果 | 暴露的问题 |
 | --- | --- | --- |
@@ -1247,12 +1281,15 @@ Supervisor 的 JSON/Schema 恢复虽然会重试，但模型路由器每次仍�
 | repair-v2 routes-classified | 验证终态报告分类 | 实际结果记录 `provider_quota_exhausted`，未再退化为通用编排故障 |
 | API route recheck 15:38 | 判断能否启动正式 Development | 六槽位仍全部返回 `AllocationQuota.FreeTierOnly`，保持外部阻塞 |
 | preflight closed-loop v2 | 离线核对完整 Development/Test 入口 | 暴露独立审计器使用错误 Suite 和空 Gate fail-open |
+| `dev_repair_v2_full` 首次正式尝试 | 最终路由与预冻结通过后启动 5 题 Development；前两题均失败后中止 | comparison 选出单根因被误要求 recommendation，触发 `NO_PROGRESS_LOOP` |
+| comparison-gatefix GCD | 验证首版 Gate 修复 | 暴露多候选补证后的单候选 recommendation 也必须允许 |
+| review-selection-gatefix GCD | 验证完整 Review 选择规则 | 1/1 solved，`VALIDATION_PASSED`，进入重新预冻结 |
 
 所有 pilot 都只使用 development split。正式 test split 只在框架和评测协议冻结后运行一次；失败的 pilot 不进入正式成功率表。
 
 闭环异常修复又保留了独立运行 ID：`smoke_repair_v2*` 用于暴露 Replan 和 Review 事务问题，`dev_repair_v2_gcd`、`dev_repair_v2_flatten`、`dev_repair_v2_bucketsort`、`dev_repair_v2_parenthesization` 用于五类针对性验证，`dev_repair_v2` 与 `dev_repair_v2_gatefix` 是完整 Development 过程中被新门禁否决的历史证据。它们不会与最终通过冻结门的运行合并统计。
 
-## 48. 总结
+## 49. 总结
 
 这些问题共同说明，RepoPilot-MAS 的难点不在“多写几个角色 Prompt”，而在边界协议：
 

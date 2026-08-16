@@ -1,0 +1,157 @@
+{
+  "artifact_rejection_count": 0,
+  "average_latency_ms": 245788.0,
+  "average_tokens": 162011.0,
+  "budget_violations": 0,
+  "contract_rejection_count": 0,
+  "estimated_api_cost_cny": 0.0,
+  "estimated_api_cost_per_solved_cny": null,
+  "evidence_gate_pass_rate": 0.0,
+  "failed": 1,
+  "hypothesis_accept_rate": 0.0,
+  "isolated_worker_failure_count": 0,
+  "latency_by_stage": {
+    "diagnosis": {
+      "average_ms": 4715.666666666667,
+      "calls": 6,
+      "total_ms": 28294
+    },
+    "initialization": {
+      "average_ms": 2911.0,
+      "calls": 1,
+      "total_ms": 2911
+    },
+    "investigation": {
+      "average_ms": 14065.363636363636,
+      "calls": 11,
+      "total_ms": 154719
+    },
+    "review": {
+      "average_ms": 13014.0,
+      "calls": 5,
+      "total_ms": 65070
+    }
+  },
+  "median_latency_ms": 245788,
+  "metric_layers": {
+    "business_results": {
+      "patch_success_rate": 0.0,
+      "regression_pass_rate": 0.0,
+      "target_test_pass_rate": 0.0,
+      "task_resolution_rate": 0.0
+    },
+    "closed_loop_mechanism": {
+      "evidence_gate_pass_rate": 0.0,
+      "hypothesis_accept_rate": 0.0,
+      "patch_binding_rate": 0.0,
+      "review_pass_rate": 0.0,
+      "validation_pass_rate": 0.0
+    },
+    "exception_recovery": {
+      "contract_rejection_count": 0,
+      "node_rebuild_count": 0,
+      "replan_attempt_count": 0,
+      "replan_success_rate": null,
+      "supervisor_format_repair_count": 1,
+      "worker_retry_count": 0
+    },
+    "routing_and_cost": {
+      "estimated_cost_cny": 0.0,
+      "latency_by_stage": {
+        "diagnosis": {
+          "average_ms": 4715.666666666667,
+          "calls": 6,
+          "total_ms": 28294
+        },
+        "initialization": {
+          "average_ms": 2911.0,
+          "calls": 1,
+          "total_ms": 2911
+        },
+        "investigation": {
+          "average_ms": 14065.363636363636,
+          "calls": 11,
+          "total_ms": 154719
+        },
+        "review": {
+          "average_ms": 13014.0,
+          "calls": 5,
+          "total_ms": 65070
+        }
+      },
+      "route_attempts_by_model": {
+        "qwen3.8-max": 14
+      },
+      "route_exhausted_by_model": {},
+      "route_successes_by_model": {
+        "qwen3.8-max": 14
+      },
+      "supervisor_tokens": 99495,
+      "total_tokens": 162011,
+      "worker_tokens": 62516
+    }
+  },
+  "node_rebuild_count": 0,
+  "patch_apply_rate": 0.0,
+  "patch_binding_rate": 0.0,
+  "patch_success_rate": 0.0,
+  "recovery_attempted_tasks": 0,
+  "recovery_succeeded_tasks": 0,
+  "recovery_success_rate": null,
+  "regression_pass_rate": 0.0,
+  "replan_attempt_count": 0,
+  "replan_success_rate": null,
+  "review_pass_rate": 0.0,
+  "route_attempts_by_model": {
+    "qwen3.8-max": 14
+  },
+  "route_distribution": {
+    "standard": 1
+  },
+  "route_exhausted_by_model": {},
+  "route_successes_by_model": {
+    "qwen3.8-max": 14
+  },
+  "schema_version": 1,
+  "solved": 0,
+  "source_integrity_violations": 0,
+  "supervisor_format_repair_count": 1,
+  "supervisor_snapshot_compact_chars": 125959,
+  "supervisor_snapshot_count": 13,
+  "supervisor_snapshot_original_chars": 185314,
+  "supervisor_snapshot_reduction_ratio": 0.3202942033521482,
+  "supervisor_tokens": 99495,
+  "syntax_valid_rate": 0.0,
+  "system_id": "closed_loop_dynamic",
+  "target_test_pass_rate": 0.0,
+  "task_count": 1,
+  "task_resolution_rate": 0.0,
+  "task_result_paths": [
+    "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev_repair_v2_comparison_gatefix_gcd/tasks/quixbugs_gcd/result.json"
+  ],
+  "termination_codes": {
+    "NO_PROGRESS_LOOP": 1
+  },
+  "termination_failure_classes": {
+    "orchestration_failure": 1
+  },
+  "termination_stages": {
+    "diagnosis": 1
+  },
+  "totals": {
+    "duration_ms": 245788,
+    "input_tokens": 151899,
+    "model_calls": 36,
+    "output_tokens": 10112,
+    "supervisor_api_calls": 14,
+    "tool_calls": 12,
+    "total_tokens": 162011,
+    "worker_model_calls": 22
+  },
+  "validation_pass_rate": 0.0,
+  "worker_failure_count": 0,
+  "worker_failure_isolation_rate": null,
+  "worker_retry_count": 0,
+  "worker_tokens": 62516,
+  "workspace_cleanup_rate": 1.0
+}

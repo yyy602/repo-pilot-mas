@@ -5,7 +5,7 @@
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
 > 计划版本：v2.5
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 实现完成，新路由等待提交、重新预冻结和正式验收
+> 当前进度：Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 实现完成，Review 选择 Gate 修复等待提交、重新预冻结和正式验收
 
 ---
 
@@ -1559,12 +1559,14 @@ LangGraph 运行时验收：
 闭环加固 v2 当前状态：
 
 - 已完成预算唯一事实源、失败复现语义、Agent 输入契约、Retry 分类、阶段化最小 Schema、Evidence/Reviewer Gate、Patch 语义与绑定门、Validation 定向回退、Snapshot 压缩、结构化终态和冻结身份校验；
-- 当前运行时在 `/home/user50305/.conda/envs/multi_agent/bin/python` 下通过 239 项 pytest、Ruff、compileall 与 `git diff --check`；正式预冻结还要求运行时代码已提交，dirty tree 不得绑定旧 HEAD commit；
+- 当前运行时在 `/home/user50305/.conda/envs/multi_agent/bin/python` 下通过 241 项 pytest、Ruff、compileall 与 `git diff --check`；新发现的 Review 选择 Gate 修复尚待提交和重新预冻结；
 - 多轮真实 API development pilot 已验证约束确实参与运行，并形成框架问题 Trace，而非只依赖 fixture；
 - 最新一次诊断运行 `dev_repair_v2_routes_classified` 中，六个配置路由均返回上游免费额度耗尽。系统一次策略调用、六次真实路由尝试后立即失败关闭，实际结果记录 `code=SUPERVISOR_ROUTES_EXHAUSTED`、`failure_class=provider_quota_exhausted`，工作区清理率为 100%，源码完整性违规为 0；
 - 2026-08-16 按用户确认迁移到三模型六槽位新基线；逐槽位真实探测 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽，同模型账号 2 可接管；脱敏证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`；
+- 首次完整 Development 前两题均以 `NO_PROGRESS_LOOP` 失败后中止，证明 Engine 错把“comparison 后选中一个候选”当成“从始至终只有一个候选”，误要求额外 recommendation；
+- 修复后的真实针对性运行 `dev_repair_v2_review_selection_gatefix_gcd` 为 1/1 solved，业务、机制、预算和安全门均通过；但完整 5 题 Development 尚未在修复后的最终指纹上重跑；
 - 该运行的单任务 Protocol Acceptance 通过不代表业务任务成功：实际 solved 为 0/1，也不满足冻结资格；
-- 完整 5 任务 Development、冻结身份写入、一次性 10 任务 Frozen Test 和独立最终审计仍待新路由提交并重新预冻结后执行。完成这四步前，不得把闭环加固 v2 标记为验收完成，也不得用它替换历史 v1 的简历数字。
+- 完整 5 任务 Development、冻结身份写入、一次性 10 任务 Frozen Test 和独立最终审计仍待 Review Gate 修复提交并重新预冻结后执行。完成这四步前，不得把闭环加固 v2 标记为验收完成，也不得用它替换历史 v1 的简历数字。
 
 ---
 

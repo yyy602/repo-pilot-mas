@@ -690,28 +690,35 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                 details={"unreviewed_hypothesis_refs": sorted(missing_refs)},
             )
 
+        candidate_refs = set(resolution.candidate_refs) or accepted_refs
+        has_recommendation = any(
+            review.content.get("mode") == "root_cause_recommendation"
+            and accepted_refs.issubset(self._review_target_refs(review))
+            for review in reviews
+        )
+        has_full_comparison = any(
+            review.content.get("mode") == "hypothesis_comparison"
+            and candidate_refs.issubset(self._review_target_refs(review))
+            for review in reviews
+        )
         if len(hypotheses) == 1:
-            if not any(
-                review.content.get("mode") == "root_cause_recommendation" for review in reviews
-            ):
+            if not (has_recommendation or has_full_comparison):
                 raise DecisionPolicyViolation(
                     "ROOT_CAUSE_RECOMMENDATION_REQUIRED",
-                    "A single Hypothesis requires a root_cause_recommendation Review",
+                    "A selected Hypothesis requires either its own root-cause "
+                    "recommendation or a comparison covering the candidate set",
                     recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
                     allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
                     trigger_artifact_refs=tuple(review.ref for review in reviews),
                 )
-        elif not any(
-            review.content.get("mode") == "hypothesis_comparison"
-            and accepted_refs.issubset(self._review_target_refs(review))
-            for review in reviews
-        ):
+        elif not has_full_comparison:
             raise DecisionPolicyViolation(
                 "HYPOTHESIS_COMPARISON_REQUIRED",
-                "Multiple Hypotheses require one comparison Review covering the full set",
+                "Multiple candidate Hypotheses require one comparison Review "
+                "covering the full candidate set",
                 recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
                 allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
-                trigger_artifact_refs=tuple(sorted(accepted_refs)),
+                trigger_artifact_refs=tuple(sorted(candidate_refs)),
             )
         self._validate_evidence_gate(hypotheses, reviews)
         return hypotheses, reviews

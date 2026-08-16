@@ -14,11 +14,13 @@
 
 ### 当前执行状态（2026-08-16）
 
-- Phase A–G 的代码、Schema、契约、指标和 Trace 改造已完成；在 `multi_agent` 环境中，当前运行时通过 239 项全量测试、Ruff、compileall 与 `git diff --check`。正式预冻结还要求先提交运行时代码，当前记录因此如实为 `passed=false`。
+- Phase A–G 的代码、Schema、契约、指标和 Trace 改造已完成；在 `multi_agent` 环境中，当前运行时通过 241 项全量测试、Ruff、compileall 与 `git diff --check`。新发现的 Review 选择 Gate 修复尚待提交和重新预冻结。
 - Smoke 和多轮针对性 Development 使用了真实 API，并持续暴露及修复框架流程问题；完整过程见 `docs/Phase6_真实问题复盘与排障.md`。
 - 最后一轮 `dev_repair_v2_routes_classified` 证明两个账号 × 三个模型共六个 Supervisor 路由均返回上游免费额度耗尽；系统已能在一次策略调用后以 `SUPERVISOR_ROUTES_EXHAUSTED` 立即失败关闭，并将 failure_class 记录为 `provider_quota_exhausted`。
 - 2026-08-12 15:38 的最小真实 API 复查再次按既定顺序请求六个槽位，全部返回 `AllocationQuota.FreeTierOnly`；该证据保存在 `reports/closed_loop/evaluation/api_route_recheck_20260812_1538/trace.jsonl`。
 - 2026-08-16 已迁移到三模型六槽位路由；逐槽位最小真实请求中 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 返回免费额度耗尽，同模型账号 2 及其余四个槽位均成功。脱敏证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`。
+- 首次完整 Development 在前两题均出现 `NO_PROGRESS_LOOP` 后中止，因为 0/2 已无法达到 4/5；根因是 Engine 混淆候选 Hypothesis 集合与最终接受集合的 Review 规则。
+- 修复后的真实针对性运行 `dev_repair_v2_review_selection_gatefix_gcd` 为 1/1 solved，目标测试、完整回归、Patch Binding 与 Validation 全部通过；完整 5 题仍必须在新提交上重跑。
 - 完整 5 任务 Development 尚未在最终代码指纹上运行，因而尚不具备冻结资格；代码/配置/Prompt/路由尚未冻结，10 任务 Frozen Test 也不得开始。
 - 提交当前运行时代码并重新通过预冻结后，必须从本计划第 10 节“第四步：完整 Development”继续，不得把单任务协议门通过当作完整验收。
 - A–G 要求、针对性真实运行和正式评测门的逐项证据见 `docs/Phase6_闭环加固v2完成性审计.md`。

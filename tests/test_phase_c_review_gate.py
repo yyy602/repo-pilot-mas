@@ -148,6 +148,99 @@ def test_supported_review_moves_resolution_to_acceptance_path(tmp_path: Path) ->
     assert reviews[0].ref == review.ref
 
 
+def test_comparison_review_can_select_one_of_multiple_candidates(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    first = _hypothesis()
+    second = Artifact(
+        "N4.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N4",
+        {
+            **first.to_dict()["content"],
+            "root_cause": "the upper bound starts one position beyond the array",
+        },
+        input_refs=(evidence.ref,),
+    )
+    comparison = Artifact(
+        "N5.review",
+        ArtifactType.REVIEW,
+        "N5",
+        {
+            **_review(second).to_dict()["content"],
+            "mode": "hypothesis_comparison",
+            "target_artifact_ref": second.ref,
+            "target_artifact_refs": [first.ref, second.ref],
+        },
+        input_refs=(evidence.ref, first.ref, second.ref),
+    )
+    for artifact in (evidence, first, second, comparison):
+        engine.add_artifact(artifact)
+
+    hypotheses, reviews = engine._validate_hypothesis_acceptance(
+        type(
+            "Decision",
+            (),
+            {
+                "hypothesis_refs": (second.ref,),
+                "primary_hypothesis_ref": second.ref,
+                "review_refs": (comparison.ref,),
+            },
+        )()
+    )
+
+    assert [item.ref for item in hypotheses] == [second.ref]
+    assert [item.ref for item in reviews] == [comparison.ref]
+
+
+def test_recommendation_can_select_one_after_multiple_candidates(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    first = _hypothesis()
+    second = Artifact(
+        "N4.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N4",
+        {
+            **first.to_dict()["content"],
+            "root_cause": "the recursive call does not reduce its second argument",
+        },
+        input_refs=(evidence.ref,),
+    )
+    recommendation = Artifact(
+        "N5.review",
+        ArtifactType.REVIEW,
+        "N5",
+        {
+            **_review(second).to_dict()["content"],
+            "target_artifact_ref": second.ref,
+            "target_artifact_refs": [second.ref],
+        },
+        input_refs=(evidence.ref, second.ref),
+    )
+    for artifact in (evidence, first, second, recommendation):
+        engine.add_artifact(artifact)
+
+    hypotheses, reviews = engine._validate_hypothesis_acceptance(
+        type(
+            "Decision",
+            (),
+            {
+                "hypothesis_refs": (second.ref,),
+                "primary_hypothesis_ref": second.ref,
+                "review_refs": (recommendation.ref,),
+            },
+        )()
+    )
+
+    assert [item.ref for item in hypotheses] == [second.ref]
+    assert [item.ref for item in reviews] == [recommendation.ref]
+
+
 def test_engine_snapshot_exposes_phase_c_resolution(tmp_path: Path) -> None:
     engine = _engine(tmp_path)
     snapshot = engine.snapshot()

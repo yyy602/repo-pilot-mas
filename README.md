@@ -105,7 +105,7 @@ Dynamic Hybrid 在这个小型固定协议内完成更多任务，但也更慢�
 git diff --check
 ```
 
-历史 Phase 6 v1 最终验收环境中全量 `130 passed`。当前闭环加固 v2 在 `multi_agent` 环境中通过全量 `239 tests`、Ruff、compileall 与 `git diff --check`，但这些代码检查不能代替尚未运行的完整 Development 和 Frozen Test。正式 Development 前还必须在提交运行时代码后执行 `python -m scripts.run_phase6_pre_freeze_checks`，dirty tree 会失败关闭。
+历史 Phase 6 v1 最终验收环境中全量 `130 passed`。当前闭环加固 v2 在 `multi_agent` 环境中通过全量 `241 tests`、Ruff、compileall 与 `git diff --check`，但这些代码检查不能代替尚未通过的完整 Development 和 Frozen Test。正式 Development 前还必须在提交运行时代码后执行 `python -m scripts.run_phase6_pre_freeze_checks`，dirty tree 会失败关闭。
 
 ## 当前限制
 
