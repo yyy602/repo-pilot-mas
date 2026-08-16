@@ -740,6 +740,19 @@ _REPLAN_TARGET_BY_FAILURE_CLASS = {
     "blocking_patch_review": "patch",
 }
 
+_ROOT_CAUSE_REVIEW_MODES = frozenset(
+    {"hypothesis_comparison", "root_cause_recommendation"}
+)
+
+
+def review_opens_hypothesis_evidence_gap(content: Mapping[str, Any]) -> bool:
+    """Return whether a root-cause Review explicitly requests more Evidence."""
+
+    return content.get("mode") in _ROOT_CAUSE_REVIEW_MODES and (
+        content.get("verdict") == "needs_more_evidence"
+        or bool(content.get("remaining_uncertainty"))
+    )
+
 
 def additional_investigation_required(
     artifacts: Sequence[Mapping[str, Any]],
@@ -763,10 +776,7 @@ def additional_investigation_required(
             artifact_type == "hypothesis" and content.get("missing_evidence")
         ) or (
             artifact_type == "review"
-            and (
-                content.get("verdict") == "needs_more_evidence"
-                or content.get("remaining_uncertainty")
-            )
+            and review_opens_hypothesis_evidence_gap(content)
         ):
             latest_explicit_gap_index = index
 
@@ -827,9 +837,8 @@ def evidence_gap_recovery_stage(
             hypothesis_indexes.append(index)
             if content.get("missing_evidence"):
                 latest_gap_index = index
-        elif artifact_type == "review" and (
-            content.get("verdict") == "needs_more_evidence"
-            or content.get("remaining_uncertainty")
+        elif artifact_type == "review" and review_opens_hypothesis_evidence_gap(
+            content
         ):
             latest_gap_index = index
         elif (

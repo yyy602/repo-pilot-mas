@@ -13,6 +13,8 @@ from repo_pilot_mas.schemas import (
     DecisionAction,
     SupervisorDecision,
     TaskSpec,
+    additional_investigation_required,
+    evidence_gap_recovery_stage,
 )
 from repo_pilot_mas.schemas.hypothesis_resolution import HypothesisResolutionStatus
 from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
@@ -345,6 +347,29 @@ def test_engine_requires_rediagnosis_after_gap_evidence(
     assert result.code == "EVIDENCE_GAP_REQUIRES_REDIAGNOSIS"
     assert result.recommended_stage == WorkflowStage.DIAGNOSIS.value
     assert result.details["required_node_type"] == "DIAGNOSIS_TASK"
+
+
+def test_patch_review_uncertainty_is_not_a_root_cause_evidence_gap() -> None:
+    artifacts = [
+        _evidence().to_dict(),
+        {
+            "artifact_ref": "N8.patch@v1",
+            "artifact_type": "patch_candidate",
+            "content": {},
+        },
+        {
+            "artifact_ref": "N9.review@v1",
+            "artifact_type": "review",
+            "content": {
+                "mode": "patch_review",
+                "verdict": "needs_more_evidence",
+                "remaining_uncertainty": ["还需覆盖相邻边界输入"],
+            },
+        },
+    ]
+
+    assert additional_investigation_required(artifacts) is False
+    assert evidence_gap_recovery_stage(artifacts) is None
 
 
 def test_minimum_evidence_gate_rejects_source_only_hypothesis(tmp_path: Path) -> None:

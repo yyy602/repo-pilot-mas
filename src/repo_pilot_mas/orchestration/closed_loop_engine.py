@@ -24,6 +24,7 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     SupervisorDecision,
     additional_investigation_required,
     evidence_gap_recovery_stage,
+    review_opens_hypothesis_evidence_gap,
 )
 
 _ROOT_CAUSE_REVIEW_MODES = frozenset({"hypothesis_comparison", "root_cause_recommendation"})
@@ -411,11 +412,7 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                     )
                     or (
                         artifact.artifact_type is ArtifactType.REVIEW
-                        and (
-                            artifact.content.get("verdict")
-                            == "needs_more_evidence"
-                            or artifact.content.get("remaining_uncertainty")
-                        )
+                        and review_opens_hypothesis_evidence_gap(artifact.content)
                     )
                 )
                 code = (

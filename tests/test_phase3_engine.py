@@ -765,6 +765,81 @@ def test_approved_replan_budget_zero_still_allows_target_recovery_node(
     assert engine.budget.replans == 1
 
 
+def test_blocking_patch_review_replan_can_create_patch_recovery_node(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path, budget=EngineBudget(max_replans=1))
+    patch, _ = _validated_patch_pair(engine)
+    resolution = engine.blackboard.hypothesis_resolution
+    blocking_review = Artifact(
+        "blocking-patch-review",
+        ArtifactType.REVIEW,
+        "N4",
+        {
+            **_review_artifact(
+                "review-template",
+                "patch_review",
+                patch.ref,
+                _root_evidence().ref,
+            ).to_dict()["content"],
+            "verdict": "needs_more_evidence",
+            "remaining_uncertainty": ["还需覆盖相邻边界输入"],
+        },
+        input_refs=(patch.ref,),
+    )
+    engine.add_artifact(blocking_review)
+    engine.blackboard.set_stage("patch")
+
+    requested = engine.apply_decision(
+        SupervisorDecision(
+            "D-replan-blocking-review",
+            DecisionAction.REQUEST_REPLAN,
+            "补丁审查仍有阻塞项，回退补丁阶段",
+            evidence_refs=(blocking_review.ref,),
+            next_workflow_stage="patch",
+            failure_class="blocking_patch_review",
+        )
+    )
+    assert requested.ok
+    recovery = engine.snapshot()["recovery"]
+    assert recovery["pending_replan"] is True
+
+    replan_ref = str(recovery["replan_ref"])
+    created = engine.apply_decision(
+        SupervisorDecision(
+            "D-execute-blocking-review-replan",
+            DecisionAction.CREATE_TASK,
+            "执行已批准的补丁恢复",
+            create_tasks=(
+                CreateTaskRequest(
+                    "PATCH_TASK",
+                    "PatchAgent",
+                    "minimal",
+                    "根据补丁审查意见生成新的最小补丁",
+                    input_artifact_ids=(
+                        *resolution.accepted_refs,
+                        *resolution.review_refs,
+                        patch.ref,
+                        blocking_review.ref,
+                    ),
+                ),
+            ),
+            evidence_refs=(replan_ref, blocking_review.ref),
+            gate_record=GateRecord(
+                "approved_patch_review_replan",
+                (replan_ref, blocking_review.ref),
+                "已有定向补丁重规划授权",
+                1,
+                "执行一个已批准的补丁恢复节点",
+            ),
+            next_workflow_stage="patch",
+        )
+    )
+
+    assert created.ok
+    assert engine.snapshot()["recovery"]["pending_replan"] is False
+
+
 def test_remaining_global_supervisor_actions(tmp_path: Path) -> None:
     engine = _engine(tmp_path)
     for decision_id, target in (
