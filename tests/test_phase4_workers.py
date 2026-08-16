@@ -504,6 +504,82 @@ def test_patch_agent_uses_target_precheck_to_correct_failed_draft(
     ).read_text(encoding="utf-8")
 
 
+def test_patch_agent_preserves_target_test_failure_class(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "target.py").write_text(
+        "def is_valid_parenthesization(parens):\n"
+        "    depth = 0\n"
+        "    for paren in parens:\n"
+        "        depth += 1 if paren == '(' else -1\n"
+        "    return True\n",
+        encoding="utf-8",
+    )
+    tests = source / "tests"
+    tests.mkdir()
+    (tests / "test_target.py").write_text(
+        "from target import is_valid_parenthesization\n\n"
+        "def test_unclosed_is_rejected():\n"
+        "    assert is_valid_parenthesization('(') is False\n",
+        encoding="utf-8",
+    )
+    task = _task(source)
+    workspace = WorkspaceManager(
+        source,
+        tmp_path / "workspaces",
+    ).create(task.task_id, "target-precheck-failure")
+    responses: list[dict[str, object]] = []
+    for _ in range(3):
+        responses.extend(
+            [
+                {
+                    "thought_summary": "检查候选",
+                    "action": {
+                        "type": "tool",
+                        "tool_name": "inspect_code",
+                        "arguments": {"file_path": "target.py"},
+                    },
+                },
+                {
+                    "thought_summary": "提交仍不完整的候选",
+                    "action": {
+                        "type": "final",
+                        "status": "success",
+                        "reason": "候选可应用但目标测试仍失败",
+                        "artifact": {
+                            "file_path": "target.py",
+                            "old_text": "    return True",
+                            "new_text": "    return depth >= 0",
+                            "rationale": "尝试检查深度",
+                            "risk_notes": [],
+                        },
+                    },
+                },
+            ]
+        )
+
+    with pytest.raises(WorkerAgentError) as caught:
+        PatchAgent(
+            FakeModelAdapter(responses),
+            build_workspace_tool_registry(task, workspace),
+            workspace,
+        ).run(
+            task,
+            "N7",
+            "minimal",
+            "生成并预检候选修复",
+            (_hypothesis(), _evidence()),
+        )
+
+    assert caught.value.code == "PATCH_TARGET_TEST_FAILED"
+    assert "目标测试预检查失败" in str(caught.value)
+    assert "return True" in (workspace.root / "target.py").read_text(
+        encoding="utf-8"
+    )
+
+
 class _AdaptiveInvestigatorModel(ModelAdapter):
     def __init__(self) -> None:
         super().__init__("adaptive-investigator")

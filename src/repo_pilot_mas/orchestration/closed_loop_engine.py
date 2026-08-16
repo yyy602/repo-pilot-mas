@@ -354,6 +354,37 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
         return False
 
     def _validate_decision(self, decision: SupervisorDecision) -> None:
+        resolution = self.blackboard.hypothesis_resolution
+        downstream_stages = {
+            legacy_engine.WorkflowStage.PATCH.value,
+            legacy_engine.WorkflowStage.VALIDATION.value,
+            legacy_engine.WorkflowStage.FINALIZATION.value,
+            legacy_engine.WorkflowStage.COMPLETED.value,
+        }
+        if (
+            decision.action
+            in {DecisionAction.CREATE_TASK, DecisionAction.CHANGE_WORKFLOW_STAGE}
+            and decision.next_workflow_stage in downstream_stages
+            and resolution.status is not HypothesisResolutionStatus.ACCEPTED
+        ):
+            raise DecisionPolicyViolation(
+                "HYPOTHESIS_ACCEPTANCE_REQUIRED",
+                "Hypothesis must be accepted before entering Patch or a downstream stage",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=(
+                    "ACCEPT_HYPOTHESIS",
+                    "CREATE_TASK",
+                    "CHANGE_WORKFLOW_STAGE",
+                    "TERMINATE_TASK",
+                ),
+                trigger_artifact_refs=tuple(
+                    dict.fromkeys((*resolution.candidate_refs, *resolution.review_refs))
+                ),
+                details={
+                    "hypothesis_resolution_status": resolution.status.value,
+                    "requested_stage": decision.next_workflow_stage,
+                },
+            )
         if decision.action is DecisionAction.CREATE_TASK:
             for request in decision.create_tasks:
                 exhausted = tuple(

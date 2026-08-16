@@ -6,7 +6,13 @@ import pytest
 
 from repo_pilot_mas.orchestration import OrchestrationEngine, WorkflowStage
 from repo_pilot_mas.orchestration.policy_violation import DecisionPolicyViolation
-from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec
+from repo_pilot_mas.schemas import (
+    Artifact,
+    ArtifactType,
+    DecisionAction,
+    SupervisorDecision,
+    TaskSpec,
+)
 from repo_pilot_mas.schemas.hypothesis_resolution import HypothesisResolutionStatus
 from repo_pilot_mas.schemas.worker_artifact import validate_worker_artifact
 
@@ -247,6 +253,33 @@ def test_engine_snapshot_exposes_phase_c_resolution(tmp_path: Path) -> None:
 
     assert "hypothesis_resolution" in snapshot["selections"]
     assert snapshot["workflow_stage"] == WorkflowStage.INITIALIZATION.value
+
+
+def test_engine_rejects_patch_stage_before_hypothesis_acceptance(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    hypothesis = _hypothesis()
+    review = _review(hypothesis)
+    for artifact in (evidence, hypothesis, review):
+        engine.add_artifact(artifact)
+    engine.blackboard.set_stage(WorkflowStage.DIAGNOSIS.value)
+
+    result = engine.apply_decision(
+        SupervisorDecision(
+            "enter-patch-before-acceptance",
+            DecisionAction.CHANGE_WORKFLOW_STAGE,
+            "review supported the hypothesis, so enter patch",
+            next_workflow_stage=WorkflowStage.PATCH.value,
+        )
+    )
+
+    assert result.ok is False
+    assert result.code == "HYPOTHESIS_ACCEPTANCE_REQUIRED"
+    assert result.recoverable is True
+    assert result.recommended_stage == WorkflowStage.REVIEW.value
+    assert engine.blackboard.workflow_stage == WorkflowStage.DIAGNOSIS.value
 
 
 def test_minimum_evidence_gate_rejects_source_only_hypothesis(tmp_path: Path) -> None:

@@ -1034,6 +1034,12 @@ def supervisor_decision_schema_for_state(
             allowed_next_stages = tuple(
                 dict.fromkeys((stage, *_LEGAL_STAGE_TRANSITIONS.get(stage, ())))
             )
+            if not accepted:
+                allowed_next_stages = tuple(
+                    item
+                    for item in allowed_next_stages
+                    if item not in {"patch", "validation", "finalization", "completed"}
+                )
             constrained["properties"]["next_workflow_stage"] = {
                 "type": "string",
                 "enum": list(allowed_next_stages),
@@ -1073,9 +1079,16 @@ def supervisor_decision_schema_for_state(
                     if required_field not in constrained["required"]:
                         constrained["required"].append(required_field)
         elif action == DecisionAction.CHANGE_WORKFLOW_STAGE.value:
+            allowed_next_stages = _LEGAL_STAGE_TRANSITIONS.get(stage, ())
+            if not accepted:
+                allowed_next_stages = tuple(
+                    item
+                    for item in allowed_next_stages
+                    if item not in {"patch", "validation", "finalization", "completed"}
+                )
             constrained["properties"]["next_workflow_stage"] = {
                 "type": "string",
-                "enum": list(_LEGAL_STAGE_TRANSITIONS.get(stage, ())),
+                "enum": list(allowed_next_stages),
             }
         variants.append(constrained)
 

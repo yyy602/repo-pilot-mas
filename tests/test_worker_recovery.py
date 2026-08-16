@@ -84,6 +84,30 @@ def test_valid_worker_artifact_is_collected(tmp_path: Path) -> None:
     assert engine.graph.get("N1").status is NodeStatus.SUCCEEDED
 
 
+def test_patch_target_test_failure_keeps_patch_recovery_class(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+
+    result = collect_worker_outcome(
+        engine,
+        WorkerOutcome(
+            "N1",
+            NodeStatus.FAILED,
+            reason=(
+                "PATCH_TARGET_TEST_FAILED:WorkerAgentError:"
+                "target pytest failed with AssertionError"
+            ),
+        ),
+    )
+
+    assert result.retry_scheduled is True
+    assert result.details["code"] == "PATCH_TARGET_TEST_FAILED"
+    assert result.details["recovery_class"] == "patch_policy"
+    rejection = engine.blackboard.artifacts.get(str(result.rejection_ref))
+    assert rejection.content["code"] == "PATCH_TARGET_TEST_FAILED"
+
+
 def test_invalid_root_review_target_becomes_recoverable_schema_rejection(
     tmp_path: Path,
 ) -> None:

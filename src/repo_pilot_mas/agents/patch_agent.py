@@ -136,6 +136,7 @@ class PatchAgent:
         applied = None
         draft = None
         target_precheck = None
+        last_failure_code = "MODEL_FORMAT_ERROR"
         for attempt_index in range(3):
             if (
                 result.status == "completed"
@@ -156,6 +157,7 @@ class PatchAgent:
                         {"patch_text": patch_text},
                     )
                     if not applied.ok:
+                        last_failure_code = "MODEL_FORMAT_ERROR"
                         failure = (
                             applied.error.message
                             if applied.error
@@ -206,6 +208,7 @@ class PatchAgent:
                             )
                         if target_precheck.ok:
                             break
+                        last_failure_code = "PATCH_TARGET_TEST_FAILED"
                         output = "\n".join(
                             part
                             for part in (
@@ -221,8 +224,10 @@ class PatchAgent:
                         restore_workspace(self.workspace)
                         applied = None
                 except (OSError, ValueError) as exc:
+                    last_failure_code = "MODEL_FORMAT_ERROR"
                     failure = str(exc)
             else:
+                last_failure_code = "MODEL_FORMAT_ERROR"
                 failure = "尚未成功 inspect_code 并返回结构化文本替换"
             if attempt_index == 2:
                 break
@@ -243,6 +248,20 @@ class PatchAgent:
                 f"PatchAgent 报告失败：{result.final_action['reason']}"
             )
         if draft is None or applied is None or not applied.ok:
+            if (
+                last_failure_code == "PATCH_TARGET_TEST_FAILED"
+                and target_precheck is not None
+                and not target_precheck.ok
+            ):
+                output = "\n".join(
+                    part
+                    for part in (target_precheck.stdout, target_precheck.stderr)
+                    if part
+                )[-2000:]
+                raise WorkerAgentError(
+                    f"目标测试预检查失败：{output}",
+                    code="PATCH_TARGET_TEST_FAILED",
+                )
             raise WorkerAgentError("PatchAgent 未能生成可应用的结构化文本替换")
         collected = collect_diff(
             self.workspace,

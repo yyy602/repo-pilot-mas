@@ -95,6 +95,8 @@ DYNAMIC_SUPERVISOR_PROMPT = """你是 RepoPilot-MAS 的全局 SupervisorAgent。
     提出新的明确证据缺口时，禁止继续创建 INVESTIGATION_TASK，应立即进入 Diagnosis。只有
     Hypothesis.missing_evidence、Review.needs_more_evidence/remaining_uncertainty 明确提出新缺口时才可
     重新补证；新增 verified Evidence 回应缺口后必须再次关闭 Investigation。
+23. HypothesisResolution.status 不是 accepted 时，next_workflow_stage 不得为 patch、validation 或
+    finalization；若快照已处于这些阶段但根因未接受，必须先退回 review/diagnosis 修复状态。
 """
 
 
@@ -167,6 +169,9 @@ class SupervisorAgent:
         if callable(begin_recovery):
             begin_recovery()
         snapshot_view = _supervisor_snapshot_view(snapshot)
+        processed_decision_ids = set(
+            snapshot_view["decision_history"]["processed_decision_ids"]
+        )
         original_chars = len(
             json.dumps(snapshot, ensure_ascii=False, sort_keys=True)
         )
@@ -244,6 +249,11 @@ class SupervisorAgent:
                         usage=total_usage,
                     )
                 decision = SupervisorDecision.from_dict(response.structured_output)
+                if decision.decision_id in processed_decision_ids:
+                    raise ValueError(
+                        "decision_id has already been processed: "
+                        f"{decision.decision_id}"
+                    )
                 break
             except ModelAdapterError as exc:
                 total_usage = _add_usage(total_usage, exc.usage)
@@ -522,7 +532,7 @@ def _supervisor_snapshot_view(
         ],
         "selections": snapshot.get("selections", {}),
         "decision_history": {
-            "processed_decision_ids": list(processed_ids[-12:]),
+            "processed_decision_ids": list(processed_ids),
             "processed_decision_count": len(processed_ids),
             "last_supervisor_call": _compact_last_supervisor_call(
                 history.get("last_supervisor_call")

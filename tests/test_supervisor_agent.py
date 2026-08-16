@@ -149,7 +149,7 @@ def test_supervisor_snapshot_view_removes_bulk_outputs_but_keeps_semantics() -> 
     }
     assert compact["decision_history"]["processed_decision_count"] == 20
     assert compact["decision_history"]["processed_decision_ids"] == [
-        f"D{i}" for i in range(8, 20)
+        f"D{i}" for i in range(20)
     ]
     assert len(text) < len(json.dumps(snapshot, ensure_ascii=False)) / 4
 
@@ -168,6 +168,29 @@ def test_supervisor_repairs_invalid_worker_contract() -> None:
     assert outcome.attempts == 2
     assert outcome.decision.create_tasks[0].agent_type == "InvestigatorAgent"
     assert outcome.decision.create_tasks[0].mode == "code_retrieval"
+
+
+def test_supervisor_retries_duplicate_decision_id_before_engine() -> None:
+    duplicate = _valid_decision()
+    duplicate["decision_id"] = "D-used"
+    fresh = _valid_decision()
+    fresh["decision_id"] = "D-fresh"
+    model = FakeModelAdapter([duplicate, fresh])
+
+    outcome = SupervisorAgent(
+        model,
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=1,
+    ).decide(
+        {
+            "workflow_stage": "initialization",
+            "nodes": [],
+            "decision_history": {"processed_decision_ids": ["D-used"]},
+        }
+    )
+
+    assert model.calls == 2
+    assert outcome.decision.decision_id == "D-fresh"
 
 
 def test_structured_output_error_is_recoverable(
@@ -264,6 +287,13 @@ def test_stage_specific_schema_only_exposes_legal_actions() -> None:
     assert "ACCEPT_HYPOTHESIS" in _schema_actions(diagnosis)
     assert "SELECT_PATCH" not in _schema_actions(diagnosis)
     assert "PATCH_TASK" not in _schema_node_types(diagnosis)
+    for variant in diagnosis["oneOf"]:
+        if variant["properties"]["action"]["const"] not in {
+            "CREATE_TASK",
+            "CHANGE_WORKFLOW_STAGE",
+        }:
+            continue
+        assert "patch" not in variant["properties"]["next_workflow_stage"]["enum"]
 
 
 def test_hypothesis_with_missing_evidence_cannot_be_accepted() -> None:
