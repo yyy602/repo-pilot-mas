@@ -250,7 +250,21 @@ class SupervisorAgent:
                         "supervisor response has no structured decision",
                         usage=total_usage,
                     )
+                raw_evidence_refs = set(
+                    _string_list(response.structured_output.get("evidence_refs", ()))
+                )
                 decision = SupervisorDecision.from_dict(response.structured_output)
+                added_gate_refs = tuple(
+                    ref for ref in decision.evidence_refs if ref not in raw_evidence_refs
+                )
+                if added_gate_refs:
+                    self._trace(
+                        "supervisor_gate_evidence_refs_normalized",
+                        {
+                            "decision_id": decision.decision_id,
+                            "added_evidence_refs": list(added_gate_refs),
+                        },
+                    )
                 if decision.decision_id in processed_decision_ids:
                     raise ValueError(
                         "decision_id has already been processed: "

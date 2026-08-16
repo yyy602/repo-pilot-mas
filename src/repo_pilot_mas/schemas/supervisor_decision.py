@@ -224,6 +224,14 @@ class SupervisorDecision:
             GateRecord,
         ):
             raise TypeError("gate_record must be a GateRecord")
+        if self.gate_record is not None:
+            object.__setattr__(
+                self,
+                "evidence_refs",
+                _unique_strings(
+                    (*self.evidence_refs, *self.gate_record.trigger_artifact_refs)
+                ),
+            )
         self._validate_action_fields()
 
     def _normalize_hypothesis_selection(self) -> None:

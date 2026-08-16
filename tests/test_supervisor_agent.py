@@ -674,6 +674,109 @@ def test_pending_replan_schema_requires_target_recovery_node() -> None:
     }
 
 
+def test_supervisor_normalizes_gate_triggers_into_evidence_refs(
+    tmp_path: Path,
+) -> None:
+    trace_path = tmp_path / "trace.jsonl"
+    decision = {
+        "decision_id": "diagnose-after-evidence-gap",
+        "action": "CREATE_TASK",
+        "reason": "补证完成后重新诊断",
+        "evidence_refs": ["E2@v1"],
+        "create_tasks": [
+            {
+                "node_type": "DIAGNOSIS_TASK",
+                "agent_type": "DiagnosticianAgent",
+                "mode": "control_flow",
+                "objective": "基于新增执行证据重新诊断根因",
+                "depends_on": ["N4"],
+                "input_artifact_ids": ["E1@v1", "E2@v1"],
+            }
+        ],
+        "next_workflow_stage": "diagnosis",
+        "gate_record": {
+            "gate_name": "evidence_completion_re_diagnosis",
+            "trigger_artifact_refs": ["R1@v1", "E2@v1"],
+            "reason": "根因审查要求补证且新证据已经生成",
+            "added_node_count": 1,
+            "budget_effect": "新增一个受限诊断节点",
+        },
+    }
+    snapshot = {
+        "workflow_stage": "investigation",
+        "nodes": [
+            {
+                "node_id": "N2",
+                "node_type": "DIAGNOSIS_TASK",
+                "status": "SUCCEEDED",
+            },
+            {
+                "node_id": "N4",
+                "node_type": "INVESTIGATION_TASK",
+                "status": "SUCCEEDED",
+            },
+        ],
+        "artifacts": [
+            _verified_reproduction(),
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"missing_evidence": []},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "root_cause_recommendation",
+                    "verdict": "needs_more_evidence",
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+            {
+                "artifact_ref": "E2@v1",
+                "artifact_type": "evidence",
+                "content": {
+                    "evidence_kind": "execution",
+                    "verified": True,
+                    "status": "verified",
+                    "source": {
+                        "path": "target.py",
+                        "line_start": 8,
+                        "line_end": 8,
+                    },
+                    "content": "边界输入执行路径",
+                    "tool_trace_ids": ["trace-2"],
+                    "missing_evidence": [],
+                },
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {"status": "needs_evidence"}
+        },
+    }
+    supervisor = SupervisorAgent(
+        FakeModelAdapter([decision]),
+        trace_writer=TraceWriter(trace_path),
+    )
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.decision.evidence_refs == ("E2@v1", "R1@v1")
+    assert outcome.decision.create_tasks[0].input_artifact_ids == (
+        "E1@v1",
+        "E2@v1",
+    )
+    events = [
+        json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()
+    ]
+    normalized = [
+        event
+        for event in events
+        if event["event_type"] == "supervisor_gate_evidence_refs_normalized"
+    ]
+    assert normalized[0]["data"]["added_evidence_refs"] == ["R1@v1"]
+
+
 def test_exhausted_failed_patch_schema_only_allows_termination() -> None:
     schema = supervisor_decision_schema_for_state(
         {
