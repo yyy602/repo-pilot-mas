@@ -1,6 +1,6 @@
 # RepoPilot-MAS
 
-基于 API Supervisor、动态任务图与确定性验证的多智能体代码修复系统。Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 的实现与本地回归已完成，正式重新验收正等待 Supervisor API 配额恢复。阶段状态和验收口径以 `docs/RepoPilot-MAS_完整计划.md` 为唯一基线。
+基于 API Supervisor、动态任务图与确定性验证的多智能体代码修复系统。Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 的实现与本地回归已完成，三模型六槽位迁移后等待重新预冻结与正式验收。阶段状态和验收口径以 `docs/RepoPilot-MAS_完整计划.md` 为唯一基线。
 
 下文的冻结结果和简历数字均来自历史运行 `phase6_quixbugs_final_v1`。当前分支不能沿用该运行证明加固 v2 已验收；v2 还必须重新通过完整 Development、冻结身份、Frozen Test 和独立审计。
 
@@ -28,7 +28,7 @@ Worker 不能修改全局任务图；Supervisor 不能直接执行文件或进�
 - 九个路径受限、命令受信、超时和输出有界的确定性工具；
 - 双 GPU 本地 WorkerPool、显式模型释放和任务级隔离工作区；
 - 阿里云三模型×双账号六槽位路由，区分额度耗尽、限流和配置错误；
-- JSONL Trace、原始响应引用、Token/成本/时延和机制指标；
+- JSONL Trace、原始响应引用、Token/调用/时延和机制指标；历史 v1 保留冻结等价成本证据；
 - development/test 隔离的 QuixBugs 批量评测与独立审计。
 
 ## 快速开始

@@ -6,20 +6,21 @@
 
 本版修订明确：
 
-> `qwen3.7-max → qwen3.7-flash → qwen3.7-flash-2026-07-15` 是既定的模型优先级与自动降级策略。“哪个模型可用就使用哪个模型”属于正常运行逻辑，不视为缺陷，也不要求固定使用某一个 Supervisor 模型。
+> 当前正式 Supervisor 路由为 `qwen3.8-max → deepseek-v4-pro-0813 → deepseek-v4-flash-0731`，使用“强模型优先、账号其次”的六槽位自动降级策略。模型自动切换属于正常运行逻辑，不视为缺陷。
 
-因此，模型路由只需要保留完整 Trace 和实际调用统计，不列入待修复问题。
+因此，模型路由只需要保留完整 Trace、实际调用与 Token 统计，不列入待修复问题。闭环加固 v2 不把人民币价格作为验收指标；调用次数、Token、超时和预算失败关闭仍必须完整记录。历史 Phase 6 v1 的冻结等价成本证据保持不变。
 
 本计划的目标不是简单提高预算、降低 Gate 严格度或回退后续闭环设计，而是修复闭环改造后暴露出的跨模块集成问题，使系统真正形成可运行、可恢复、可验证、可评测的代码修复闭环。
 
-### 当前执行状态（2026-08-12）
+### 当前执行状态（2026-08-16）
 
 - Phase A–G 的代码、Schema、契约、指标和 Trace 改造已完成；在 `multi_agent` 环境中，当前运行时通过 239 项全量测试、Ruff、compileall 与 `git diff --check`。正式预冻结还要求先提交运行时代码，当前记录因此如实为 `passed=false`。
 - Smoke 和多轮针对性 Development 使用了真实 API，并持续暴露及修复框架流程问题；完整过程见 `docs/Phase6_真实问题复盘与排障.md`。
 - 最后一轮 `dev_repair_v2_routes_classified` 证明两个账号 × 三个模型共六个 Supervisor 路由均返回上游免费额度耗尽；系统已能在一次策略调用后以 `SUPERVISOR_ROUTES_EXHAUSTED` 立即失败关闭，并将 failure_class 记录为 `provider_quota_exhausted`。
 - 2026-08-12 15:38 的最小真实 API 复查再次按既定顺序请求六个槽位，全部返回 `AllocationQuota.FreeTierOnly`；该证据保存在 `reports/closed_loop/evaluation/api_route_recheck_20260812_1538/trace.jsonl`。
+- 2026-08-16 已迁移到三模型六槽位路由；逐槽位最小真实请求中 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 返回免费额度耗尽，同模型账号 2 及其余四个槽位均成功。脱敏证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`。
 - 完整 5 任务 Development 尚未在最终代码指纹上运行，因而尚不具备冻结资格；代码/配置/Prompt/路由尚未冻结，10 任务 Frozen Test 也不得开始。
-- 提交当前运行时代码并恢复可用的 DashScope 配额（或提供新的受授权 Key）后，必须从本计划第 10 节“第四步：完整 Development”继续，不得把单任务协议门通过当作完整验收。
+- 提交当前运行时代码并重新通过预冻结后，必须从本计划第 10 节“第四步：完整 Development”继续，不得把单任务协议门通过当作完整验收。
 - A–G 要求、针对性真实运行和正式评测门的逐项证据见 `docs/Phase6_闭环加固v2完成性审计.md`。
 
 ---
@@ -342,7 +343,7 @@ accepted Hypothesis 的 supporting_evidence
 
 ---
 
-# 4.3 P2：成本、状态体积和可观测性问题
+# 4.3 P2：Token、状态体积和可观测性问题
 
 ## P2-1 Supervisor 状态快照过长
 
@@ -365,7 +366,7 @@ accepted Hypothesis 的 supporting_evidence
 - 输出 Token；
 - 格式错误概率；
 - 响应时延；
-- API 成本。
+- API 资源消耗。
 
 ---
 
@@ -388,7 +389,7 @@ accepted Hypothesis 的 supporting_evidence
 每次 route_succeeded
 每次 route_exhausted
 最终每次决策实际使用的 model_id
-各模型调用次数、Token 和成本
+各模型调用次数和 Token
 ```
 
 此项仅属于可观测性要求，不作为性能退化根因，也不列入阻断修复项。
@@ -1038,7 +1039,7 @@ patch_validation_passed = true
 - replan_attempt_count
 - replan_success_rate
 
-### 路由与成本
+### 路由与资源
 
 - route_attempts_by_model
 - route_successes_by_model
@@ -1047,7 +1048,6 @@ patch_validation_passed = true
 - worker_tokens
 - total_tokens
 - latency_by_stage
-- estimated_cost
 
 模型自动 Fallback 只作为路由统计，不作为失败项。
 

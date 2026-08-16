@@ -5,7 +5,7 @@
 > 英文名称：RepoPilot-MAS: A Multi-Agent Code Repair System with Dynamic Task Graphs and Adversarial Review
 > 计划版本：v2.5
 > 文档状态：唯一权威计划基线
-> 当前进度：Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 实现完成，等待 API 配额恢复后重新验收
+> 当前进度：Phase 0～Phase 5 与 Phase 6 历史基线 v1 已完成；闭环加固 v2 实现完成，新路由等待提交、重新预冻结和正式验收
 
 ---
 
@@ -1115,26 +1115,31 @@ supervisor:
   routing:
     strategy: model_first_account_second
     model_order:
-      - qwen3.7-max-2026-06-08
-      - qwen3.7-flash
-      - qwen3.7-flash-2026-07-15
+      - qwen3.8-max
+      - deepseek-v4-pro-0813
+      - deepseek-v4-flash-0731
     api_key_envs:
       - DASHSCOPE_API_KEY_1
       - DASHSCOPE_API_KEY_2
+  generation:
+    temperature: 0.0
+    enable_thinking: false
 ```
 
 `credential_file` 由 Phase 3 运行入口自动读取，但不得写入 Trace；进程环境中已经显式设置的同名变量优先于文件值。
 
 ### 12.4 Supervisor 路由顺序
 
-路由使用“模型优先、账号其次”的固定六槽位顺序：
+路由使用“强模型优先、账号其次”的固定六槽位顺序：
 
-1. `qwen3.7-max-2026-06-08` + 账号 1；
-2. `qwen3.7-max-2026-06-08` + 账号 2；
-3. `qwen3.7-flash` + 账号 1；
-4. `qwen3.7-flash` + 账号 2；
-5. `qwen3.7-flash-2026-07-15` + 账号 1；
-6. `qwen3.7-flash-2026-07-15` + 账号 2。
+1. `qwen3.8-max` + 账号 1；
+2. `qwen3.8-max` + 账号 2；
+3. `deepseek-v4-pro-0813` + 账号 1；
+4. `deepseek-v4-pro-0813` + 账号 2；
+5. `deepseek-v4-flash-0731` + 账号 1；
+6. `deepseek-v4-flash-0731` + 账号 2。
+
+三类模型统一使用确定性的非思考 Supervisor 参数，并受相同 Token、调用次数和超时预算约束。
 
 Engine 不根据模型自评动态改变该优先级。只有服务端明确返回免费额度耗尽时，Router 才把当前“模型 + 账号”槽位标记为耗尽，并将状态写入不含密钥的检查点。普通 429 可能是瞬时 RPS/TPM 限流，只执行有限退避并允许当次请求切换槽位，不能永久扣除免费额度。鉴权失败、模型不存在和参数错误属于配置错误，必须结构化失败，不能用切换模型掩盖。
 
@@ -1511,7 +1516,7 @@ LangGraph 运行时验收：
 
 ### Phase 6：评测、观测与简历交付
 
-**状态：历史基线 v1 已完成（2026-08-02）；闭环加固 v2 已完成实现，重新验收受 Supervisor API 配额阻塞（2026-08-12）。**
+**状态：历史基线 v1 已完成（2026-08-02）；闭环加固 v2 已完成实现，三模型六槽位迁移后等待重新预冻结与正式验收（2026-08-16）。**
 
 **目标：把系统整理为可复现、可对照和可写入简历的项目。**
 
@@ -1520,7 +1525,7 @@ LangGraph 运行时验收：
 - 固定至少 10 个 QuixBugs 任务；
 - 运行三个主系统；
 - 固定各系统的角色模型、工具、任务、随机种子集合和分项预算；
-- 汇总任务、成本、时延和协作指标；
+- 汇总任务、Token/调用预算、时延和协作指标；
 - 运行关键消融；
 - 编写 README、架构图和限制说明；
 - 整理演示 Trace 和面试讲解；
@@ -1557,8 +1562,9 @@ LangGraph 运行时验收：
 - 当前运行时在 `/home/user50305/.conda/envs/multi_agent/bin/python` 下通过 239 项 pytest、Ruff、compileall 与 `git diff --check`；正式预冻结还要求运行时代码已提交，dirty tree 不得绑定旧 HEAD commit；
 - 多轮真实 API development pilot 已验证约束确实参与运行，并形成框架问题 Trace，而非只依赖 fixture；
 - 最新一次诊断运行 `dev_repair_v2_routes_classified` 中，六个配置路由均返回上游免费额度耗尽。系统一次策略调用、六次真实路由尝试后立即失败关闭，实际结果记录 `code=SUPERVISOR_ROUTES_EXHAUSTED`、`failure_class=provider_quota_exhausted`，工作区清理率为 100%，源码完整性违规为 0；
+- 2026-08-16 按用户确认迁移到三模型六槽位新基线；逐槽位真实探测 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽，同模型账号 2 可接管；脱敏证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`；
 - 该运行的单任务 Protocol Acceptance 通过不代表业务任务成功：实际 solved 为 0/1，也不满足冻结资格；
-- 完整 5 任务 Development、冻结身份写入、一次性 10 任务 Frozen Test 和独立最终审计仍待可用 API 配额恢复后执行。完成这四步前，不得把闭环加固 v2 标记为验收完成，也不得用它替换历史 v1 的简历数字。
+- 完整 5 任务 Development、冻结身份写入、一次性 10 任务 Frozen Test 和独立最终审计仍待新路由提交并重新预冻结后执行。完成这四步前，不得把闭环加固 v2 标记为验收完成，也不得用它替换历史 v1 的简历数字。
 
 ---
 
@@ -1572,7 +1578,7 @@ LangGraph 运行时验收：
 | Baseline B：Fixed Hybrid Pipeline | 与 Proposed 使用相同阿里云 Supervisor 池和本地 Worker，但固定调查、诊断、审查、Patch 顺序 |
 | Proposed：Dynamic Hybrid Supervisor MAS | 阿里云 Supervisor + Engine + 本地按需 Worker + 动态图 + 对抗审查 |
 
-Fixed Hybrid Pipeline 与 Proposed 必须使用相同的 Supervisor 模型池、Worker 模型、工具、候选上限和最大 API/Worker 预算，不能故意削弱基线。Baseline A 与混合系统的对比属于实际部署效果与成本对比，不能单独用于证明多 Agent 架构收益。
+Fixed Hybrid Pipeline 与 Proposed 必须使用相同的 Supervisor 模型池、Worker 模型、工具、候选上限和最大 API/Worker 预算，不能故意削弱基线。Baseline A 与混合系统的对比属于实际部署效果与资源消耗对比，不能单独用于证明多 Agent 架构收益。
 
 `Dynamic Local-Supervisor` 是后续可选消融：保持 Engine、动态图和 Worker 不变，只把 Supervisor 显式替换为本地 Qwen3-8B，用于区分强 Supervisor 模型带来的收益与动态机制本身的收益。Phase 6 MVP 未执行该消融，不得在当前结果中声称已完成。
 
@@ -1587,10 +1593,9 @@ Fixed Hybrid Pipeline 与 Proposed 必须使用相同的 Supervisor 模型池、
 | Protected Path Violations | 修改受保护路径的次数 |
 | Syntax Valid Rate | Patch 无语法错误比例 |
 | End-to-End Latency | 单任务总耗时 |
-| Agent / Tool Calls | 模型和工具调用成本 |
+| Agent / Tool Calls | 模型和工具调用次数 |
 | Token Usage | 输入与输出 Token |
 | Supervisor Route Usage | 各模型和账号槽位的调用、额度切换与失败次数 |
-| Cost per Solved Task | 每个成功任务的平均成本 |
 
 ### 15.3 机制指标
 
@@ -1633,7 +1638,7 @@ MVP 至少完成前 3 项中的 2 项，其余根据资源决定。
 - 相同评测脚本；
 - 失败和超时均计入结果，不静默删除。
 
-跨模型配置的结果必须标注为“部署对比”，不能把强 API 模型带来的提升全部归因于动态编排。免费额度下实际账单可以为零，但仍必须报告各 Provider/模型 Token、延迟和按公开单价估算的等价成本。
+跨模型配置的结果必须标注为“部署对比”，不能把强 API 模型带来的提升全部归因于动态编排。闭环加固 v2 报告各 Provider/模型的调用次数、Token 和延迟，不把人民币价格作为验收指标或简历结论；历史 v1 已冻结的等价成本证据保持原样。
 
 ---
 

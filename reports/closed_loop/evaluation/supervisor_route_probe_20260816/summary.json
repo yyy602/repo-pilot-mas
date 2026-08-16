@@ -1,0 +1,89 @@
+{
+  "available_route_count": 5,
+  "configured_route_count": 6,
+  "formal_evaluation": false,
+  "generation": {
+    "enable_thinking": false,
+    "max_format_repairs": 0,
+    "max_output_tokens": 64,
+    "temperature": 0.0
+  },
+  "purpose": "最终三模型六槽位 Supervisor 最小真实 API 可用性探测",
+  "routes": [
+    {
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "available": true,
+      "code": "OK",
+      "input_tokens": 77,
+      "latency_ms": 875,
+      "model_id": "qwen3.8-max",
+      "output_tokens": 5,
+      "raw_response_ref": "reports/closed_loop/evaluation/supervisor_route_probe_20260816/raw_model_responses/qwen3.8-max/DASHSCOPE_API_KEY_1/1e19e01d5ce64e4b827d74867a4d5803.json",
+      "returned_model_id": "qwen3.8-max"
+    },
+    {
+      "api_key_env": "DASHSCOPE_API_KEY_2",
+      "available": true,
+      "code": "OK",
+      "input_tokens": 77,
+      "latency_ms": 1047,
+      "model_id": "qwen3.8-max",
+      "output_tokens": 5,
+      "raw_response_ref": "reports/closed_loop/evaluation/supervisor_route_probe_20260816/raw_model_responses/qwen3.8-max/DASHSCOPE_API_KEY_2/a8efbd043dd744f9a55dfc8cdc48c7f9.json",
+      "returned_model_id": "qwen3.8-max"
+    },
+    {
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "available": true,
+      "code": "OK",
+      "input_tokens": 68,
+      "latency_ms": 1551,
+      "model_id": "deepseek-v4-pro-0813",
+      "output_tokens": 5,
+      "raw_response_ref": "reports/closed_loop/evaluation/supervisor_route_probe_20260816/raw_model_responses/deepseek-v4-pro-0813/DASHSCOPE_API_KEY_1/8bda83450c5347aca0150863ba7f947f.json",
+      "returned_model_id": "deepseek-v4-pro-0813"
+    },
+    {
+      "api_key_env": "DASHSCOPE_API_KEY_2",
+      "available": true,
+      "code": "OK",
+      "input_tokens": 68,
+      "latency_ms": 1501,
+      "model_id": "deepseek-v4-pro-0813",
+      "output_tokens": 5,
+      "raw_response_ref": "reports/closed_loop/evaluation/supervisor_route_probe_20260816/raw_model_responses/deepseek-v4-pro-0813/DASHSCOPE_API_KEY_2/1f8d1d2fa33843d1bc51e354151ba842.json",
+      "returned_model_id": "deepseek-v4-pro-0813"
+    },
+    {
+      "api_key_env": "DASHSCOPE_API_KEY_1",
+      "attempts": 1,
+      "available": false,
+      "code": "SUPERVISOR_ROUTES_EXHAUSTED",
+      "details": {
+        "exhausted_routes": [
+          "deepseek-v4-flash-0731|DASHSCOPE_API_KEY_1"
+        ],
+        "per_route_timeout_seconds": 60.0,
+        "route_timeouts": 0,
+        "transient_failures": 0
+      },
+      "error": "all configured supervisor routes have exhausted their free quota",
+      "latency_ms": 0,
+      "model_id": "deepseek-v4-flash-0731"
+    },
+    {
+      "api_key_env": "DASHSCOPE_API_KEY_2",
+      "available": true,
+      "code": "OK",
+      "input_tokens": 68,
+      "latency_ms": 1301,
+      "model_id": "deepseek-v4-flash-0731",
+      "output_tokens": 5,
+      "raw_response_ref": "reports/closed_loop/evaluation/supervisor_route_probe_20260816/raw_model_responses/deepseek-v4-flash-0731/DASHSCOPE_API_KEY_2/3ca4205323ee4d8db3b6a575aeb36d18.json",
+      "returned_model_id": "deepseek-v4-flash-0731"
+    }
+  ],
+  "routing_strategy": "model_first_account_second",
+  "trace_path": "reports/closed_loop/evaluation/supervisor_route_probe_20260816/trace.jsonl",
+  "unavailable_route_count": 1
+}

@@ -13,5 +13,6 @@ execution:
   require_human_approval: false
   fail_fast: false
 
-# 复用 Phase 6 中已经冻结的预算与定价，避免前后对比时改变资源上限。
+# 复用 Phase 6 已冻结的 Token/调用预算。人民币价格仅保留历史字段兼容，
+# 不作为闭环加固 v2 的验收指标或简历结论。
 shared_phase6_config: configs/phase6.yaml

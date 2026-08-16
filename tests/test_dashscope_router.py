@@ -62,18 +62,18 @@ def test_routes_are_model_major_then_account_minor() -> None:
     ]
 
 
-def test_repository_config_matches_frozen_six_route_policy() -> None:
+def test_repository_config_matches_current_six_route_policy() -> None:
     config = DashScopeRouterConfig.from_mapping(
         load_yaml("configs/supervisor.yaml")["supervisor"]
     )
 
     assert [(route.model_id, route.api_key_env) for route in config.routes] == [
-        ("qwen3.7-max-2026-06-08", "DASHSCOPE_API_KEY_1"),
-        ("qwen3.7-max-2026-06-08", "DASHSCOPE_API_KEY_2"),
-        ("qwen3.7-flash", "DASHSCOPE_API_KEY_1"),
-        ("qwen3.7-flash", "DASHSCOPE_API_KEY_2"),
-        ("qwen3.7-flash-2026-07-15", "DASHSCOPE_API_KEY_1"),
-        ("qwen3.7-flash-2026-07-15", "DASHSCOPE_API_KEY_2"),
+        ("qwen3.8-max", "DASHSCOPE_API_KEY_1"),
+        ("qwen3.8-max", "DASHSCOPE_API_KEY_2"),
+        ("deepseek-v4-pro-0813", "DASHSCOPE_API_KEY_1"),
+        ("deepseek-v4-pro-0813", "DASHSCOPE_API_KEY_2"),
+        ("deepseek-v4-flash-0731", "DASHSCOPE_API_KEY_1"),
+        ("deepseek-v4-flash-0731", "DASHSCOPE_API_KEY_2"),
     ]
     assert config.per_route_timeout_seconds == 60
 

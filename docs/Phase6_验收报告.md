@@ -85,7 +85,7 @@ git diff --check
 
 ## 8. 闭环加固 v2 的重新验收状态
 
-截至 2026-08-12，加固实现已通过 239 项 pytest、Ruff、compileall 与 `git diff --check`，并经过多轮真实 API development pilot。过程中发现和修复的问题均属于 RepoPilot-MAS 框架流程，包括 Supervisor Schema、Gate、Artifact 引用、输入契约、逻辑任务重试、路由终态和独立审计处理，详见 `docs/Phase6_真实问题复盘与排障.md`。
+截至 2026-08-16，加固实现已完成三模型六槽位迁移，并经过多轮真实 API development pilot。过程中发现和修复的问题均属于 RepoPilot-MAS 框架流程，包括 Supervisor Schema、Gate、Artifact 引用、输入契约、逻辑任务重试、路由终态和独立审计处理，详见 `docs/Phase6_真实问题复盘与排障.md`。
 
 最新诊断运行 `dev_repair_v2_routes_classified` 的结果为：
 
@@ -94,4 +94,4 @@ git diff --check
 - 业务结果为 0/1 solved，Workspace Cleanup Rate 为 100%，Source Integrity Violations 为 0；
 - 单任务 `acceptance.json` 的通过只代表运行协议与安全门成立，不代表修复成功或具备冻结资格。
 
-因此，v2 当前结论是“实现与本地回归完成，正式重新验收被外部 API 配额阻塞”，不是“Phase 6 v2 已验收完成”。恢复可用配额后，必须依次执行完整 5 任务 Development、冻结代码/配置/Prompt/路由身份、一次性 10 任务 Frozen Test、独立审计；任何一步失败都应继续保留为失败结果。逐项完成证据和剩余门禁见 `docs/Phase6_闭环加固v2完成性审计.md`。
+2026-08-16 的新路由逐槽位真实探测中 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽，同模型账号 2 可接管，证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`。v2 当前结论因此是“实现完成，新路由等待提交与重新预冻结”，不是“Phase 6 v2 已验收完成”。后续目标模式必须依次执行完整 5 任务 Development、冻结代码/配置/Prompt/路由身份、一次性 10 任务 Frozen Test、独立审计；任何一步失败都应继续保留为失败结果。逐项完成证据和剩余门禁见 `docs/Phase6_闭环加固v2完成性审计.md`。

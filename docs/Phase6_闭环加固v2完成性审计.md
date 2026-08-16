@@ -9,9 +9,11 @@
 - Phase A–G 的代码实现与单元/集成测试已经完成；完整离线协议清单已预检，但正式预冻结还要求运行时代码先提交；
 - 多轮真实 API development pilot 已证明 Supervisor、Engine、Worker、Validation 和 Trace 确实参与运行，但这些运行早于最终代码指纹或只覆盖单任务，不能替代完整 Development；
 - 完整 5 任务 Development、冻结身份、10 任务 Frozen Test 和独立最终审计尚未执行；
-- 当前唯一外部阻塞是两个账号 × 三个模型的六个 Supervisor 路由全部返回免费额度耗尽。
+- 旧的两个账号 × 三个 qwen3.7 路由均已额度耗尽；当前已迁移为三模型六槽位路由，API 可用性不再是阻塞项，但新路由身份仍需提交并重新预冻结。
 
 2026-08-12 15:38（Asia/Shanghai）的最小真实 API 复查保存在 `reports/closed_loop/evaluation/api_route_recheck_20260812_1538/trace.jsonl`：六个槽位按既定顺序各尝试一次，均返回 `AllocationQuota.FreeTierOnly`，终态为 `SUPERVISOR_ROUTES_EXHAUSTED`。因此没有启动已知必然无效的正式 5 任务 Development。
+
+2026-08-16 的三模型逐槽位真实探测中 5/6 可用：仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽；同模型账号 2 与 `qwen3.8-max`、`deepseek-v4-pro-0813` 的两个账号槽位均返回合法 JSON。脱敏证据见 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/summary.json` 和同目录 `trace.jsonl`。
 
 ## 2. Phase A–G 要求与证据
 
@@ -47,7 +49,7 @@
 | 1 | 预冻结代码检查 | 代码检查通过，clean gate 待提交 | 239 tests、Ruff、compileall、diff 均通过；运行时代码尚未提交 |
 | 2 | 5 任务 Development 清单预检 | 通过 | `preflight_closed_loop_dev_v2`，仅 dry-run |
 | 3 | 10 任务 Frozen Test 清单预检 | 通过 | `preflight_closed_loop_test_v2`，仅 dry-run，未执行测试任务 |
-| 4 | 完整 5 任务 Development ≥4/5 | 待执行 | 六个 Supervisor API 路由均无可用额度 |
+| 4 | 完整 5 任务 Development ≥4/5 | 待执行 | 新六槽位身份需提交并重新预冻结后执行 |
 | 5 | 冻结 commit/config/Prompt/route 身份 | 待执行 | 必须绑定已通过的完整 Development |
 | 6 | 一次性 10 任务 Frozen Test | 待执行 | 不得在 Development 通过前运行 |
 | 7 | 独立最终审计 | 待执行 | 需要完整 Development 与 Frozen Test 两套产物 |

@@ -1,0 +1,33 @@
+{
+  "trace_id": "3ca4205323ee4d8db3b6a575aeb36d18",
+  "model_id": "deepseek-v4-flash-0731",
+  "attempt": 1,
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是 API 可用性探针，只返回符合 Schema 的 JSON。"
+    },
+    {
+      "role": "user",
+      "content": "返回 ok=true。"
+    },
+    {
+      "role": "user",
+      "content": "只返回一个符合以下 JSON Schema 的 JSON 对象，不要使用 Markdown：\n{\"type\":\"object\",\"required\":[\"ok\"],\"properties\":{\"ok\":{\"type\":\"boolean\"}},\"additionalProperties\":false}"
+    }
+  ],
+  "content": "{\"ok\":true}",
+  "usage": {
+    "input_tokens": 68,
+    "output_tokens": 5,
+    "total_tokens": 73
+  },
+  "metadata": {
+    "model_provider": "dashscope_openai_compatible",
+    "api_key_env": "DASHSCOPE_API_KEY_2",
+    "request_id": "chatcmpl-fb2f3ebf-a6fa-9f8d-ac27-c7a79fd0bf01",
+    "route_attempts": 1,
+    "route_timeouts": 0,
+    "per_route_timeout_seconds": 60.0
+  }
+}
