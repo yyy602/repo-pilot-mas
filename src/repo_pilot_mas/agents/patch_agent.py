@@ -6,6 +6,7 @@ import difflib
 import hashlib
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from repo_pilot_mas.agents.worker_common import (
     WorkerAgentError,
@@ -31,12 +32,26 @@ _PATCH_DRAFT_SCHEMA = {
         "old_text": {"type": "string", "minLength": 1},
         "new_text": {"type": "string", "minLength": 1},
         "rationale": {"type": "string", "minLength": 1},
+        "pre_patch_behavior": {"type": "string", "minLength": 1},
+        "post_patch_expected_behavior": {"type": "string", "minLength": 1},
+        "failure_input_walkthrough": {"type": "string", "minLength": 1},
+        "semantic_rationale": {"type": "string", "minLength": 1},
         "risk_notes": {
             "type": "array",
             "items": {"type": "string", "minLength": 1},
         },
     },
-    "required": ["file_path", "old_text", "new_text", "rationale", "risk_notes"],
+    "required": [
+        "file_path",
+        "old_text",
+        "new_text",
+        "rationale",
+        "pre_patch_behavior",
+        "post_patch_expected_behavior",
+        "failure_input_walkthrough",
+        "semantic_rationale",
+        "risk_notes",
+    ],
     "additionalProperties": False,
 }
 _PATCH_TOOLS = (
@@ -45,6 +60,14 @@ _PATCH_TOOLS = (
     "inspect_code",
     "find_references",
 )
+
+
+@dataclass(frozen=True, slots=True)
+class _ReplacementDiff:
+    patch_text: str
+    matched_old_text: str
+    replacement_new_text: str
+    reduced_to_changed_hunk: bool
 
 
 class PatchAgent:
@@ -96,6 +119,13 @@ class PatchAgent:
             "唯一存在的最小片段，new_text 是替换后的片段。不要输出 Unified Diff。"
             "确定性控制器会把该替换转换成 Unified Diff，并通过受保护路径检查后应用。"
             "补丁必须同时覆盖输入中的全部已接受根因，不能只处理 primary 根因。"
+            "返回补丁前必须用失败输入按实际求值或执行顺序推演旧代码和新代码；"
+            "如果要保护一个可能失败的操作，保护条件必须在该操作之前生效，不能追加在"
+            "已经执行的访问之后。不能用变量改名、无效条件或只改注释冒充语义修复。"
+            "pre_patch_behavior、post_patch_expected_behavior、failure_input_walkthrough 和"
+            " semantic_rationale 必须记录这次具体推演，不能照抄 Hypothesis。"
+            "若输入包含 ArtifactRejection，必须读取其中的失败候选和真实输出，且不得重复"
+            "已失败的 new_text。"
             + (
                 "Minimal 策略只做修复根因所需的最小改动，避免重构和接口变化。"
                 if strategy == "minimal"
@@ -137,6 +167,7 @@ class PatchAgent:
         draft = None
         target_precheck = None
         last_failure_code = "MODEL_FORMAT_ERROR"
+        failed_candidates: list[dict[str, str]] = []
         for attempt_index in range(3):
             if (
                 result.status == "completed"
@@ -146,7 +177,7 @@ class PatchAgent:
             ):
                 draft = result.final_action["artifact"]
                 try:
-                    patch_text = _replacement_diff(
+                    replacement = _replacement_diff(
                         self.workspace,
                         str(draft["file_path"]),
                         str(draft["old_text"]),
@@ -154,8 +185,28 @@ class PatchAgent:
                     )
                     applied = self.all_tools.invoke(
                         "apply_patch",
-                        {"patch_text": patch_text},
+                        {"patch_text": replacement.patch_text},
                     )
+                    if (
+                        replacement.reduced_to_changed_hunk
+                        and self.trace_writer is not None
+                    ):
+                        self.trace_writer.write(
+                            "patch_replacement_reduced",
+                            {
+                                "node_id": node_id,
+                                "attempt": attempt_index + 1,
+                                "file_path": str(draft["file_path"]),
+                                "matched_old_text": replacement.matched_old_text,
+                                "replacement_new_text": replacement.replacement_new_text,
+                                "original_old_sha256": hashlib.sha256(
+                                    str(draft["old_text"]).encode()
+                                ).hexdigest(),
+                                "original_new_sha256": hashlib.sha256(
+                                    str(draft["new_text"]).encode()
+                                ).hexdigest(),
+                            },
+                        )
                     if not applied.ok:
                         last_failure_code = "MODEL_FORMAT_ERROR"
                         failure = (
@@ -221,28 +272,65 @@ class PatchAgent:
                             "目标测试仍失败，必须根据真实输出修改根因对应逻辑，"
                             f"不能重复相同替换：{output}"
                         )
+                        failed_candidates.append(
+                            _failed_candidate_summary(
+                                draft,
+                                code=last_failure_code,
+                                failure=failure,
+                            )
+                        )
                         restore_workspace(self.workspace)
                         applied = None
                 except (OSError, ValueError) as exc:
                     last_failure_code = "MODEL_FORMAT_ERROR"
                     failure = str(exc)
+                    if draft is not None:
+                        failed_candidates.append(
+                            _failed_candidate_summary(
+                                draft,
+                                code=last_failure_code,
+                                failure=failure,
+                            )
+                        )
             else:
                 last_failure_code = "MODEL_FORMAT_ERROR"
                 failure = "尚未成功 inspect_code 并返回结构化文本替换"
             if attempt_index == 2:
                 break
-            result = loop.run(
-                (
-                    *result.messages,
-                    Message(
-                        "user",
-                        f"候选替换不可应用：{failure}。重新 inspect_code，确保 old_text 在目标文件中"
-                        "逐字且只出现一次，然后返回修正后的 final artifact。",
-                    ),
+            if last_failure_code == "PATCH_TARGET_TEST_FAILED":
+                feedback = (
+                    "候选已经成功应用，但目标测试仍失败。先根据 traceback 定位最先失败的"
+                    "操作，并按新代码的实际求值或执行顺序重新推演；保护条件必须在危险操作"
+                    "之前生效。不得重复上一候选的 new_text。失败候选与输出："
+                    + json.dumps(
+                        failed_candidates[-1],
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    )
+                    + "。重新 inspect_code 后返回语义不同的修正 artifact。"
                 )
-            )
+            else:
+                feedback = (
+                    f"候选替换不可应用：{failure}。重新 inspect_code，确保 old_text 在目标文件中"
+                    "逐字且只出现一次，并优先只复制实际发生变化的最小连续行，然后返回修正后的"
+                    " final artifact。"
+                )
+            result = loop.run((*result.messages, Message("user", feedback)))
         if result.status != "completed" or result.final_action is None:
-            raise WorkerAgentError(f"PatchAgent 未完成：{result.reason}")
+            failure_context = (
+                ";failed_candidates="
+                + json.dumps(
+                    failed_candidates,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                if failed_candidates
+                else ""
+            )
+            raise WorkerAgentError(
+                f"PatchAgent 未完成：{result.reason}{failure_context}",
+                code=last_failure_code,
+            )
         if result.final_action["status"] != "success":
             raise WorkerAgentError(
                 f"PatchAgent 报告失败：{result.final_action['reason']}"
@@ -258,8 +346,17 @@ class PatchAgent:
                     for part in (target_precheck.stdout, target_precheck.stderr)
                     if part
                 )[-2000:]
+                failure_details = {
+                    "failed_candidates": failed_candidates,
+                    "last_test_output_tail": output,
+                }
                 raise WorkerAgentError(
-                    f"目标测试预检查失败：{output}",
+                    "目标测试预检查失败；失败候选与真实输出："
+                    + json.dumps(
+                        failure_details,
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    ),
                     code="PATCH_TARGET_TEST_FAILED",
                 )
             raise WorkerAgentError("PatchAgent 未能生成可应用的结构化文本替换")
@@ -326,15 +423,6 @@ class PatchAgent:
                 "Patch 最小语义预检查失败",
                 code="TOOL_EXECUTION_ERROR",
             )
-        pre_patch_behavior = "；".join(
-            str(item.content.get("direct_cause") or item.content.get("root_cause"))
-            for item in hypotheses
-        )
-        failure_input_walkthrough = "；".join(
-            f"{item.ref}: {item.content.get('root_cause')} -> "
-            f"{item.content.get('direct_cause')}"
-            for item in hypotheses
-        )
         content = {
             "strategy": strategy,
             "based_on_hypothesis_refs": list(hypothesis_refs),
@@ -344,12 +432,12 @@ class PatchAgent:
             "diff_sha256": hashlib.sha256(diff_text.encode()).hexdigest(),
             "changed_files": files,
             "rationale": str(draft["rationale"]),
-            "semantic_rationale": str(draft["rationale"]),
-            "pre_patch_behavior": pre_patch_behavior,
-            "post_patch_expected_behavior": (
-                f"应用 {strategy} 替换后，{draft['rationale']}，失败输入不再触发直接原因"
+            "semantic_rationale": str(draft["semantic_rationale"]),
+            "pre_patch_behavior": str(draft["pre_patch_behavior"]),
+            "post_patch_expected_behavior": str(
+                draft["post_patch_expected_behavior"]
             ),
-            "failure_input_walkthrough": failure_input_walkthrough,
+            "failure_input_walkthrough": str(draft["failure_input_walkthrough"]),
             "precheck_command": (
                 list(target_precheck.command)
                 if target_precheck is not None
@@ -535,26 +623,95 @@ def _replacement_diff(
     file_path: str,
     old_text: str,
     new_text: str,
-) -> str:
+) -> _ReplacementDiff:
     target = workspace.guard().resolve(file_path, allow_root=False)
     if not target.is_file() or target.is_symlink():
         raise ValueError("file_path 必须指向工作区内普通文件")
     if old_text == new_text:
         raise ValueError("old_text 与 new_text 不能相同")
     source = target.read_text(encoding="utf-8")
-    occurrences = source.count(old_text)
+    matched_old_text = old_text
+    replacement_new_text = new_text
+    reduced = False
+    occurrences = source.count(matched_old_text)
+    if occurrences == 0:
+        reduced_pair = _changed_line_hunk(old_text, new_text)
+        if reduced_pair is not None:
+            candidate_old, candidate_new = reduced_pair
+            candidate_occurrences = source.count(candidate_old)
+            if candidate_occurrences == 1:
+                matched_old_text = candidate_old
+                replacement_new_text = candidate_new
+                occurrences = 1
+                reduced = True
     if occurrences != 1:
         raise ValueError(
             f"old_text 必须在目标文件中唯一出现，实际为 {occurrences} 次"
         )
-    updated = source.replace(old_text, new_text, 1)
+    updated = source.replace(matched_old_text, replacement_new_text, 1)
     relative = target.relative_to(workspace.root).as_posix()
-    return "".join(
-        difflib.unified_diff(
-            source.splitlines(keepends=True),
-            updated.splitlines(keepends=True),
-            fromfile=f"a/{relative}",
-            tofile=f"b/{relative}",
-            lineterm="\n",
-        )
+    return _ReplacementDiff(
+        patch_text="".join(
+            difflib.unified_diff(
+                source.splitlines(keepends=True),
+                updated.splitlines(keepends=True),
+                fromfile=f"a/{relative}",
+                tofile=f"b/{relative}",
+                lineterm="\n",
+            )
+        ),
+        matched_old_text=matched_old_text,
+        replacement_new_text=replacement_new_text,
+        reduced_to_changed_hunk=reduced,
     )
+
+
+def _changed_line_hunk(old_text: str, new_text: str) -> tuple[str, str] | None:
+    """Drop identical model-supplied context around one contiguous changed hunk."""
+
+    old_lines = old_text.splitlines(keepends=True)
+    new_lines = new_text.splitlines(keepends=True)
+    prefix = 0
+    while (
+        prefix < len(old_lines)
+        and prefix < len(new_lines)
+        and old_lines[prefix] == new_lines[prefix]
+    ):
+        prefix += 1
+
+    suffix = 0
+    max_suffix = min(len(old_lines) - prefix, len(new_lines) - prefix)
+    while (
+        suffix < max_suffix
+        and old_lines[-(suffix + 1)] == new_lines[-(suffix + 1)]
+    ):
+        suffix += 1
+
+    old_end = len(old_lines) - suffix if suffix else len(old_lines)
+    new_end = len(new_lines) - suffix if suffix else len(new_lines)
+    old_hunk = "".join(old_lines[prefix:old_end])
+    new_hunk = "".join(new_lines[prefix:new_end])
+    if not old_hunk or not new_hunk or old_hunk == old_text:
+        return None
+    return old_hunk, new_hunk
+
+
+def _failed_candidate_summary(
+    draft: object,
+    *,
+    code: str,
+    failure: str,
+) -> dict[str, str]:
+    value = draft if isinstance(draft, dict) else {}
+
+    def clipped(key: str, limit: int = 1200) -> str:
+        return str(value.get(key, ""))[-limit:]
+
+    return {
+        "code": code,
+        "file_path": clipped("file_path", 300),
+        "old_text": clipped("old_text"),
+        "new_text": clipped("new_text"),
+        "semantic_rationale": clipped("semantic_rationale"),
+        "failure_tail": str(failure)[-1800:],
+    }

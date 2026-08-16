@@ -22,7 +22,7 @@ from repo_pilot_mas.models import (
 )
 from repo_pilot_mas.models.base import RawGeneration
 from repo_pilot_mas.orchestration import NodeStatus, NodeType, TaskNode
-from repo_pilot_mas.runtime import WorkspaceManager
+from repo_pilot_mas.runtime import TraceWriter, WorkspaceManager
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec, validate_worker_artifact
 from repo_pilot_mas.schemas.tool_result import ToolResult
 from repo_pilot_mas.tools import build_workspace_tool_registry
@@ -104,6 +104,26 @@ def _dummy_tools() -> ToolRegistry:
             )
         )
     return registry
+
+
+def _patch_draft(
+    new_text: str,
+    rationale: str,
+    *,
+    file_path: str = "target.py",
+    old_text: str = "    return True",
+) -> dict[str, object]:
+    return {
+        "file_path": file_path,
+        "old_text": old_text,
+        "new_text": new_text,
+        "rationale": rationale,
+        "pre_patch_behavior": "失败输入执行旧返回语句并得到错误结果",
+        "post_patch_expected_behavior": "失败输入执行新返回语句并得到正确结果",
+        "failure_input_walkthrough": "失败输入走到返回语句，旧条件恒真；新条件检查终态不变量",
+        "semantic_rationale": rationale,
+        "risk_notes": [],
+    }
 
 
 def test_investigator_uses_mode_tools_and_returns_schema_valid_evidence(tmp_path: Path) -> None:
@@ -377,13 +397,10 @@ def test_two_patch_strategies_use_independent_workspaces(tmp_path: Path) -> None
                         "type": "final",
                         "status": "success",
                         "reason": "补丁已应用",
-                        "artifact": {
-                            "file_path": "target.py",
-                            "old_text": "    return True",
-                            "new_text": replacements[strategy],
-                            "rationale": f"{strategy} 修复终态检查",
-                            "risk_notes": [],
-                        },
+                        "artifact": _patch_draft(
+                            replacements[strategy],
+                            f"{strategy} 修复终态检查",
+                        ),
                     },
                 },
             ]
@@ -450,13 +467,10 @@ def test_patch_agent_uses_target_precheck_to_correct_failed_draft(
                     "type": "final",
                     "status": "success",
                     "reason": "首个候选",
-                    "artifact": {
-                        "file_path": "target.py",
-                        "old_text": "    return True",
-                        "new_text": "    return depth >= 0",
-                        "rationale": "尝试检查深度",
-                        "risk_notes": [],
-                    },
+                    "artifact": _patch_draft(
+                        "    return depth >= 0",
+                        "尝试检查深度",
+                    ),
                 }
             },
             {
@@ -473,13 +487,10 @@ def test_patch_agent_uses_target_precheck_to_correct_failed_draft(
                     "type": "final",
                     "status": "success",
                     "reason": "根据失败测试修正",
-                    "artifact": {
-                        "file_path": "target.py",
-                        "old_text": "    return True",
-                        "new_text": "    return depth == 0",
-                        "rationale": "未闭合括号必须留下非零深度",
-                        "risk_notes": [],
-                    },
+                    "artifact": _patch_draft(
+                        "    return depth == 0",
+                        "未闭合括号必须留下非零深度",
+                    ),
                 }
             },
         ]
@@ -502,6 +513,99 @@ def test_patch_agent_uses_target_precheck_to_correct_failed_draft(
     assert "return depth == 0" in (
         workspace.root / "target.py"
     ).read_text(encoding="utf-8")
+
+
+def test_patch_agent_reduces_unmatched_context_to_unique_changed_hunk(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "target.py").write_text(
+        "def find_first(values, target):\n"
+        "    lo = 0\n"
+        "    hi = len(values)\n"
+        "\n"
+        "    while lo <= hi:\n"
+        "        mid = (lo + hi) // 2\n"
+        "\n"
+        "        if values[mid] == target:\n"
+        "            return mid\n"
+        "        lo = mid + 1\n"
+        "\n"
+        "    return -1\n",
+        encoding="utf-8",
+    )
+    tests = source / "tests"
+    tests.mkdir()
+    (tests / "test_target.py").write_text(
+        "from target import find_first\n\n"
+        "def test_above_range_returns_minus_one():\n"
+        "    assert find_first([1, 2, 3], 4) == -1\n",
+        encoding="utf-8",
+    )
+    task = TaskSpec(
+        "patch-reduced-hunk",
+        source,
+        "目标高于数组范围时越界",
+        failing_tests=("tests/test_target.py",),
+        protected_paths=("tests",),
+    )
+    workspace = WorkspaceManager(source, tmp_path / "workspaces").create(
+        task.task_id,
+        "reduced-hunk",
+    )
+    old_text = (
+        "    while lo <= hi:\n"
+        "        mid = (lo + hi) // 2\n"
+        "        if values[mid] == target:\n"
+        "            return mid\n"
+        "        lo = mid + 1"
+    )
+    new_text = old_text.replace("while lo <= hi:", "while lo < hi:")
+    trace_path = tmp_path / "trace.jsonl"
+
+    patch = PatchAgent(
+        FakeModelAdapter(
+            [
+                {
+                    "thought_summary": "读取完整函数",
+                    "action": {
+                        "type": "tool",
+                        "tool_name": "inspect_code",
+                        "arguments": {"file_path": "target.py"},
+                    },
+                },
+                {
+                    "thought_summary": "修复半开区间边界",
+                    "action": {
+                        "type": "final",
+                        "status": "success",
+                        "reason": "候选完成",
+                        "artifact": _patch_draft(
+                            new_text,
+                            "保持 hi 为排他上界，避免 mid 等于 len(values)",
+                            old_text=old_text,
+                        ),
+                    },
+                },
+            ]
+        ),
+        build_workspace_tool_registry(task, workspace),
+        workspace,
+        trace_writer=TraceWriter(trace_path),
+    ).run(
+        task,
+        "N6",
+        "minimal",
+        "修复边界越界",
+        (_hypothesis(), _evidence()),
+    )
+
+    assert patch.content["precheck_result"]["ok"] is True
+    assert "while lo < hi:" in (workspace.root / "target.py").read_text(
+        encoding="utf-8"
+    )
+    assert "patch_replacement_reduced" in trace_path.read_text(encoding="utf-8")
 
 
 def test_patch_agent_preserves_target_test_failure_class(
@@ -548,13 +652,10 @@ def test_patch_agent_preserves_target_test_failure_class(
                         "type": "final",
                         "status": "success",
                         "reason": "候选可应用但目标测试仍失败",
-                        "artifact": {
-                            "file_path": "target.py",
-                            "old_text": "    return True",
-                            "new_text": "    return depth >= 0",
-                            "rationale": "尝试检查深度",
-                            "risk_notes": [],
-                        },
+                        "artifact": _patch_draft(
+                            "    return depth >= 0",
+                            "尝试检查深度",
+                        ),
                     },
                 },
             ]
@@ -575,6 +676,7 @@ def test_patch_agent_preserves_target_test_failure_class(
 
     assert caught.value.code == "PATCH_TARGET_TEST_FAILED"
     assert "目标测试预检查失败" in str(caught.value)
+    assert '"new_text":"    return depth >= 0"' in str(caught.value)
     assert "return True" in (workspace.root / "target.py").read_text(
         encoding="utf-8"
     )
