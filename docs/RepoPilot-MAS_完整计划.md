@@ -1115,9 +1115,9 @@ supervisor:
   routing:
     strategy: model_first_account_second
     model_order:
-      - qwen3.8-max
-      - deepseek-v4-pro-0813
       - deepseek-v4-flash-0731
+      - deepseek-v4-pro-0813
+      - qwen3.8-max
     api_key_envs:
       - DASHSCOPE_API_KEY_1
       - DASHSCOPE_API_KEY_2
@@ -1130,14 +1130,14 @@ supervisor:
 
 ### 12.4 Supervisor 路由顺序
 
-路由使用“强模型优先、账号其次”的固定六槽位顺序：
+路由使用“Flash 优先、模型内账号其次”的固定六槽位顺序，优先保留强模型免费额度用于前序模型无法完成的决策：
 
-1. `qwen3.8-max` + 账号 1；
-2. `qwen3.8-max` + 账号 2；
+1. `deepseek-v4-flash-0731` + 账号 1；
+2. `deepseek-v4-flash-0731` + 账号 2；
 3. `deepseek-v4-pro-0813` + 账号 1；
 4. `deepseek-v4-pro-0813` + 账号 2；
-5. `deepseek-v4-flash-0731` + 账号 1；
-6. `deepseek-v4-flash-0731` + 账号 2。
+5. `qwen3.8-max` + 账号 1；
+6. `qwen3.8-max` + 账号 2。
 
 三类模型统一使用确定性的非思考 Supervisor 参数，并受相同 Token、调用次数和超时预算约束。
 

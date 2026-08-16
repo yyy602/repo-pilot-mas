@@ -424,7 +424,7 @@ Phase 6 Route Usage 显示账号 1 Max 切账号 2 Max，再切普通 Flash，�
 - 测试精确断言当时的六个路由槽位；
 - Development manifest 保存脱敏后的模型顺序与环境变量名，不保存 Key 值。
 
-新基线迁移时同步修改唯一计划、配置和契约测试，固定为 `qwen3.8-max → deepseek-v4-pro-0813 → deepseek-v4-flash-0731` 的六槽位顺序。
+新基线迁移时同步修改唯一计划、配置和契约测试。2026-08-16 闭环修复期进一步调整为 `deepseek-v4-flash-0731 → deepseek-v4-pro-0813 → qwen3.8-max`，仍按模型内账号 1、账号 2 的顺序展开六个槽位，以保留强模型免费额度处理前序模型无法完成的决策。
 
 **验证**
 
