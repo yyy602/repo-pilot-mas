@@ -16,7 +16,11 @@ from repo_pilot_mas.models.dashscope import (
     SupervisorRoute,
     create_supervisor_model_router,
 )
-from repo_pilot_mas.models.factory import create_model_adapter, create_worker_model_pool
+from repo_pilot_mas.models.factory import (
+    create_model_adapter,
+    create_supervisor_model_adapter,
+    create_worker_model_pool,
+)
 from repo_pilot_mas.models.fake import FakeModelAdapter
 from repo_pilot_mas.models.local_transformers import LocalTransformersAdapter
 
@@ -35,6 +39,7 @@ __all__ = [
     "SupervisorRoute",
     "TokenUsage",
     "create_model_adapter",
+    "create_supervisor_model_adapter",
     "create_supervisor_model_router",
     "create_worker_model_pool",
 ]

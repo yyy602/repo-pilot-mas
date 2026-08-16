@@ -1,0 +1,24 @@
+supervisor:
+  # 仅供单任务调试；完整 Development 和 Frozen Test 会确定性拒绝本配置。
+  provider: local_transformers
+  model_path: /home/user50305/yjh/models/Qwen3-8B
+  device: cuda:0
+  dtype: bfloat16
+  reuse_worker_slot: 0
+
+  routing:
+    strategy: local_debug_only
+    model_order:
+      - Qwen3-8B-local
+    api_key_envs: []
+
+  generation:
+    temperature: 0.0
+    max_output_tokens: 2048
+    enable_thinking: false
+    timeout_seconds: 180
+    max_format_repairs: 1
+
+  recovery:
+    additional_schema_retries: 1
+    safe_fallback_enabled: true

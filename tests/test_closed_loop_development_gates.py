@@ -4,11 +4,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from scripts.run_closed_loop_final_evaluation import (
     _PHASE,
     _formal_evaluation_executed,
     _runtime_tree_is_clean,
     _terminal_failure_class,
+    _validate_supervisor_execution_tier,
     development_acceptance_gates,
     frozen_test_acceptance_gates,
     pre_freeze_record_gates,
@@ -86,6 +89,37 @@ def test_complete_development_and_frozen_test_are_both_formal_evaluations() -> N
         full_run=False,
         full_development_run=False,
     )
+
+
+def test_local_supervisor_is_limited_to_diagnostic_runs() -> None:
+    local = {"provider": "local_transformers"}
+
+    _validate_supervisor_execution_tier(
+        local,
+        split="development",
+        task_id="quixbugs_gcd",
+        dry_run=False,
+    )
+    _validate_supervisor_execution_tier(
+        local,
+        split="development",
+        task_id=None,
+        dry_run=True,
+    )
+    with pytest.raises(ValueError, match="必须使用正式 DashScope Supervisor"):
+        _validate_supervisor_execution_tier(
+            local,
+            split="development",
+            task_id=None,
+            dry_run=False,
+        )
+    with pytest.raises(ValueError, match="必须使用正式 DashScope Supervisor"):
+        _validate_supervisor_execution_tier(
+            local,
+            split="test",
+            task_id=None,
+            dry_run=False,
+        )
 
 
 def test_formal_runs_require_pre_freeze_and_frozen_identity_records() -> None:

@@ -55,6 +55,17 @@ def validate_agent_input_contract(
                 f"{agent_type}/{mode} requires {expected} {artifact_type} artifacts; got {count}"
             )
 
+    if agent_type == "InvestigatorAgent":
+        if mode == "evidence_completion":
+            require("evidence", "review")
+            _reject_unexpected_types(
+                agent_type,
+                mode,
+                types,
+                {"evidence", "review", "artifact_rejection"},
+            )
+        return
+
     if agent_type == "DiagnosticianAgent":
         require("evidence")
         if mode in {"control_flow", "data_flow"}:

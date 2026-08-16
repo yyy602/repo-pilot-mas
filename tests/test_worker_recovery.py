@@ -108,6 +108,75 @@ def test_patch_target_test_failure_keeps_patch_recovery_class(
     assert rejection.content["code"] == "PATCH_TARGET_TEST_FAILED"
 
 
+def test_patch_retry_receives_previous_rejection_as_input(
+    tmp_path: Path,
+) -> None:
+    engine = OrchestrationEngine(
+        TaskSpec("patch-retry-feedback", tmp_path, "retry failed patch")
+    )
+    node = TaskNode(
+        "N5",
+        NodeType.PATCH_TASK,
+        "PatchAgent",
+        "minimal",
+        "repair target failure",
+        input_artifact_ids=("H1@v1", "R1@v1"),
+    )
+    engine.graph.add_node(node)
+    engine.start_node(node.node_id)
+
+    result = collect_worker_outcome(
+        engine,
+        WorkerOutcome(
+            node.node_id,
+            NodeStatus.FAILED,
+            reason=(
+                "PATCH_TARGET_TEST_FAILED:WorkerAgentError:"
+                "candidate new_text failed target tests"
+            ),
+        ),
+    )
+
+    assert result.retry_scheduled is True
+    assert result.rejection_ref is not None
+    assert engine.graph.get(node.node_id).input_artifact_ids == (
+        "H1@v1",
+        "R1@v1",
+        result.rejection_ref,
+    )
+
+
+def test_evidence_completion_retry_receives_previous_rejection_as_input(
+    tmp_path: Path,
+) -> None:
+    engine = OrchestrationEngine(
+        TaskSpec("evidence-retry-feedback", tmp_path, "retry evidence completion")
+    )
+    node = TaskNode(
+        "N5",
+        NodeType.INVESTIGATION_TASK,
+        "InvestigatorAgent",
+        "evidence_completion",
+        "close the review evidence gap",
+        input_artifact_ids=("E1@v1", "R1@v1"),
+    )
+    engine.graph.add_node(node)
+    engine.start_node(node.node_id)
+
+    result = collect_worker_outcome(
+        engine,
+        WorkerOutcome(
+            node.node_id,
+            NodeStatus.FAILED,
+            reason="MODEL_FORMAT_ERROR:WorkerAgentError:MAX_STEPS_EXHAUSTED",
+        ),
+    )
+
+    assert result.retry_scheduled is True
+    assert result.rejection_ref is not None
+    assert engine.graph.get(node.node_id).input_artifact_ids[-1] == result.rejection_ref
+
+
 def test_invalid_root_review_target_becomes_recoverable_schema_rejection(
     tmp_path: Path,
 ) -> None:

@@ -1,0 +1,182 @@
+{
+  "dry_run": false,
+  "failures_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/failures",
+  "final_report": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/final_report.md",
+  "full_development_run": false,
+  "full_run": false,
+  "gates": {
+    "budget_outcomes_fail_closed": true,
+    "every_task_has_result": true,
+    "every_task_has_trace": true,
+    "failures_are_included": true,
+    "final_runtime_entrypoint": true,
+    "frozen_test_set_has_expected_tasks": true,
+    "selected_task_count_complete": true,
+    "source_repositories_unchanged": true,
+    "terminal_workspaces_cleaned": true
+  },
+  "manifest_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/manifest.json",
+  "passed": true,
+  "phase": 6,
+  "results_csv": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/task_results.csv",
+  "results_json": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/task_results.json",
+  "run_id": "targeted_da7c835_flatten",
+  "summary": {
+    "artifact_rejection_count": 0,
+    "average_latency_ms": 94075.0,
+    "average_tokens": 69192.0,
+    "budget_violations": 0,
+    "contract_rejection_count": 0,
+    "estimated_api_cost_cny": 0.0,
+    "estimated_api_cost_per_solved_cny": null,
+    "evidence_gate_pass_rate": 0.0,
+    "failed": 1,
+    "hypothesis_accept_rate": 0.0,
+    "isolated_worker_failure_count": 0,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 5735.0,
+        "calls": 2,
+        "total_ms": 11470
+      },
+      "initialization": {
+        "average_ms": 3169.0,
+        "calls": 1,
+        "total_ms": 3169
+      },
+      "investigation": {
+        "average_ms": 12376.5,
+        "calls": 4,
+        "total_ms": 49506
+      },
+      "review": {
+        "average_ms": 4917.5,
+        "calls": 6,
+        "total_ms": 29505
+      }
+    },
+    "median_latency_ms": 94075,
+    "metric_layers": {
+      "business_results": {
+        "patch_success_rate": 0.0,
+        "regression_pass_rate": 0.0,
+        "target_test_pass_rate": 0.0,
+        "task_resolution_rate": 0.0
+      },
+      "closed_loop_mechanism": {
+        "evidence_gate_pass_rate": 0.0,
+        "hypothesis_accept_rate": 0.0,
+        "patch_binding_rate": 0.0,
+        "review_pass_rate": 0.0,
+        "validation_pass_rate": 0.0
+      },
+      "exception_recovery": {
+        "contract_rejection_count": 0,
+        "node_rebuild_count": 0,
+        "replan_attempt_count": 0,
+        "replan_success_rate": null,
+        "supervisor_format_repair_count": 0,
+        "worker_retry_count": 0
+      },
+      "routing_and_cost": {
+        "estimated_cost_cny": 0.0,
+        "latency_by_stage": {
+          "diagnosis": {
+            "average_ms": 5735.0,
+            "calls": 2,
+            "total_ms": 11470
+          },
+          "initialization": {
+            "average_ms": 3169.0,
+            "calls": 1,
+            "total_ms": 3169
+          },
+          "investigation": {
+            "average_ms": 12376.5,
+            "calls": 4,
+            "total_ms": 49506
+          },
+          "review": {
+            "average_ms": 4917.5,
+            "calls": 6,
+            "total_ms": 29505
+          }
+        },
+        "route_attempts_by_model": {
+          "qwen3.8-max": 9
+        },
+        "route_exhausted_by_model": {},
+        "route_successes_by_model": {
+          "qwen3.8-max": 9
+        },
+        "supervisor_tokens": 50452,
+        "total_tokens": 69192,
+        "worker_tokens": 18740
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_apply_rate": 0.0,
+    "patch_binding_rate": 0.0,
+    "patch_success_rate": 0.0,
+    "recovery_attempted_tasks": 0,
+    "recovery_succeeded_tasks": 0,
+    "recovery_success_rate": null,
+    "regression_pass_rate": 0.0,
+    "replan_attempt_count": 0,
+    "replan_success_rate": null,
+    "review_pass_rate": 0.0,
+    "route_attempts_by_model": {
+      "qwen3.8-max": 9
+    },
+    "route_distribution": {
+      "standard": 1
+    },
+    "route_exhausted_by_model": {},
+    "route_successes_by_model": {
+      "qwen3.8-max": 9
+    },
+    "schema_version": 1,
+    "solved": 0,
+    "source_integrity_violations": 0,
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 46779,
+    "supervisor_snapshot_count": 9,
+    "supervisor_snapshot_original_chars": 84103,
+    "supervisor_snapshot_reduction_ratio": 0.4437891632878732,
+    "supervisor_tokens": 50452,
+    "syntax_valid_rate": 0.0,
+    "system_id": "closed_loop_dynamic",
+    "target_test_pass_rate": 0.0,
+    "task_count": 1,
+    "task_resolution_rate": 0.0,
+    "task_result_paths": [
+      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/tasks/quixbugs_flatten/result.json"
+    ],
+    "termination_codes": {
+      "NO_PROGRESS_LOOP": 1
+    },
+    "termination_failure_classes": {
+      "orchestration_failure": 1
+    },
+    "termination_stages": {
+      "review": 1
+    },
+    "totals": {
+      "duration_ms": 94075,
+      "input_tokens": 65215,
+      "model_calls": 17,
+      "output_tokens": 3977,
+      "supervisor_api_calls": 9,
+      "tool_calls": 4,
+      "total_tokens": 69192,
+      "worker_model_calls": 8
+    },
+    "validation_pass_rate": 0.0,
+    "worker_failure_count": 0,
+    "worker_failure_isolation_rate": null,
+    "worker_retry_count": 0,
+    "worker_tokens": 18740,
+    "workspace_cleanup_rate": 1.0
+  },
+  "summary_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_da7c835_flatten/summary.json"
+}

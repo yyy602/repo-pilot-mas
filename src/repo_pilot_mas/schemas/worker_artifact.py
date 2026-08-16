@@ -492,6 +492,16 @@ def validate_worker_artifact(
             artifact.content["status"] == "verified"
         ):
             raise ValueError("Evidence verified must match status=verified")
+        if artifact.content["mode"] in {
+            "evidence_completion",
+            "regression_scope",
+        } and (
+            artifact.content["verified"] is not True
+            or bool(artifact.content["missing_evidence"])
+        ):
+            raise ValueError(
+                "evidence_completion/regression_scope must close the evidence gap"
+            )
         if (
             artifact.content["evidence_kind"] == "reproduction"
             and "reproduction" not in artifact.content

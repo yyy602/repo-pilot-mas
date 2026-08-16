@@ -418,7 +418,19 @@ def collect_worker_outcome(
             and attempt < effective_max_attempts
             and node.retry_count < engine.budget.max_retries_per_node
         ):
-            engine.retry_node(node.node_id)
+            engine.retry_node(
+                node.node_id,
+                feedback_artifact_refs=(
+                    (rejection_ref,)
+                    if node.node_type is NodeType.PATCH_TASK
+                    or (
+                        node.node_type is NodeType.INVESTIGATION_TASK
+                        and node.mode
+                        in {"evidence_completion", "regression_scope"}
+                    )
+                    else ()
+                ),
+            )
             retry_scheduled = True
         return WorkerCollectionResult(
             node.node_id,

@@ -1,0 +1,196 @@
+{
+  "dry_run": false,
+  "failures_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/failures",
+  "final_report": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/final_report.md",
+  "full_development_run": false,
+  "full_run": false,
+  "gates": {
+    "budget_outcomes_fail_closed": true,
+    "every_task_has_result": true,
+    "every_task_has_trace": true,
+    "failures_are_included": true,
+    "final_runtime_entrypoint": true,
+    "frozen_test_set_has_expected_tasks": true,
+    "selected_task_count_complete": true,
+    "source_repositories_unchanged": true,
+    "terminal_workspaces_cleaned": true
+  },
+  "manifest_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/manifest.json",
+  "passed": true,
+  "phase": 6,
+  "results_csv": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/task_results.csv",
+  "results_json": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/task_results.json",
+  "run_id": "dev5_direct_d74a8a5_quixbugs_flatten",
+  "summary": {
+    "artifact_rejection_count": 0,
+    "average_latency_ms": 96126.0,
+    "average_tokens": 86765.0,
+    "budget_violations": 0,
+    "contract_rejection_count": 0,
+    "estimated_api_cost_cny": 0.0,
+    "estimated_api_cost_per_solved_cny": null,
+    "evidence_gate_pass_rate": 0.0,
+    "failed": 1,
+    "hypothesis_accept_rate": 0.0,
+    "isolated_worker_failure_count": 0,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 4106.333333333333,
+        "calls": 3,
+        "total_ms": 12319
+      },
+      "initialization": {
+        "average_ms": 2829.0,
+        "calls": 1,
+        "total_ms": 2829
+      },
+      "investigation": {
+        "average_ms": 10743.75,
+        "calls": 4,
+        "total_ms": 42975
+      },
+      "review": {
+        "average_ms": 5592.0,
+        "calls": 4,
+        "total_ms": 22368
+      }
+    },
+    "median_latency_ms": 96126,
+    "metric_layers": {
+      "business_results": {
+        "patch_success_rate": 0.0,
+        "regression_pass_rate": 0.0,
+        "target_test_pass_rate": 0.0,
+        "task_resolution_rate": 0.0
+      },
+      "closed_loop_mechanism": {
+        "evidence_gate_pass_rate": 0.0,
+        "hypothesis_accept_rate": 0.0,
+        "patch_binding_rate": 0.0,
+        "review_pass_rate": 0.0,
+        "validation_pass_rate": 0.0
+      },
+      "exception_recovery": {
+        "contract_rejection_count": 0,
+        "node_rebuild_count": 0,
+        "replan_attempt_count": 0,
+        "replan_success_rate": null,
+        "supervisor_format_repair_count": 1,
+        "worker_retry_count": 0
+      },
+      "routing_and_cost": {
+        "estimated_cost_cny": 0.0,
+        "latency_by_stage": {
+          "diagnosis": {
+            "average_ms": 4106.333333333333,
+            "calls": 3,
+            "total_ms": 12319
+          },
+          "initialization": {
+            "average_ms": 2829.0,
+            "calls": 1,
+            "total_ms": 2829
+          },
+          "investigation": {
+            "average_ms": 10743.75,
+            "calls": 4,
+            "total_ms": 42975
+          },
+          "review": {
+            "average_ms": 5592.0,
+            "calls": 4,
+            "total_ms": 22368
+          }
+        },
+        "route_attempts_by_model": {
+          "deepseek-v4-flash-0731": 2,
+          "deepseek-v4-pro-0813": 2,
+          "qwen3.8-max": 10
+        },
+        "route_exhausted_by_model": {
+          "deepseek-v4-flash-0731": 1,
+          "qwen3.8-max": 1
+        },
+        "route_successes_by_model": {
+          "deepseek-v4-flash-0731": 1,
+          "deepseek-v4-pro-0813": 2,
+          "qwen3.8-max": 9
+        },
+        "supervisor_tokens": 70794,
+        "total_tokens": 86765,
+        "worker_tokens": 15971
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_apply_rate": 0.0,
+    "patch_binding_rate": 0.0,
+    "patch_success_rate": 0.0,
+    "recovery_attempted_tasks": 0,
+    "recovery_succeeded_tasks": 0,
+    "recovery_success_rate": null,
+    "regression_pass_rate": 0.0,
+    "replan_attempt_count": 0,
+    "replan_success_rate": null,
+    "review_pass_rate": 0.0,
+    "route_attempts_by_model": {
+      "deepseek-v4-flash-0731": 2,
+      "deepseek-v4-pro-0813": 2,
+      "qwen3.8-max": 10
+    },
+    "route_distribution": {
+      "standard": 1
+    },
+    "route_exhausted_by_model": {
+      "deepseek-v4-flash-0731": 1,
+      "qwen3.8-max": 1
+    },
+    "route_successes_by_model": {
+      "deepseek-v4-flash-0731": 1,
+      "deepseek-v4-pro-0813": 2,
+      "qwen3.8-max": 9
+    },
+    "schema_version": 1,
+    "solved": 0,
+    "source_integrity_violations": 0,
+    "supervisor_format_repair_count": 1,
+    "supervisor_snapshot_compact_chars": 46621,
+    "supervisor_snapshot_count": 9,
+    "supervisor_snapshot_original_chars": 85967,
+    "supervisor_snapshot_reduction_ratio": 0.4576872520851024,
+    "supervisor_tokens": 70794,
+    "syntax_valid_rate": 0.0,
+    "system_id": "closed_loop_dynamic",
+    "target_test_pass_rate": 0.0,
+    "task_count": 1,
+    "task_resolution_rate": 0.0,
+    "task_result_paths": [
+      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/tasks/quixbugs_flatten/result.json"
+    ],
+    "termination_codes": {
+      "NO_PROGRESS_LOOP": 1
+    },
+    "termination_failure_classes": {
+      "orchestration_failure": 1
+    },
+    "termination_stages": {
+      "review": 1
+    },
+    "totals": {
+      "duration_ms": 96126,
+      "input_tokens": 82118,
+      "model_calls": 21,
+      "output_tokens": 4647,
+      "supervisor_api_calls": 14,
+      "tool_calls": 3,
+      "total_tokens": 86765,
+      "worker_model_calls": 7
+    },
+    "validation_pass_rate": 0.0,
+    "worker_failure_count": 0,
+    "worker_failure_isolation_rate": null,
+    "worker_retry_count": 0,
+    "worker_tokens": 15971,
+    "workspace_cleanup_rate": 1.0
+  },
+  "summary_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/summary.json"
+}

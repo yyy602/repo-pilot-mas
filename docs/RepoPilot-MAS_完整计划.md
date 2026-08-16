@@ -1105,7 +1105,7 @@ Phase 2 已实现本地 Transformers Provider 和 FakeModelAdapter。Phase 3 只
 
 ### 12.3 推荐配置
 
-本地 Worker 继续使用 `configs/model.yaml`；Supervisor 使用 `configs/supervisor.yaml`。后者只保存非敏感配置：
+本地 Worker 继续使用 `configs/model.yaml`；正式 Supervisor 使用 `configs/supervisor.yaml`。后者只保存非敏感配置：
 
 ```yaml
 supervisor:
@@ -1127,6 +1127,24 @@ supervisor:
 ```
 
 `credential_file` 由 Phase 3 运行入口自动读取，但不得写入 Trace；进程环境中已经显式设置的同名变量优先于文件值。
+
+调试和正式评测必须分层：
+
+1. 单元与契约回归使用 Fake/Scripted ModelAdapter，不加载 GPU、不调用 API；
+2. 单任务闭环调试可显式传入 `configs/supervisor.local.yaml`，Supervisor 复用本地 Qwen3-8B Worker 槽位 0，只验证结构化生成、LangGraph 调度、工具证据和状态收敛；
+3. 最小真实协议探针和正式评测才使用 `configs/supervisor.yaml`；
+4. 完整 Development 和 Frozen Test 的入口确定性拒绝本地 Supervisor 配置，本地运行结果不得写入正式成功率或冻结身份。
+
+本地单任务调试示例：
+
+```bash
+/home/user50305/.conda/envs/multi_agent/bin/python \
+  scripts/run_closed_loop_final_evaluation.py \
+  --split development \
+  --task-id quixbugs_gcd \
+  --supervisor-config configs/supervisor.local.yaml \
+  --run-id local_debug_gcd
+```
 
 ### 12.4 Supervisor 路由顺序
 
@@ -1516,7 +1534,7 @@ LangGraph 运行时验收：
 
 ### Phase 6：评测、观测与简历交付
 
-**状态：历史基线 v1 已完成（2026-08-02）；闭环加固 v2 已完成实现，三模型六槽位迁移后等待重新预冻结与正式验收（2026-08-16）。**
+**状态：历史基线 v1 已完成（2026-08-02）；闭环加固 v2 正在修复 Development 暴露的状态收敛问题，尚未重新预冻结（2026-08-16）。**
 
 **目标：把系统整理为可复现、可对照和可写入简历的项目。**
 
@@ -1559,7 +1577,9 @@ LangGraph 运行时验收：
 闭环加固 v2 当前状态：
 
 - 已完成预算唯一事实源、失败复现语义、Agent 输入契约、Retry 分类、阶段化最小 Schema、Evidence/Reviewer Gate、Patch 语义与绑定门、Validation 定向回退、Snapshot 压缩、结构化终态和冻结身份校验；
-- 当前运行时在 `/home/user50305/.conda/envs/multi_agent/bin/python` 下通过 241 项 pytest、Ruff、compileall 与 `git diff --check`；新发现的 Review 选择 Gate 修复尚待提交和重新预冻结；
+- 已新增 Fake/Scripted → 本地 Qwen3-8B 单任务调试 → 最小真实 API 探针 → 正式 Development/Frozen Test 四层执行策略；完整正式批次不能使用本地 Supervisor；
+- 最近诊断确认并修复两个确定性流程缺口：补证后的 Diagnosis 现在必须同时携带已确认失败复现 Evidence 和本次缺口补全 Evidence；supported Review 达到 acceptance-ready 且无活动节点后，Schema 只暴露 ACCEPT/TERMINATE，Engine 也拒绝纯阶段切换；
+- 本轮在 `multi_agent` 环境完成 257 项 pytest、全仓 Ruff、compileall 与 `git diff --check`；本地配置 dry-run 和“完整正式批次拒绝本地 Supervisor”入口检查通过。由于两块 GPU 正被既有 vLLM 服务占用，本轮未重复加载 Transformers 执行本地模型单题，仍需在资源可用时补做一次本地闭环；
 - 多轮真实 API development pilot 已验证约束确实参与运行，并形成框架问题 Trace，而非只依赖 fixture；
 - 最新一次诊断运行 `dev_repair_v2_routes_classified` 中，六个配置路由均返回上游免费额度耗尽。系统一次策略调用、六次真实路由尝试后立即失败关闭，实际结果记录 `code=SUPERVISOR_ROUTES_EXHAUSTED`、`failure_class=provider_quota_exhausted`，工作区清理率为 100%，源码完整性违规为 0；
 - 2026-08-16 按用户确认迁移到三模型六槽位新基线；逐槽位真实探测 5/6 可用，仅 `deepseek-v4-flash-0731 + DASHSCOPE_API_KEY_1` 免费额度耗尽，同模型账号 2 可接管；脱敏证据保存在 `reports/closed_loop/evaluation/supervisor_route_probe_20260816/`；

@@ -1,0 +1,206 @@
+{
+  "dry_run": false,
+  "failures_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/failures",
+  "final_report": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/final_report.md",
+  "full_development_run": false,
+  "full_run": false,
+  "gates": {
+    "budget_outcomes_fail_closed": true,
+    "every_task_has_result": true,
+    "every_task_has_trace": true,
+    "failures_are_included": true,
+    "final_runtime_entrypoint": true,
+    "frozen_test_set_has_expected_tasks": true,
+    "selected_task_count_complete": true,
+    "source_repositories_unchanged": true,
+    "terminal_workspaces_cleaned": true
+  },
+  "manifest_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/manifest.json",
+  "passed": true,
+  "phase": 6,
+  "results_csv": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/task_results.csv",
+  "results_json": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/task_results.json",
+  "run_id": "dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization",
+  "summary": {
+    "artifact_rejection_count": 2,
+    "average_latency_ms": 433738.0,
+    "average_tokens": 296750.0,
+    "budget_violations": 0,
+    "contract_rejection_count": 0,
+    "estimated_api_cost_cny": 0.0,
+    "estimated_api_cost_per_solved_cny": 0.0,
+    "evidence_gate_pass_rate": 1.0,
+    "failed": 0,
+    "hypothesis_accept_rate": 1.0,
+    "isolated_worker_failure_count": 1,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 5486.666666666667,
+        "calls": 6,
+        "total_ms": 32920
+      },
+      "initialization": {
+        "average_ms": 3452.0,
+        "calls": 1,
+        "total_ms": 3452
+      },
+      "investigation": {
+        "average_ms": 14482.375,
+        "calls": 8,
+        "total_ms": 115859
+      },
+      "patch": {
+        "average_ms": 28322.571428571428,
+        "calls": 7,
+        "total_ms": 198258
+      },
+      "review": {
+        "average_ms": 9782.875,
+        "calls": 8,
+        "total_ms": 78263
+      },
+      "validation": {
+        "average_ms": 1961.5,
+        "calls": 2,
+        "total_ms": 3923
+      }
+    },
+    "median_latency_ms": 433738,
+    "metric_layers": {
+      "business_results": {
+        "patch_success_rate": 1.0,
+        "regression_pass_rate": 1.0,
+        "target_test_pass_rate": 1.0,
+        "task_resolution_rate": 1.0
+      },
+      "closed_loop_mechanism": {
+        "evidence_gate_pass_rate": 1.0,
+        "hypothesis_accept_rate": 1.0,
+        "patch_binding_rate": 1.0,
+        "review_pass_rate": 1.0,
+        "validation_pass_rate": 1.0
+      },
+      "exception_recovery": {
+        "contract_rejection_count": 0,
+        "node_rebuild_count": 0,
+        "replan_attempt_count": 1,
+        "replan_success_rate": 1.0,
+        "supervisor_format_repair_count": 0,
+        "worker_retry_count": 1
+      },
+      "routing_and_cost": {
+        "estimated_cost_cny": 0.0,
+        "latency_by_stage": {
+          "diagnosis": {
+            "average_ms": 5486.666666666667,
+            "calls": 6,
+            "total_ms": 32920
+          },
+          "initialization": {
+            "average_ms": 3452.0,
+            "calls": 1,
+            "total_ms": 3452
+          },
+          "investigation": {
+            "average_ms": 14482.375,
+            "calls": 8,
+            "total_ms": 115859
+          },
+          "patch": {
+            "average_ms": 28322.571428571428,
+            "calls": 7,
+            "total_ms": 198258
+          },
+          "review": {
+            "average_ms": 9782.875,
+            "calls": 8,
+            "total_ms": 78263
+          },
+          "validation": {
+            "average_ms": 1961.5,
+            "calls": 2,
+            "total_ms": 3923
+          }
+        },
+        "route_attempts_by_model": {
+          "qwen3.8-max": 18
+        },
+        "route_exhausted_by_model": {
+          "qwen3.8-max": 1
+        },
+        "route_successes_by_model": {
+          "qwen3.8-max": 17
+        },
+        "supervisor_tokens": 136737,
+        "total_tokens": 296750,
+        "worker_tokens": 160013
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_apply_rate": 1.0,
+    "patch_binding_rate": 1.0,
+    "patch_success_rate": 1.0,
+    "recovery_attempted_tasks": 1,
+    "recovery_succeeded_tasks": 1,
+    "recovery_success_rate": 1.0,
+    "regression_pass_rate": 1.0,
+    "replan_attempt_count": 1,
+    "replan_success_rate": 1.0,
+    "review_pass_rate": 1.0,
+    "route_attempts_by_model": {
+      "qwen3.8-max": 18
+    },
+    "route_distribution": {
+      "deep": 1
+    },
+    "route_exhausted_by_model": {
+      "qwen3.8-max": 1
+    },
+    "route_successes_by_model": {
+      "qwen3.8-max": 17
+    },
+    "schema_version": 1,
+    "solved": 1,
+    "source_integrity_violations": 0,
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 213621,
+    "supervisor_snapshot_count": 17,
+    "supervisor_snapshot_original_chars": 284636,
+    "supervisor_snapshot_reduction_ratio": 0.2494940906982953,
+    "supervisor_tokens": 136737,
+    "syntax_valid_rate": 1.0,
+    "system_id": "closed_loop_dynamic",
+    "target_test_pass_rate": 1.0,
+    "task_count": 1,
+    "task_resolution_rate": 1.0,
+    "task_result_paths": [
+      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/tasks/quixbugs_is_valid_parenthesization/result.json"
+    ],
+    "termination_codes": {
+      "VALIDATION_PASSED": 1
+    },
+    "termination_failure_classes": {
+      "none": 1
+    },
+    "termination_stages": {
+      "finalization": 1
+    },
+    "totals": {
+      "duration_ms": 433738,
+      "input_tokens": 281051,
+      "model_calls": 62,
+      "output_tokens": 15699,
+      "supervisor_api_calls": 18,
+      "tool_calls": 36,
+      "total_tokens": 296750,
+      "worker_model_calls": 44
+    },
+    "validation_pass_rate": 1.0,
+    "worker_failure_count": 1,
+    "worker_failure_isolation_rate": 1.0,
+    "worker_retry_count": 1,
+    "worker_tokens": 160013,
+    "workspace_cleanup_rate": 1.0
+  },
+  "summary_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_is_valid_parenthesization/summary.json"
+}

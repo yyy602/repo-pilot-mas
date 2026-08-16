@@ -21,7 +21,7 @@ from repo_pilot_mas.models import (
     ModelAdapter,
 )
 from repo_pilot_mas.models.base import RawGeneration
-from repo_pilot_mas.orchestration import NodeStatus, NodeType, TaskNode
+from repo_pilot_mas.orchestration import NodeStatus, NodeType, ReactBudget, TaskNode
 from repo_pilot_mas.runtime import TraceWriter, WorkspaceManager
 from repo_pilot_mas.schemas import Artifact, ArtifactType, TaskSpec, validate_worker_artifact
 from repo_pilot_mas.schemas.tool_result import ToolResult
@@ -201,6 +201,170 @@ def test_evidence_completion_requires_real_test_execution(tmp_path: Path) -> Non
             "evidence_completion",
             "补充边界输入的执行证据",
         )
+
+
+def test_evidence_completion_cannot_succeed_with_unverified_output(
+    tmp_path: Path,
+) -> None:
+    content = {
+        **_evidence().to_dict()["content"],
+        "mode": "evidence_completion",
+        "evidence_kind": "execution",
+        "claim": "边界行为仍未完成验证",
+        "status": "unverified",
+        "verified": False,
+        "tool_trace_ids": ["inspect-trace", "run_tests-trace"],
+        "missing_evidence": ["需要可确认的执行结果"],
+    }
+    model = FakeModelAdapter(
+        [
+            {
+                "thought_summary": "读取目标代码",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "inspect_code",
+                    "arguments": {"file_path": "target.py"},
+                },
+            },
+            {
+                "thought_summary": "运行目标测试",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "run_tests",
+                    "arguments": {},
+                },
+            },
+            {
+                "thought_summary": "仍缺少可验证结论",
+                "action": {
+                    "type": "final",
+                    "status": "success",
+                    "reason": "本轮未闭合证据缺口",
+                    "artifact": content,
+                },
+            },
+        ]
+    )
+
+    with pytest.raises(WorkerAgentError, match="没有产出已验证的闭合证据"):
+        InvestigatorAgent(model, _dummy_tools()).run(
+            _task(tmp_path),
+            "N2",
+            "evidence_completion",
+            "补充边界输入的执行证据",
+        )
+
+    artifact = Artifact(
+        "N2.evidence",
+        ArtifactType.EVIDENCE,
+        "N2",
+        content,
+    )
+    with pytest.raises(ValueError, match="must close the evidence gap"):
+        validate_worker_artifact(artifact, expected_type=ArtifactType.EVIDENCE)
+
+
+def test_evidence_completion_receives_input_artifacts(tmp_path: Path) -> None:
+    content = {
+        **_evidence().to_dict()["content"],
+        "mode": "evidence_completion",
+        "evidence_kind": "execution",
+        "status": "verified",
+        "verified": True,
+        "tool_trace_ids": ["inspect-trace", "run_tests-trace"],
+        "missing_evidence": [],
+    }
+    review = Artifact(
+        "N4.review",
+        ArtifactType.REVIEW,
+        "N4",
+        {"remaining_uncertainty": ["缺少递归参数更新的执行证据"]},
+    )
+    model = FakeModelAdapter(
+        [
+            {
+                "thought_summary": "读取目标代码",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "inspect_code",
+                    "arguments": {"file_path": "target.py"},
+                },
+            },
+            {
+                "thought_summary": "运行目标测试",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "run_tests",
+                    "arguments": {},
+                },
+            },
+            {
+                "thought_summary": "缺口已经由执行结果闭合",
+                "action": {
+                    "type": "final",
+                    "status": "success",
+                    "reason": "已完成补证",
+                    "artifact": content,
+                },
+            },
+        ],
+        raw_log_dir=tmp_path / "raw",
+    )
+
+    InvestigatorAgent(model, _dummy_tools()).run(
+        _task(tmp_path),
+        "N5",
+        "evidence_completion",
+        "补充根因审查缺口",
+        (_evidence(), review),
+    )
+
+    first_log = min((tmp_path / "raw").glob("*.json"))
+    messages = json.loads(first_log.read_text(encoding="utf-8"))["messages"]
+    payload = json.loads(messages[1]["content"])
+    assert [item["artifact_type"] for item in payload["input_artifacts"]] == [
+        "evidence",
+        "review",
+    ]
+    assert payload["input_artifacts"][1]["content"]["remaining_uncertainty"] == [
+        "缺少递归参数更新的执行证据"
+    ]
+
+
+def test_investigator_strategy_budget_exhaustion_is_not_transient(
+    tmp_path: Path,
+) -> None:
+    model = FakeModelAdapter(
+        [
+            {
+                "thought_summary": "读取目标代码",
+                "action": {
+                    "type": "tool",
+                    "tool_name": "inspect_code",
+                    "arguments": {"file_path": "target.py"},
+                },
+            }
+        ]
+    )
+    agent = InvestigatorAgent(
+        model,
+        _dummy_tools(),
+        budget=ReactBudget(
+            max_steps=1,
+            max_model_calls=2,
+            max_tool_calls=2,
+        ),
+    )
+
+    with pytest.raises(WorkerAgentError) as captured:
+        agent.run(
+            _task(tmp_path),
+            "N-budget",
+            "code_retrieval",
+            "读取缺陷函数",
+        )
+
+    assert captured.value.code == "MODEL_FORMAT_ERROR"
 
 
 def test_two_diagnosticians_receive_only_evidence_and_not_each_other(tmp_path: Path) -> None:

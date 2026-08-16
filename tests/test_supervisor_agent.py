@@ -6,13 +6,17 @@ from pathlib import Path
 import pytest
 
 from repo_pilot_mas.agents import SupervisorAgent
-from repo_pilot_mas.agents.supervisor import _supervisor_snapshot_view
+from repo_pilot_mas.agents.supervisor import (
+    _safe_fallback_decision,
+    _supervisor_snapshot_view,
+)
 from repo_pilot_mas.models import (
     FakeModelAdapter,
     GenerationConfig,
     ModelAdapterError,
 )
 from repo_pilot_mas.orchestration import EngineStatus, OrchestrationEngine
+from repo_pilot_mas.orchestration.agent_contracts import validate_agent_input_contract
 from repo_pilot_mas.runtime import TraceWriter
 from repo_pilot_mas.schemas import (
     DecisionAction,
@@ -298,7 +302,10 @@ def test_stage_specific_schema_only_exposes_legal_actions() -> None:
 
     assert _schema_actions(initialization) == {"CREATE_TASK", "TERMINATE_TASK"}
     assert _schema_node_types(initialization) == {"INVESTIGATION_TASK"}
-    assert "ACCEPT_HYPOTHESIS" in _schema_actions(diagnosis)
+    assert _schema_actions(diagnosis) == {
+        "ACCEPT_HYPOTHESIS",
+        "TERMINATE_TASK",
+    }
     assert "SELECT_PATCH" not in _schema_actions(diagnosis)
     assert "PATCH_TASK" not in _schema_node_types(diagnosis)
     for variant in diagnosis["oneOf"]:
@@ -338,6 +345,52 @@ def test_hypothesis_with_missing_evidence_cannot_be_accepted() -> None:
     )
 
     assert "ACCEPT_HYPOTHESIS" not in _schema_actions(schema)
+
+
+def test_patch_schema_requires_exact_accepted_hypothesis_set() -> None:
+    snapshot = {
+        "workflow_stage": "review",
+        "nodes": [],
+        "artifacts": [
+            {"artifact_ref": "H-old@v1", "artifact_type": "hypothesis"},
+            {"artifact_ref": "H-new@v1", "artifact_type": "hypothesis"},
+            {"artifact_ref": "R-new@v1", "artifact_type": "review"},
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "accepted",
+                "accepted_refs": ["H-new@v1"],
+                "review_refs": ["R-new@v1"],
+            }
+        },
+    }
+    schema = supervisor_decision_schema_for_state(snapshot)
+    valid = {
+        "decision_id": "create-patch",
+        "action": "CREATE_TASK",
+        "reason": "基于已接受根因创建最小补丁",
+        "create_tasks": [
+            {
+                "node_type": "PATCH_TASK",
+                "agent_type": "PatchAgent",
+                "mode": "minimal",
+                "objective": "修复已接受根因",
+                "input_artifact_ids": ["H-new@v1", "R-new@v1"],
+            }
+        ],
+        "next_workflow_stage": "patch",
+    }
+    validate_json_schema(valid, schema)
+
+    stale = json.loads(json.dumps(valid))
+    stale["create_tasks"][0]["input_artifact_ids"].insert(0, "H-old@v1")
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(stale, schema)
+
+    missing_review = json.loads(json.dumps(valid))
+    missing_review["create_tasks"][0]["input_artifact_ids"] = ["H-new@v1"]
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(missing_review, schema)
 
 
 def test_hypothesis_with_unverified_support_cannot_be_accepted() -> None:
@@ -478,6 +531,67 @@ def test_explicit_gap_reopens_investigation_until_new_verified_evidence() -> Non
 
     assert _schema_node_types(before_completion) == {"INVESTIGATION_TASK"}
     assert _schema_node_types(after_completion) == {"DIAGNOSIS_TASK"}
+
+
+def test_rediagnosis_schema_requires_confirmed_reproduction_input() -> None:
+    reproduction = _verified_reproduction("E-reproduction@v1")
+    gap = {
+        "artifact_ref": "H-old@v1",
+        "artifact_type": "hypothesis",
+        "content": {"missing_evidence": ["边界执行路径"]},
+    }
+    completion = {
+        **_verified_reproduction("E-completion@v1"),
+        "content": {
+            **_verified_reproduction("E-completion@v1")["content"],
+            "mode": "evidence_completion",
+            "evidence_kind": "execution",
+            "reproduction": None,
+        },
+    }
+    schema = supervisor_decision_schema_for_state(
+        {
+            "workflow_stage": "diagnosis",
+            "task": {
+                "requires_failure_reproduction": True,
+                "confirmed_failure_reproduction_refs": ["E-reproduction@v1"],
+            },
+            "nodes": [],
+            "artifacts": [reproduction, gap, completion],
+        }
+    )
+    decision = {
+        "decision_id": "rediagnose-without-reproduction",
+        "action": "CREATE_TASK",
+        "reason": "使用补充证据重新诊断",
+        "create_tasks": [
+            {
+                "node_type": "DIAGNOSIS_TASK",
+                "agent_type": "DiagnosticianAgent",
+                "mode": "control_flow",
+                "objective": "结合新增边界证据重新判断根因",
+                "input_artifact_ids": ["E-completion@v1"],
+            }
+        ],
+        "next_workflow_stage": "diagnosis",
+    }
+
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(decision, schema)
+
+    decision["decision_id"] = "rediagnose-without-completion"
+    decision["create_tasks"][0]["input_artifact_ids"] = [
+        "E-reproduction@v1",
+    ]
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(decision, schema)
+
+    decision["decision_id"] = "rediagnose-with-required-evidence"
+    decision["create_tasks"][0]["input_artifact_ids"] = [
+        "E-reproduction@v1",
+        "E-completion@v1",
+    ]
+    validate_json_schema(decision, schema)
 
 
 def test_diagnosis_schema_only_accepts_evidence_inputs() -> None:
@@ -777,6 +891,259 @@ def test_supervisor_normalizes_gate_triggers_into_evidence_refs(
     assert normalized[0]["data"]["added_evidence_refs"] == ["R1@v1"]
 
 
+def test_safe_fallback_rediagnoses_after_evidence_gap_is_completed() -> None:
+    snapshot = {
+        "workflow_stage": "investigation",
+        "state_version": 43,
+        "task": {
+            "requires_failure_reproduction": True,
+            "confirmed_failure_reproduction_refs": ["E1@v1"],
+        },
+        "nodes": [
+            {
+                "node_id": "N2",
+                "node_type": "DIAGNOSIS_TASK",
+                "status": "SUCCEEDED",
+            },
+            {
+                "node_id": "N4",
+                "node_type": "INVESTIGATION_TASK",
+                "status": "SUCCEEDED",
+            },
+        ],
+        "artifacts": [
+            _verified_reproduction(),
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {
+                    "supporting_evidence": ["E1@v1"],
+                    "missing_evidence": [],
+                },
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "root_cause_recommendation",
+                    "verdict": "needs_more_evidence",
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+            {
+                "artifact_ref": "E2@v1",
+                "artifact_type": "evidence",
+                "content": {
+                    "evidence_kind": "execution",
+                    "verified": True,
+                    "status": "verified",
+                    "source": {
+                        "path": "target.py",
+                        "line_start": 8,
+                        "line_end": 8,
+                    },
+                    "content": "边界输入执行路径",
+                    "tool_trace_ids": ["trace-2"],
+                    "missing_evidence": [],
+                },
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "needs_evidence",
+                "candidate_refs": ["H1@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+    }
+    supervisor = SupervisorAgent(
+        FakeModelAdapter(["bad"]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.decision_id == "fallback-rediagnosis-43"
+    request = outcome.decision.create_tasks[0]
+    assert request.node_type == "DIAGNOSIS_TASK"
+    assert request.mode == "control_flow"
+    assert request.input_artifact_ids == ("E1@v1", "E2@v1")
+    assert outcome.decision.next_workflow_stage == "diagnosis"
+    assert outcome.decision.gate_record is not None
+    assert set(outcome.decision.gate_record.trigger_artifact_refs) == {
+        "R1@v1",
+        "E2@v1",
+    }
+    validate_json_schema(
+        outcome.decision.to_dict(),
+        supervisor_decision_schema_for_state(snapshot),
+    )
+
+
+def test_validation_schema_requires_targeted_non_blocking_patch_review() -> None:
+    snapshot = {
+        "workflow_stage": "patch",
+        "nodes": [
+            {
+                "node_id": "N4",
+                "node_type": "PATCH_TASK",
+                "status": "SUCCEEDED",
+            }
+        ],
+        "artifacts": [
+            _verified_reproduction(),
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "root_cause_recommendation",
+                    "verdict": "supported",
+                    "target_artifact_refs": ["H1@v1"],
+                    "evidence_refs": ["E1@v1"],
+                },
+            },
+            {
+                "artifact_ref": "P1@v1",
+                "artifact_type": "patch_candidate",
+                "content": {"strategy": "minimal"},
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "accepted",
+                "accepted_refs": ["H1@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+    }
+    premature = {
+        "decision_id": "premature-validation",
+        "action": "CREATE_TASK",
+        "reason": "验证补丁",
+        "create_tasks": [
+            {
+                "node_type": "VALIDATION_TASK",
+                "agent_type": "ValidationExecutor",
+                "mode": "deterministic",
+                "objective": "运行目标测试和完整回归",
+                "input_artifact_ids": ["P1@v1", "R1@v1"],
+            }
+        ],
+        "next_workflow_stage": "validation",
+    }
+
+    schema_without_patch_review = supervisor_decision_schema_for_state(snapshot)
+    assert "VALIDATION_TASK" not in _schema_node_types(
+        schema_without_patch_review
+    )
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(premature, schema_without_patch_review)
+
+    snapshot["artifacts"].append(
+        {
+            "artifact_ref": "R2@v1",
+            "artifact_type": "review",
+            "content": {
+                "mode": "patch_review",
+                "verdict": "approved",
+                "target_artifact_ref": "P1@v1",
+            },
+        }
+    )
+    schema_with_patch_review = supervisor_decision_schema_for_state(snapshot)
+    assert "VALIDATION_TASK" in _schema_node_types(schema_with_patch_review)
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(premature, schema_with_patch_review)
+
+    valid = {
+        **premature,
+        "decision_id": "validated-patch",
+        "create_tasks": [
+            {
+                **premature["create_tasks"][0],
+                "input_artifact_ids": ["P1@v1", "R2@v1"],
+            }
+        ],
+    }
+    validate_json_schema(valid, schema_with_patch_review)
+
+
+def test_safe_fallback_creates_missing_patch_review() -> None:
+    snapshot = {
+        "workflow_stage": "patch",
+        "state_version": 50,
+        "nodes": [
+            {
+                "node_id": "N5",
+                "node_type": "PATCH_TASK",
+                "status": "SUCCEEDED",
+            }
+        ],
+        "artifacts": [
+            _verified_reproduction(),
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "root_cause_recommendation",
+                    "verdict": "supported",
+                    "target_artifact_refs": ["H1@v1"],
+                    "evidence_refs": ["E1@v1"],
+                },
+            },
+            {
+                "artifact_ref": "P1@v1",
+                "artifact_type": "patch_candidate",
+                "content": {"strategy": "minimal"},
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "accepted",
+                "accepted_refs": ["H1@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+    }
+    supervisor = SupervisorAgent(
+        FakeModelAdapter(["bad"]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.decision_id == "fallback-patch-review-50"
+    request = outcome.decision.create_tasks[0]
+    assert request.node_type == "REVIEW_TASK"
+    assert request.agent_type == "ReviewerAgent"
+    assert request.mode == "patch_review"
+    assert set(request.input_artifact_ids) == {
+        "E1@v1",
+        "H1@v1",
+        "R1@v1",
+        "P1@v1",
+    }
+    assert outcome.decision.gate_record is None
+    validate_json_schema(
+        outcome.decision.to_dict(),
+        supervisor_decision_schema_for_state(snapshot),
+    )
+
+
 def test_exhausted_failed_patch_schema_only_allows_termination() -> None:
     schema = supervisor_decision_schema_for_state(
         {
@@ -1006,6 +1373,531 @@ def test_safe_fallback_executes_approved_patch_replan() -> None:
         "RP1@v1",
         "V1@v1",
     }
+    assert set(outcome.decision.evidence_refs) == {"RP1@v1", "V1@v1"}
+    validate_json_schema(
+        outcome.decision.to_dict(),
+        supervisor_decision_schema_for_state(snapshot),
+    )
+
+
+def test_safe_fallback_executes_approved_investigation_replan() -> None:
+    snapshot = {
+        "workflow_stage": "investigation",
+        "state_version": 66,
+        "nodes": [
+            {
+                "node_id": "N5",
+                "node_type": "REVIEW_TASK",
+                "mode": "hypothesis_comparison",
+                "status": "SUCCEEDED",
+            },
+            {
+                "node_id": "N6",
+                "node_type": "INVESTIGATION_TASK",
+                "mode": "evidence_completion",
+                "status": "TIMED_OUT",
+                "input_artifact_ids": ["E1@v1", "E2@v1", "R1@v1"],
+            },
+            {
+                "node_id": "N7",
+                "node_type": "REPLAN_TASK",
+                "status": "SUCCEEDED",
+            },
+        ],
+        "artifacts": [
+            _verified_reproduction(),
+            {**_verified_reproduction("E2@v1")},
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1", "E2@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "hypothesis_comparison",
+                    "verdict": "needs_more_evidence",
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+            {
+                "artifact_ref": "AR1@v1",
+                "artifact_type": "artifact_rejection",
+                "content": {"code": "MODEL_TIMEOUT"},
+            },
+            {
+                "artifact_ref": "RP1@v1",
+                "artifact_type": "replan_record",
+                "content": {"target_stage": "investigation"},
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "needs_evidence",
+                "candidate_refs": ["H1@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+        "recovery": {
+            "pending_replan": True,
+            "target_stage": "investigation",
+            "target_node_type": "INVESTIGATION_TASK",
+            "replan_ref": "RP1@v1",
+            "trigger_refs": ["E1@v1", "E2@v1", "R1@v1"],
+            "remaining_replans": 0,
+        },
+    }
+    supervisor = SupervisorAgent(
+        FakeModelAdapter(["bad"]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.decision_id == "fallback-replan-investigation-66"
+    request = outcome.decision.create_tasks[0]
+    assert request.node_type == "INVESTIGATION_TASK"
+    assert request.mode == "evidence_completion"
+    assert set(request.input_artifact_ids) == {
+        "E1@v1",
+        "E2@v1",
+        "R1@v1",
+    }
+    assert "RP1@v1" not in request.input_artifact_ids
+    assert set(outcome.decision.evidence_refs) == {
+        "RP1@v1",
+        "E1@v1",
+        "E2@v1",
+        "R1@v1",
+    }
+    validate_json_schema(
+        outcome.decision.to_dict(),
+        supervisor_decision_schema_for_state(snapshot),
+    )
+
+
+def test_safe_fallback_collects_evidence_for_blocking_root_review() -> None:
+    supervisor = SupervisorAgent(
+        FakeModelAdapter(["bad"]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+    snapshot = {
+        "workflow_stage": "review",
+        "state_version": 34,
+        "nodes": [
+            {
+                "node_id": "N1",
+                "node_type": "INVESTIGATION_TASK",
+                "status": "SUCCEEDED",
+            },
+            {
+                "node_id": "N4",
+                "node_type": "REVIEW_TASK",
+                "mode": "hypothesis_comparison",
+                "status": "SUCCEEDED",
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "needs_evidence",
+                "candidate_refs": ["H1@v1", "H2@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+        "artifacts": [
+            {
+                "artifact_ref": "E1@v1",
+                "artifact_type": "evidence",
+                "content": {"claim": "失败复现", "verified": True},
+            },
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "H2@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "hypothesis_comparison",
+                    "verdict": "needs_more_evidence",
+                    "target_artifact_refs": ["H1@v1", "H2@v1"],
+                    "evidence_refs": ["E1@v1"],
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+        ],
+    }
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.action is DecisionAction.CREATE_TASK
+    request = outcome.decision.create_tasks[0]
+    assert request.node_type == "INVESTIGATION_TASK"
+    assert request.agent_type == "InvestigatorAgent"
+    assert request.mode == "evidence_completion"
+    assert set(request.input_artifact_ids) == {"E1@v1", "R1@v1"}
+    assert outcome.decision.next_workflow_stage == "investigation"
+    assert outcome.decision.gate_record is not None
+    assert outcome.decision.gate_record.trigger_artifact_refs == ("R1@v1",)
+    schema = supervisor_decision_schema_for_state(snapshot)
+    validate_json_schema(outcome.decision.to_dict(), schema)
+
+    wrong_dependency = outcome.decision.to_dict()
+    wrong_dependency["create_tasks"][0]["depends_on"] = ["R1@v1"]
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(wrong_dependency, schema)
+
+    valid_dependency = outcome.decision.to_dict()
+    valid_dependency["create_tasks"][0]["depends_on"] = ["N4"]
+    validate_json_schema(valid_dependency, schema)
+
+    missing_evidence_context = outcome.decision.to_dict()
+    missing_evidence_context["create_tasks"][0]["input_artifact_ids"] = [
+        "R1@v1"
+    ]
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(missing_evidence_context, schema)
+
+    stale_hypothesis_context = outcome.decision.to_dict()
+    stale_hypothesis_context["create_tasks"][0]["input_artifact_ids"] = [
+        "E1@v1",
+        "H1@v1",
+        "R1@v1",
+    ]
+    with pytest.raises(SchemaValidationError):
+        validate_json_schema(stale_hypothesis_context, schema)
+
+
+def test_safe_fallback_evidence_keeps_hypotheses_out_of_worker_inputs() -> None:
+    supervisor = SupervisorAgent(
+        FakeModelAdapter(["bad"]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+    snapshot = {
+        "workflow_stage": "review",
+        "state_version": 34,
+        "nodes": [
+            {
+                "node_id": "N1",
+                "node_type": "INVESTIGATION_TASK",
+                "status": "SUCCEEDED",
+            },
+            {
+                "node_id": "N4",
+                "node_type": "REVIEW_TASK",
+                "mode": "hypothesis_comparison",
+                "status": "SUCCEEDED",
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "needs_evidence",
+                "candidate_refs": ["H1@v1", "H2@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+        "artifacts": [
+            {
+                "artifact_ref": "E1@v1",
+                "artifact_type": "evidence",
+                "content": {"claim": "失败复现", "verified": True},
+            },
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {
+                    "supporting_evidence": ["E1@v1"],
+                    "missing_evidence": ["缺少边界执行证据"],
+                },
+            },
+            {
+                "artifact_ref": "H2@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "hypothesis_comparison",
+                    "verdict": "needs_more_evidence",
+                    "target_artifact_refs": ["H1@v1", "H2@v1"],
+                    "evidence_refs": ["E1@v1"],
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+        ],
+    }
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.action is DecisionAction.CREATE_TASK
+    request = outcome.decision.create_tasks[0]
+    assert request.node_type == "INVESTIGATION_TASK"
+    assert request.agent_type == "InvestigatorAgent"
+    assert request.mode == "evidence_completion"
+    # Hypothesis 只能作为 gate 触发引用，不能进入 evidence_completion 的 Worker 输入，
+    # 否则确定性输入契约会拒绝恢复决策并使安全回退失效。
+    assert not {"H1@v1", "H2@v1"}.intersection(request.input_artifact_ids)
+    assert set(request.input_artifact_ids) == {"E1@v1", "R1@v1"}
+    assert outcome.decision.gate_record is not None
+    assert set(outcome.decision.gate_record.trigger_artifact_refs) == {
+        "R1@v1",
+        "H1@v1",
+    }
+    contract_inputs = [
+        item
+        for item in snapshot["artifacts"]
+        if item["artifact_ref"] in request.input_artifact_ids
+    ]
+    validate_agent_input_contract(
+        request.agent_type,
+        request.mode,
+        contract_inputs,
+    )
+    schema = supervisor_decision_schema_for_state(snapshot)
+    validate_json_schema(outcome.decision.to_dict(), schema)
+
+
+def test_exhausted_evidence_task_requires_replan_or_termination() -> None:
+    snapshot = {
+        "workflow_stage": "investigation",
+        "state_version": 46,
+        "nodes": [
+            {
+                "node_id": "N5",
+                "node_type": "INVESTIGATION_TASK",
+                "agent_type": "InvestigatorAgent",
+                "mode": "evidence_completion",
+                "status": "FAILED",
+                "input_artifact_ids": ["E1@v1", "R1@v1"],
+                "retry_count": 1,
+            }
+        ],
+        "artifacts": [
+            _verified_reproduction(),
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "root_cause_recommendation",
+                    "verdict": "needs_more_evidence",
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+            {
+                "artifact_ref": "AR1@v1",
+                "artifact_type": "artifact_rejection",
+                "content": {
+                    "code": "BUSINESS_EVIDENCE_INSUFFICIENT",
+                    "allowed_next_actions": [
+                        "CREATE_TASK",
+                        "REQUEST_REPLAN",
+                    ],
+                },
+            },
+        ],
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "needs_evidence",
+                "candidate_refs": ["H1@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+        "recovery": {"remaining_replans": 1},
+        "decision_history": {
+            "last_supervisor_call": {
+                "decision_result": {
+                    "ok": False,
+                    "code": "LOGICAL_TASK_RETRY_EXHAUSTED",
+                    "recoverable": True,
+                    "allowed_next_actions": [
+                        "REQUEST_REPLAN",
+                        "TERMINATE_TASK",
+                    ],
+                }
+            }
+        },
+    }
+
+    assert _safe_fallback_decision(snapshot) is None
+    assert _schema_actions(supervisor_decision_schema_for_state(snapshot)) == {
+        "REQUEST_REPLAN",
+        "TERMINATE_TASK",
+    }
+
+
+def test_final_duplicate_decision_uses_safe_fallback() -> None:
+    duplicate = {
+        "decision_id": "D-used",
+        "action": "CREATE_TASK",
+        "reason": "补充审查指出的执行证据",
+        "create_tasks": [
+            {
+                "node_type": "INVESTIGATION_TASK",
+                "agent_type": "InvestigatorAgent",
+                "mode": "evidence_completion",
+                "objective": "补充边界执行证据",
+                "input_artifact_ids": ["E1@v1", "R1@v1"],
+            }
+        ],
+        "next_workflow_stage": "investigation",
+        "evidence_refs": ["R1@v1"],
+        "gate_record": {
+            "gate_name": "evidence_gap",
+            "trigger_artifact_refs": ["R1@v1"],
+            "reason": "Review 明确提出剩余不确定性",
+            "added_node_count": 1,
+            "budget_effect": "新增一个补证节点",
+        },
+    }
+    snapshot = {
+        "workflow_stage": "review",
+        "state_version": 35,
+        "nodes": [
+            {
+                "node_id": "N1",
+                "node_type": "INVESTIGATION_TASK",
+                "status": "SUCCEEDED",
+            }
+        ],
+        "decision_history": {"processed_decision_ids": ["D-used"]},
+        "selections": {
+            "hypothesis_resolution": {
+                "status": "needs_evidence",
+                "candidate_refs": ["H1@v1"],
+                "review_refs": ["R1@v1"],
+            }
+        },
+        "artifacts": [
+            {
+                "artifact_ref": "E1@v1",
+                "artifact_type": "evidence",
+                "content": {"verified": True},
+            },
+            {
+                "artifact_ref": "H1@v1",
+                "artifact_type": "hypothesis",
+                "content": {"supporting_evidence": ["E1@v1"]},
+            },
+            {
+                "artifact_ref": "R1@v1",
+                "artifact_type": "review",
+                "content": {
+                    "mode": "root_cause_recommendation",
+                    "verdict": "needs_more_evidence",
+                    "remaining_uncertainty": ["缺少边界执行证据"],
+                },
+            },
+        ],
+    }
+    supervisor = SupervisorAgent(
+        FakeModelAdapter([duplicate]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.decision_id == "fallback-evidence-35"
+
+
+def test_safe_fallback_starts_diagnosis_after_duplicate_decision() -> None:
+    duplicate = {
+        "decision_id": "init_diagnosis",
+        "action": "CREATE_TASK",
+        "reason": "已有源码定位和失败复现证据，进入根因诊断",
+        "create_tasks": [
+            {
+                "node_type": "DIAGNOSIS_TASK",
+                "agent_type": "DiagnosticianAgent",
+                "mode": "control_flow",
+                "objective": "根据已验证证据分析失败的控制流根因",
+                "input_artifact_ids": ["E1@v1"],
+            }
+        ],
+        "next_workflow_stage": "diagnosis",
+    }
+    snapshot = {
+        "workflow_stage": "investigation",
+        "state_version": 19,
+        "task": {
+            "requires_failure_reproduction": True,
+            "confirmed_failure_reproduction_refs": ["E1@v1"],
+        },
+        "nodes": [
+            {
+                "node_id": "N1",
+                "node_type": "INVESTIGATION_TASK",
+                "status": "SUCCEEDED",
+            }
+        ],
+        "decision_history": {
+            "processed_decision_ids": ["init_diagnosis"]
+        },
+        "selections": {
+            "hypothesis_resolution": {"status": "unresolved"}
+        },
+        "artifacts": [
+            {
+                "artifact_ref": "E1@v1",
+                "artifact_type": "evidence",
+                "content": {
+                    "evidence_kind": "execution",
+                    "content": "目标测试稳定复现同一失败，并已定位相关源码路径",
+                    "verified": True,
+                    "status": "verified",
+                    "tool_trace_ids": ["trace-reproduction"],
+                    "source": {"path": "gcd.py", "line_start": 1},
+                    "reproduction": {
+                        "attempted": True,
+                        "succeeded": True,
+                        "failure_output": "AssertionError: gcd(0, 5)",
+                    },
+                },
+            }
+        ],
+    }
+    supervisor = SupervisorAgent(
+        FakeModelAdapter([duplicate]),
+        generation_config=GenerationConfig(max_retries=0),
+        additional_schema_retries=0,
+    )
+
+    outcome = supervisor.decide(snapshot)
+
+    assert outcome.model_id == "deterministic-safe-fallback"
+    assert outcome.decision.decision_id == "fallback-diagnosis-19"
+    request = outcome.decision.create_tasks[0]
+    assert request.node_type == "DIAGNOSIS_TASK"
+    assert request.agent_type == "DiagnosticianAgent"
+    assert request.mode == "control_flow"
+    assert request.input_artifact_ids == ("E1@v1",)
+    assert outcome.decision.next_workflow_stage == "diagnosis"
+    assert outcome.decision.gate_record is None
+    validate_json_schema(
+        outcome.decision.to_dict(),
+        supervisor_decision_schema_for_state(snapshot),
+    )
 
 
 def test_safe_fallback_does_not_auto_accept_hypothesis(tmp_path: Path) -> None:

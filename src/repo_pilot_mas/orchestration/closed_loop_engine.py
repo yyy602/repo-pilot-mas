@@ -23,7 +23,9 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     DecisionAction,
     SupervisorDecision,
     additional_investigation_required,
+    evidence_gap_completion_refs,
     evidence_gap_recovery_stage,
+    hypothesis_acceptance_options,
     review_opens_hypothesis_evidence_gap,
 )
 
@@ -216,12 +218,9 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
             artifact.artifact_type is ArtifactType.HYPOTHESIS
             and previous_status in _BLOCKING_RESOLUTION_POLICY
         ):
-            candidate_refs = tuple(
-                item.ref
-                for item in self.blackboard.artifacts.latest_values()
-                if item.artifact_type is ArtifactType.HYPOTHESIS
+            self.blackboard.hypothesis_resolution = HypothesisResolution.unresolved(
+                (ref,)
             )
-            self.blackboard.hypothesis_resolution = HypothesisResolution.unresolved(candidate_refs)
             self.blackboard.selected_hypothesis_ref = None
             self.blackboard.selected_patch_ref = None
             self.blackboard.validation_ref = None
@@ -357,12 +356,63 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
 
     def _validate_decision(self, decision: SupervisorDecision) -> None:
         resolution = self.blackboard.hypothesis_resolution
+        recovery = self._replan_recovery_state()
+        pending_replan_target_node_type = (
+            str(recovery.get("target_node_type", ""))
+            if recovery.get("pending_replan")
+            else ""
+        )
         downstream_stages = {
             legacy_engine.WorkflowStage.PATCH.value,
             legacy_engine.WorkflowStage.VALIDATION.value,
             legacy_engine.WorkflowStage.FINALIZATION.value,
             legacy_engine.WorkflowStage.COMPLETED.value,
         }
+        reviewed_ready_refs, acceptable_review_refs = hypothesis_acceptance_options(
+            self.blackboard.artifact_summaries()
+        )
+        active_nodes_exist = any(
+            node.status
+            in {
+                NodeStatus.PENDING,
+                NodeStatus.READY,
+                NodeStatus.RUNNING,
+                NodeStatus.PAUSED,
+            }
+            for node in self.graph.nodes
+        )
+        if (
+            self.blackboard.workflow_stage
+            in {
+                legacy_engine.WorkflowStage.DIAGNOSIS.value,
+                legacy_engine.WorkflowStage.REVIEW.value,
+            }
+            and resolution.status is HypothesisResolutionStatus.UNDER_REVIEW
+            and reviewed_ready_refs
+            and acceptable_review_refs
+            and not active_nodes_exist
+            and decision.action
+            not in {DecisionAction.ACCEPT_HYPOTHESIS, DecisionAction.TERMINATE_TASK}
+            and not (
+                decision.action
+                in {DecisionAction.CREATE_TASK, DecisionAction.CHANGE_WORKFLOW_STAGE}
+                and decision.next_workflow_stage in downstream_stages
+            )
+        ):
+            raise DecisionPolicyViolation(
+                "HYPOTHESIS_ACCEPTANCE_DECISION_REQUIRED",
+                "A supported root-cause Review is ready; accept the reviewed "
+                "Hypothesis or terminate instead of changing stages",
+                recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                allowed_next_actions=("ACCEPT_HYPOTHESIS", "TERMINATE_TASK"),
+                trigger_artifact_refs=tuple(
+                    sorted((*reviewed_ready_refs, *acceptable_review_refs))
+                ),
+                details={
+                    "reviewed_hypothesis_refs": sorted(reviewed_ready_refs),
+                    "acceptable_review_refs": sorted(acceptable_review_refs),
+                },
+            )
         if (
             decision.action
             in {DecisionAction.CREATE_TASK, DecisionAction.CHANGE_WORKFLOW_STAGE}
@@ -439,15 +489,47 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                 )
         if decision.action is DecisionAction.CREATE_TASK:
             for request in decision.create_tasks:
-                exhausted = tuple(
+                if request.node_type == pending_replan_target_node_type:
+                    continue
+                logical_request_inputs = frozenset(
+                    ref
+                    for ref in request.input_artifact_ids
+                    if self.blackboard.artifacts.get(ref).artifact_type
+                    is not ArtifactType.ARTIFACT_REJECTION
+                )
+                matching_failed = tuple(
                     node
                     for node in self.graph.nodes
                     if node.node_type.value == request.node_type
                     and node.agent_type == request.agent_type
                     and node.mode == request.mode
-                    and node.input_artifact_ids == request.input_artifact_ids
+                    and frozenset(
+                        ref
+                        for ref in node.input_artifact_ids
+                        if self.blackboard.artifacts.get(ref).artifact_type
+                        is not ArtifactType.ARTIFACT_REJECTION
+                    )
+                    == logical_request_inputs
                     and node.status in {NodeStatus.FAILED, NodeStatus.TIMED_OUT}
-                    and node.retry_count >= self.budget.max_retries_per_node
+                )
+                non_retryable = tuple(
+                    node
+                    for node in matching_failed
+                    if any(
+                        artifact.artifact_type is ArtifactType.ARTIFACT_REJECTION
+                        and "RETRY_TASK"
+                        not in set(artifact.content.get("allowed_next_actions", ()))
+                        for artifact in (
+                            self.blackboard.artifacts.get(ref)
+                            for ref in node.output_artifact_ids
+                        )
+                    )
+                )
+                exhausted = tuple(
+                    node
+                    for node in matching_failed
+                    if node.retry_count >= self.budget.max_retries_per_node
+                    or node in non_retryable
                 )
                 if exhausted:
                     raise DecisionPolicyViolation(
@@ -465,6 +547,9 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                         ),
                         details={
                             "exhausted_node_ids": [node.node_id for node in exhausted],
+                            "non_retryable_node_ids": [
+                                node.node_id for node in non_retryable
+                            ],
                             "node_type": request.node_type,
                             "agent_type": request.agent_type,
                             "mode": request.mode,
@@ -509,6 +594,9 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
             self._validate_hypothesis_acceptance(decision)
         elif decision.action is DecisionAction.CREATE_TASK:
             confirmed_reproduction_refs = set(self._confirmed_failure_reproduction_refs())
+            required_gap_evidence_refs = set(
+                evidence_gap_completion_refs(self.blackboard.artifact_summaries())
+            )
             diagnosis_requests = tuple(
                 request
                 for request in decision.create_tasks
@@ -550,6 +638,27 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                                 "actual_input_artifact_ids": list(request.input_artifact_ids),
                             },
                         )
+            for request in diagnosis_requests:
+                missing_gap_refs = required_gap_evidence_refs.difference(
+                    request.input_artifact_ids
+                )
+                if missing_gap_refs:
+                    raise DecisionPolicyViolation(
+                        "EVIDENCE_GAP_COMPLETION_INPUT_REQUIRED",
+                        "Re-diagnosis inputs must include all verified Evidence "
+                        "created to close the latest root-cause gap",
+                        recommended_stage=legacy_engine.WorkflowStage.DIAGNOSIS.value,
+                        allowed_next_actions=("CREATE_TASK", "TERMINATE_TASK"),
+                        trigger_artifact_refs=tuple(sorted(missing_gap_refs)),
+                        details={
+                            "required_completion_evidence_refs": sorted(
+                                required_gap_evidence_refs
+                            ),
+                            "actual_input_artifact_ids": list(
+                                request.input_artifact_ids
+                            ),
+                        },
+                    )
             for request in decision.create_tasks:
                 node_type = NodeType(request.node_type)
                 input_artifacts = tuple(
@@ -773,7 +882,15 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                 details={"unreviewed_hypothesis_refs": sorted(missing_refs)},
             )
 
-        candidate_refs = set(resolution.candidate_refs) or accepted_refs
+        # candidate_refs 会累积历史版本（例如 Rebuttal 修订后的旧 Hypothesis 仍被
+        # observe_candidates 记录）。comparison 覆盖检查只应对当前最新候选生效，
+        # 否则被修订过的候选会让 HYPOTHESIS_COMPARISON_REQUIRED 永久无法满足，
+        # 形成根因接受死锁。
+        candidate_refs = {
+            ref
+            for ref in set(resolution.candidate_refs)
+            if self.blackboard.artifacts.is_latest(ref)
+        } or accepted_refs
         has_recommendation = any(
             review.content.get("mode") == "root_cause_recommendation"
             and accepted_refs.issubset(self._review_target_refs(review))

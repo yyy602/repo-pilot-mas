@@ -205,6 +205,69 @@ def test_comparison_review_can_select_one_of_multiple_candidates(
     assert [item.ref for item in reviews] == [comparison.ref]
 
 
+def test_comparison_acceptance_ignores_superseded_candidate_versions(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    first = _hypothesis()
+    revised = Artifact(
+        "N2.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N5",
+        {
+            **first.to_dict()["content"],
+            "direct_cause": "hi 在空数组时成为负索引",
+        },
+        version=2,
+        supersedes=first.ref,
+        input_refs=(evidence.ref,),
+    )
+    second = Artifact(
+        "N4.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N4",
+        {
+            **first.to_dict()["content"],
+            "root_cause": "the upper bound starts one position beyond the array",
+        },
+        input_refs=(evidence.ref,),
+    )
+    comparison = Artifact(
+        "N6.review",
+        ArtifactType.REVIEW,
+        "N6",
+        {
+            **_review(second).to_dict()["content"],
+            "mode": "hypothesis_comparison",
+            "target_artifact_ref": revised.ref,
+            "target_artifact_refs": [revised.ref, second.ref],
+        },
+        input_refs=(evidence.ref, revised.ref, second.ref),
+    )
+    for artifact in (evidence, first, revised, second, comparison):
+        engine.add_artifact(artifact)
+
+    # 历史版本仍留在 candidate_refs 中，但不得阻断最新候选的接受
+    assert first.ref in engine.blackboard.hypothesis_resolution.candidate_refs
+    assert revised.ref in engine.blackboard.hypothesis_resolution.candidate_refs
+
+    hypotheses, reviews = engine._validate_hypothesis_acceptance(
+        type(
+            "Decision",
+            (),
+            {
+                "hypothesis_refs": (revised.ref, second.ref),
+                "primary_hypothesis_ref": revised.ref,
+                "review_refs": (comparison.ref,),
+            },
+        )()
+    )
+
+    assert [item.ref for item in hypotheses] == [revised.ref, second.ref]
+    assert [item.ref for item in reviews] == [comparison.ref]
+
+
 def test_recommendation_can_select_one_after_multiple_candidates(
     tmp_path: Path,
 ) -> None:
@@ -286,6 +349,37 @@ def test_engine_rejects_patch_stage_before_hypothesis_acceptance(
     assert engine.blackboard.workflow_stage == WorkflowStage.DIAGNOSIS.value
 
 
+def test_engine_rejects_stage_churn_when_supported_review_is_ready(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    hypothesis = _hypothesis()
+    review = _review(hypothesis)
+    for artifact in (evidence, hypothesis, review):
+        engine.add_artifact(artifact)
+    engine.blackboard.set_stage(WorkflowStage.DIAGNOSIS.value)
+
+    result = engine.apply_decision(
+        SupervisorDecision(
+            "stage-churn-after-supported-review",
+            DecisionAction.CHANGE_WORKFLOW_STAGE,
+            "Review 已支持，但只切换到 Review 阶段",
+            next_workflow_stage=WorkflowStage.REVIEW.value,
+        )
+    )
+
+    assert result.ok is False
+    assert result.code == "HYPOTHESIS_ACCEPTANCE_DECISION_REQUIRED"
+    assert result.recoverable is True
+    assert result.allowed_next_actions == (
+        "ACCEPT_HYPOTHESIS",
+        "TERMINATE_TASK",
+    )
+    assert set(result.trigger_artifact_refs) == {hypothesis.ref, review.ref}
+    assert engine.blackboard.workflow_stage == WorkflowStage.DIAGNOSIS.value
+
+
 def test_engine_requires_rediagnosis_after_gap_evidence(
     tmp_path: Path,
 ) -> None:
@@ -348,6 +442,85 @@ def test_engine_requires_rediagnosis_after_gap_evidence(
     assert result.code == "EVIDENCE_GAP_REQUIRES_REDIAGNOSIS"
     assert result.recommended_stage == WorkflowStage.DIAGNOSIS.value
     assert result.details["required_node_type"] == "DIAGNOSIS_TASK"
+
+    missing_completion = engine.apply_decision(
+        SupervisorDecision(
+            "rediagnose-with-stale-evidence-only",
+            DecisionAction.CREATE_TASK,
+            "重新诊断，但遗漏刚补充的证据",
+            create_tasks=(
+                CreateTaskRequest(
+                    "DIAGNOSIS_TASK",
+                    "DiagnosticianAgent",
+                    "control_flow",
+                    "结合新增证据重新诊断",
+                    input_artifact_ids=(evidence.ref,),
+                ),
+            ),
+            next_workflow_stage=WorkflowStage.DIAGNOSIS.value,
+        )
+    )
+
+    assert missing_completion.ok is False
+    assert missing_completion.code == "EVIDENCE_GAP_COMPLETION_INPUT_REQUIRED"
+    assert missing_completion.trigger_artifact_refs == (completion.ref,)
+
+
+def test_rediagnosis_replaces_stale_hypothesis_candidates(
+    tmp_path: Path,
+) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    stale = _hypothesis()
+    review = Artifact(
+        "N3.review",
+        ArtifactType.REVIEW,
+        "N3",
+        {
+            **_review(stale).to_dict()["content"],
+            "verdict": "needs_more_evidence",
+            "remaining_uncertainty": ["缺少边界执行证据"],
+        },
+        input_refs=(stale.ref, evidence.ref),
+    )
+    completion = Artifact(
+        "N4.evidence",
+        ArtifactType.EVIDENCE,
+        "N4",
+        {
+            **evidence.to_dict()["content"],
+            "mode": "evidence_completion",
+            "evidence_kind": "execution",
+            "claim": "边界执行路径已验证",
+            "supports_claims": ["边界执行路径已验证"],
+        },
+    )
+    revised = Artifact(
+        "N5.hypothesis",
+        ArtifactType.HYPOTHESIS,
+        "N5",
+        {
+            **stale.to_dict()["content"],
+            "root_cause": "补证后修订的边界根因",
+            "supporting_evidence": [evidence.ref, completion.ref],
+            "missing_evidence": [],
+        },
+        input_refs=(evidence.ref, completion.ref),
+    )
+    for artifact in (evidence, stale, review, completion):
+        engine.add_artifact(artifact)
+
+    assert (
+        engine.blackboard.hypothesis_resolution.status
+        is HypothesisResolutionStatus.NEEDS_EVIDENCE
+    )
+
+    engine.add_artifact(revised)
+
+    resolution = engine.blackboard.hypothesis_resolution
+    assert resolution.status is HypothesisResolutionStatus.UNRESOLVED
+    assert resolution.candidate_refs == (revised.ref,)
+    assert resolution.review_refs == ()
 
 
 def test_patch_review_uncertainty_is_not_a_root_cause_evidence_gap() -> None:

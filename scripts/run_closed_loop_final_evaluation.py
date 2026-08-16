@@ -43,7 +43,7 @@ from repo_pilot_mas.final_evaluation import (
     write_closed_loop_results_csv,
 )
 from repo_pilot_mas.models import (
-    create_supervisor_model_router,
+    create_supervisor_model_adapter,
     create_worker_model_pool,
 )
 from repo_pilot_mas.orchestration import (
@@ -854,9 +854,10 @@ async def _run_tasks(
         workspace_root=run_root / "initial_workspaces",
     )
     preparing_pool.prepare()
-    router, supervisor_generation = create_supervisor_model_router(
+    router, supervisor_generation = create_supervisor_model_adapter(
         supervisor_config,
         raw_log_dir=run_root / "initial_raw_model_responses" / "supervisor",
+        shared_worker_models=worker_models,
     )
     supervisor_values = _mapping(load_yaml(supervisor_config), "supervisor")
     supervisor_recovery = _mapping(supervisor_values, "recovery")
@@ -884,10 +885,13 @@ async def _run_tasks(
                     "engine_limits": engine_limits,
                 },
             )
-            router.raw_log_dir = (
-                task_root / "raw_model_responses" / "supervisor"
-            )
-            router.trace_writer = trace
+            shared_supervisor_model = any(router is model for model in worker_models)
+            if not shared_supervisor_model:
+                router.raw_log_dir = (
+                    task_root / "raw_model_responses" / "supervisor"
+                )
+            if hasattr(router, "trace_writer"):
+                router.trace_writer = trace
             for slot, model in enumerate(worker_models):
                 _set_raw_log_dir(
                     model,
@@ -1001,9 +1005,10 @@ async def _run_tasks(
     finally:
         for model in worker_models:
             model.close()
-        close_router = getattr(router, "close", None)
-        if callable(close_router):
-            close_router()
+        if not any(router is model for model in worker_models):
+            close_router = getattr(router, "close", None)
+            if callable(close_router):
+                close_router()
         del preparing_pool, worker_models, router
         _release_cuda()
 
@@ -1039,6 +1044,28 @@ def _dry_run(
             ]
         },
     )
+
+
+def _validate_supervisor_execution_tier(
+    supervisor: Mapping[str, Any],
+    *,
+    split: str,
+    task_id: str | None,
+    dry_run: bool,
+) -> None:
+    """Keep local Supervisor runs diagnostic and formal runs API-backed."""
+
+    provider = str(supervisor.get("provider", "")).strip()
+    complete_runtime_run = task_id is None and not dry_run
+    if (
+        complete_runtime_run
+        and split in {"development", "test"}
+        and provider != "dashscope_openai_compatible"
+    ):
+        raise ValueError(
+            "完整 Development/Frozen Test 必须使用正式 DashScope Supervisor；"
+            "本地 Supervisor 只允许单任务调试或 dry-run"
+        )
 
 
 async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
@@ -1085,6 +1112,13 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     model_config = load_yaml(args.model_config)
     supervisor_config = load_yaml(args.supervisor_config)
     runtime_config = load_yaml(args.runtime_config)
+    supervisor_values = _mapping(supervisor_config, "supervisor")
+    _validate_supervisor_execution_tier(
+        supervisor_values,
+        split=args.split,
+        task_id=args.task_id,
+        dry_run=bool(args.dry_run),
+    )
     limits = _mapping(phase6_config, "hybrid_limits")
     effective_budget_values = effective_engine_budget(
         _mapping(runtime_config, "orchestration"),
@@ -1105,7 +1139,7 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         "suite": _file_sha256(suite_path),
     }
     model_routing = _mapping(
-        _mapping(supervisor_config, "supervisor"),
+        supervisor_values,
         "routing",
     )
     current_identity = {
@@ -1215,6 +1249,7 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
             "supervisor_prompt_sha256"
         ],
         "model_routing": current_identity["model_routing"],
+        "supervisor_provider": str(supervisor_values["provider"]),
         "config_sha256": current_identity["config_sha256"],
         "pre_freeze_verification": pre_freeze_verification,
         "freeze_verification": freeze_verification,

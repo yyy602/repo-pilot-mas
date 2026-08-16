@@ -52,6 +52,35 @@ def test_reviewer_accepts_complete_root_cause_inputs() -> None:
     )
 
 
+def test_evidence_completion_requires_evidence_and_review_context() -> None:
+    with pytest.raises(AgentContractViolation, match="missing required artifacts"):
+        validate_agent_input_contract(
+            "InvestigatorAgent",
+            "evidence_completion",
+            [{"artifact_type": "review"}],
+        )
+
+    validate_agent_input_contract(
+        "InvestigatorAgent",
+        "evidence_completion",
+        [
+            {"artifact_type": "evidence"},
+            {"artifact_type": "review"},
+        ],
+    )
+
+    with pytest.raises(AgentContractViolation, match="unsupported artifacts"):
+        validate_agent_input_contract(
+            "InvestigatorAgent",
+            "evidence_completion",
+            [
+                {"artifact_type": "evidence"},
+                {"artifact_type": "review"},
+                {"artifact_type": "hypothesis"},
+            ],
+        )
+
+
 def test_patch_requires_accepted_hypothesis_set() -> None:
     with pytest.raises(AgentContractViolation):
         validate_agent_input_contract(

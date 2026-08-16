@@ -226,6 +226,11 @@ __marimo__/
 .env.*
 !.env.example
 
+# 仅供本地复盘的运行问题笔记，不进入仓库
+/docs/issues/
+# 本地模型调试产物不参与正式评测或冻结身份
+/reports/closed_loop/evaluation/local_*/
+
 .idea/
 .vscode/
 

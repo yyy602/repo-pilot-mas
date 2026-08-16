@@ -441,6 +441,7 @@ class WorkerPool:
                     node.node_id,
                     node.mode,
                     node.objective,
+                    artifacts,
                 ),
             )
         if node.node_type is NodeType.DIAGNOSIS_TASK:

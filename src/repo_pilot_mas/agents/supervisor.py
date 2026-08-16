@@ -20,6 +20,9 @@ from repo_pilot_mas.schemas.supervisor_decision import (
     CreateTaskRequest,
     GateRecord,
     SupervisorDecision,
+    additional_investigation_required,
+    evidence_gap_completion_refs,
+    evidence_gap_recovery_stage,
     supervisor_decision_schema,
     supervisor_decision_schema_for_state,
 )
@@ -226,6 +229,7 @@ class SupervisorAgent:
         raw_response_refs: list[str] = []
         last_error: SupervisorAgentError | None = None
         response = None
+        decision: SupervisorDecision | None = None
 
         for schema_attempt in range(self.additional_schema_retries + 1):
             try:
@@ -253,23 +257,24 @@ class SupervisorAgent:
                 raw_evidence_refs = set(
                     _string_list(response.structured_output.get("evidence_refs", ()))
                 )
-                decision = SupervisorDecision.from_dict(response.structured_output)
+                candidate = SupervisorDecision.from_dict(response.structured_output)
                 added_gate_refs = tuple(
-                    ref for ref in decision.evidence_refs if ref not in raw_evidence_refs
+                    ref for ref in candidate.evidence_refs if ref not in raw_evidence_refs
                 )
                 if added_gate_refs:
                     self._trace(
                         "supervisor_gate_evidence_refs_normalized",
                         {
-                            "decision_id": decision.decision_id,
+                            "decision_id": candidate.decision_id,
                             "added_evidence_refs": list(added_gate_refs),
                         },
                     )
-                if decision.decision_id in processed_decision_ids:
+                if candidate.decision_id in processed_decision_ids:
                     raise ValueError(
                         "decision_id has already been processed: "
-                        f"{decision.decision_id}"
+                        f"{candidate.decision_id}"
                     )
+                decision = candidate
                 break
             except ModelAdapterError as exc:
                 total_usage = _add_usage(total_usage, exc.usage)
@@ -339,7 +344,7 @@ class SupervisorAgent:
         else:  # pragma: no cover - bounded loop always exits through break
             raise AssertionError("unreachable supervisor recovery state")
 
-        if response is None or "decision" not in locals():
+        if decision is None:
             if (
                 self.safe_fallback_enabled
                 and last_error is not None
@@ -376,6 +381,7 @@ class SupervisorAgent:
             self._trace_failure(error.code, str(error), error.usage, error.details)
             raise error
 
+        assert response is not None
         metadata = _safe_metadata(response.metadata)
         self._trace(
             "supervisor_decision_generated",
@@ -836,6 +842,55 @@ def _safe_fallback_decision(
     nodes = [item for item in snapshot.get("nodes", ()) if isinstance(item, Mapping)]
 
     hypotheses = by_type.get("hypothesis", [])
+    active_diagnosis = any(
+        str(item.get("node_type", "")) == "DIAGNOSIS_TASK"
+        and str(item.get("status", ""))
+        in {"PENDING", "READY", "RUNNING", "PAUSED"}
+        for item in nodes
+    )
+    verified_evidence_refs = tuple(
+        str(item["artifact_ref"])
+        for item in by_type.get("evidence", [])
+        if (
+            _artifact_content(item).get("verified") is True
+            and _artifact_content(item).get("status") == "verified"
+            and bool(_artifact_content(item).get("tool_trace_ids"))
+            and isinstance(_artifact_content(item).get("source"), Mapping)
+            and bool(_artifact_content(item).get("source", {}).get("path"))
+        )
+    )
+    task = snapshot.get("task", {})
+    task = task if isinstance(task, Mapping) else {}
+    confirmed_reproduction_refs = {
+        ref
+        for ref in _string_list(
+            task.get("confirmed_failure_reproduction_refs", ())
+        )
+        if ref in verified_evidence_refs
+    }
+    reproduction_ready = not task.get(
+        "requires_failure_reproduction"
+    ) or bool(confirmed_reproduction_refs)
+    if (
+        not hypotheses
+        and not active_diagnosis
+        and verified_evidence_refs
+        and reproduction_ready
+        and not additional_investigation_required(artifacts)
+        and stage in {"investigation", "diagnosis"}
+    ):
+        return _fallback_create(
+            decision_id=f"fallback-diagnosis-{state_version}",
+            reason="结构化决策恢复：基于已验证且充分的执行证据创建首次根因诊断任务",
+            stage="diagnosis",
+            node_type="DIAGNOSIS_TASK",
+            agent_type="DiagnosticianAgent",
+            mode="control_flow",
+            objective="基于已验证的源码与失败执行证据分析控制流根因",
+            input_refs=verified_evidence_refs,
+            include_gate=False,
+        )
+
     root_reviews = [
         item
         for item in by_type.get("review", [])
@@ -909,6 +964,106 @@ def _safe_fallback_decision(
     review_refs = tuple(
         ref for ref in _string_list(resolution.get("review_refs", ())) if ref in by_ref
     )
+    blocking_review_refs = tuple(
+        ref
+        for ref in review_refs
+        if str(by_ref[ref].get("artifact_type", "")) == "review"
+        and _artifact_content(by_ref[ref]).get("mode")
+        in {"root_cause_recommendation", "hypothesis_comparison"}
+        and (
+            _artifact_content(by_ref[ref]).get("verdict") == "needs_more_evidence"
+            or bool(_artifact_content(by_ref[ref]).get("remaining_uncertainty"))
+        )
+    )
+    candidate_refs = tuple(
+        ref
+        for ref in _string_list(resolution.get("candidate_refs", ()))
+        if ref in by_ref
+    )
+    blocking_hypothesis_refs = tuple(
+        ref
+        for ref in candidate_refs
+        if str(by_ref[ref].get("artifact_type", "")) == "hypothesis"
+        and bool(_artifact_content(by_ref[ref]).get("missing_evidence"))
+    )
+    gap_refs = tuple(
+        dict.fromkeys((*blocking_review_refs, *blocking_hypothesis_refs))
+    )
+    gap_stage = evidence_gap_recovery_stage(artifacts)
+    gap_completion_refs = evidence_gap_completion_refs(artifacts)
+    evidence_completion_attempted_for_gap = any(
+        str(item.get("node_type", "")) == "INVESTIGATION_TASK"
+        and str(item.get("mode", "")) == "evidence_completion"
+        and str(item.get("status", "")) != "CANCELLED"
+        and set(gap_refs).issubset(
+            set(_string_list(item.get("input_artifact_ids", ())))
+        )
+        for item in nodes
+    )
+    if (
+        resolution.get("status") == "needs_evidence"
+        and gap_refs
+        and gap_stage == "diagnosis"
+        and gap_completion_refs
+        and not active_diagnosis
+        and stage in {"investigation", "diagnosis", "review"}
+    ):
+        return _fallback_create(
+            decision_id=f"fallback-rediagnosis-{state_version}",
+            reason="结构化决策恢复：补证完成后基于新旧验证证据重新诊断根因",
+            stage="diagnosis",
+            node_type="DIAGNOSIS_TASK",
+            agent_type="DiagnosticianAgent",
+            mode="control_flow",
+            objective="基于失败复现和新增验证证据重新分析控制流根因",
+            input_refs=verified_evidence_refs,
+            trigger_refs=(*gap_refs, *gap_completion_refs),
+        )
+    if (
+        pending_replan_target == "investigation"
+        and blocking_review_refs
+        and verified_evidence_refs
+        and replan_trigger_refs
+        and stage == "investigation"
+    ):
+        return _fallback_create(
+            decision_id=f"fallback-replan-investigation-{state_version}",
+            reason="结构化决策恢复：执行已经获准的定向 Investigation 重规划",
+            stage="investigation",
+            node_type="INVESTIGATION_TASK",
+            agent_type="InvestigatorAgent",
+            mode="evidence_completion",
+            objective="根据阻塞性根因审查重新收集可验证执行证据",
+            input_refs=(*verified_evidence_refs, *blocking_review_refs),
+            trigger_refs=replan_trigger_refs,
+            decision_evidence_refs=replan_trigger_refs,
+        )
+    if (
+        resolution.get("status") == "needs_evidence"
+        and gap_refs
+        and gap_stage == "investigation"
+        and not evidence_completion_attempted_for_gap
+        and blocking_review_refs
+        and stage in {"investigation", "diagnosis", "review"}
+    ):
+        evidence_refs = tuple(
+            str(item["artifact_ref"])
+            for item in by_type.get("evidence", [])
+        )
+        # evidence_completion 的输入契约只允许 Evidence/Review/ArtifactRejection；
+        # 带 missing_evidence 的 Hypothesis 只能作为 gate 触发引用，不能进入 Worker 输入，
+        # 否则确定性输入契约会拒绝该恢复决策，使安全回退陷入 NO_PROGRESS_LOOP。
+        return _fallback_create(
+            decision_id=f"fallback-evidence-{state_version}",
+            reason="结构化决策恢复：根据阻塞性根因审查补充缺失的执行证据",
+            stage="investigation",
+            node_type="INVESTIGATION_TASK",
+            agent_type="InvestigatorAgent",
+            mode="evidence_completion",
+            objective="针对根因审查指出的剩余不确定性补充可验证执行证据",
+            input_refs=(*evidence_refs, *blocking_review_refs),
+            trigger_refs=gap_refs,
+        )
     active_patch = any(
         str(item.get("node_type", "")) == "PATCH_TASK"
         and str(item.get("status", ""))
@@ -951,7 +1106,53 @@ def _safe_fallback_decision(
                 *(replan_patch_context_refs if pending_replan_target == "patch" else ()),
             ),
             trigger_refs=replan_trigger_refs or None,
+            decision_evidence_refs=(
+                replan_trigger_refs if pending_replan_target == "patch" else None
+            ),
         )
+
+    patch_reviewed_refs = {
+        str(_artifact_content(item).get("target_artifact_ref", ""))
+        for item in by_type.get("review", [])
+        if _artifact_content(item).get("mode") == "patch_review"
+    }
+    patch_review_attempted_refs = {
+        ref
+        for item in nodes
+        if str(item.get("node_type", "")) == "REVIEW_TASK"
+        and str(item.get("mode", "")) == "patch_review"
+        and str(item.get("status", "")) != "CANCELLED"
+        for ref in _string_list(item.get("input_artifact_ids", ()))
+        if ref in by_ref
+        and str(by_ref[ref].get("artifact_type", "")) == "patch_candidate"
+    }
+    if (
+        resolution.get("status") == "accepted"
+        and accepted_refs
+        and review_refs
+        and verified_evidence_refs
+        and stage in {"patch", "validation"}
+    ):
+        for patch in reversed(by_type.get("patch_candidate", [])):
+            patch_ref = str(patch["artifact_ref"])
+            if patch_ref in patch_reviewed_refs or patch_ref in patch_review_attempted_refs:
+                continue
+            return _fallback_create(
+                decision_id=f"fallback-patch-review-{state_version}",
+                reason="结构化决策恢复：为尚未审查的补丁候选创建独立 Patch Review",
+                stage="patch",
+                node_type="REVIEW_TASK",
+                agent_type="ReviewerAgent",
+                mode="patch_review",
+                objective="基于直接证据和已接受根因独立审查当前补丁候选",
+                input_refs=(
+                    *verified_evidence_refs,
+                    *accepted_refs,
+                    *review_refs,
+                    patch_ref,
+                ),
+                include_gate=False,
+            )
 
     active_validation = any(
         str(item.get("node_type", "")) == "VALIDATION_TASK"
@@ -1002,10 +1203,18 @@ def _fallback_create(
     objective: str,
     input_refs: Sequence[str],
     trigger_refs: Sequence[str] | None = None,
+    include_gate: bool = True,
+    decision_evidence_refs: Sequence[str] | None = None,
 ) -> SupervisorDecision:
     refs = tuple(dict.fromkeys(input_refs))
     triggers = tuple(dict.fromkeys(trigger_refs or refs))
-    evidence_refs = tuple(dict.fromkeys((*refs, *triggers)))
+    evidence_refs = tuple(
+        dict.fromkeys(
+            decision_evidence_refs
+            if decision_evidence_refs is not None
+            else (*refs, *triggers)
+        )
+    )
     return SupervisorDecision(
         decision_id=decision_id,
         action="CREATE_TASK",
@@ -1021,12 +1230,16 @@ def _fallback_create(
         ),
         next_workflow_stage=stage,
         evidence_refs=evidence_refs,
-        gate_record=GateRecord(
-            gate_name="supervisor_safe_recovery",
-            trigger_artifact_refs=triggers,
-            reason=reason,
-            added_node_count=1,
-            budget_effect="新增 1 个受限恢复节点，不执行语义接受或最终选择",
+        gate_record=(
+            GateRecord(
+                gate_name="supervisor_safe_recovery",
+                trigger_artifact_refs=triggers,
+                reason=reason,
+                added_node_count=1,
+                budget_effect="新增 1 个受限恢复节点，不执行语义接受或最终选择",
+            )
+            if include_gate
+            else None
         ),
     )
 

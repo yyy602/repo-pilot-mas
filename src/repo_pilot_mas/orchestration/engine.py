@@ -510,7 +510,12 @@ class OrchestrationEngine:
         self._bump_graph_delta(before)
         self._trace_node_changes(changed, "node_finished")
 
-    def retry_node(self, node_id: str) -> None:
+    def retry_node(
+        self,
+        node_id: str,
+        *,
+        feedback_artifact_refs: Sequence[str] = (),
+    ) -> None:
         if self.status is not EngineStatus.ACTIVE:
             raise RuntimeError("engine is not active")
         node = self.graph.get(node_id)
@@ -518,6 +523,19 @@ class OrchestrationEngine:
             raise ValueError("only failed or timed-out nodes can be retried")
         if node.retry_count >= self.budget.max_retries_per_node:
             raise ValueError("node retry budget is exhausted")
+        feedback_refs = tuple(dict.fromkeys(feedback_artifact_refs))
+        for ref in feedback_refs:
+            artifact = self.blackboard.artifacts.get(ref)
+            if (
+                artifact.artifact_type is not ArtifactType.ARTIFACT_REJECTION
+                or artifact.created_by != node_id
+            ):
+                raise ValueError(
+                    "retry feedback must be an ArtifactRejection created by the node"
+                )
+        node.input_artifact_ids = tuple(
+            dict.fromkeys((*node.input_artifact_ids, *feedback_refs))
+        )
         node.retry_count += 1
         self.blackboard.bump()
         self._graph_transition(node_id, NodeStatus.PENDING)
@@ -967,12 +985,9 @@ class OrchestrationEngine:
                 and review.content.get("verdict") in {"unsupported", "changes_requested"}
             ):
                 raise ValueError(f"selected patch has unresolved blocking review: {review.ref}")
-            if (
-                review.artifact_type is ArtifactType.REVIEW
-                and review.content.get("severity") == "blocking"
-                and review.status not in {"resolved", "rejected"}
-            ):
-                raise ValueError(f"blocking review is unresolved: {review.ref}")
+        # 注意：REVIEW 内容 Schema 不含 severity 字段（只有 CHALLENGE 才有），
+        # 因此这里不能再依赖 content.severity 判断 Blocking Review；闭环引擎的
+        # _validate_patch_review_for_selection 才是权威的 Blocking Review 门禁。
         active_critical = [
             node.node_id for node in self.graph.nodes if node.critical and not node.terminal
         ]

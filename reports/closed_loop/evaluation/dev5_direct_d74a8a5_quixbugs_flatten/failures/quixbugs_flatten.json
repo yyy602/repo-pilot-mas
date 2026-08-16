@@ -1,0 +1,495 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "flatten 函数返回生成器对象而非叶节点本身。",
+        "confidence": 1,
+        "content": "def flatten(arr):\n    for x in arr:\n        if isinstance(x, list):\n            for y in flatten(x):\n                yield y\n        else:\n            yield flatten(x)",
+        "contradicts_claims": [],
+        "evidence_kind": "source",
+        "missing_evidence": [],
+        "mode": "code_retrieval",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 7,
+          "line_start": 1,
+          "path": "flatten.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "flatten 函数使用 yield 返回生成器对象。",
+          "函数递归调用自身处理嵌套列表。",
+          "叶节点判断通过 isinstance(x, list) 实现。"
+        ],
+        "tool_trace_ids": [
+          "be0495cbe72f428186474eafbdb74e49"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-16T07:46:31.031706+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "5610a736890d47d9a5a55676186c64e8",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "flatten 函数对非列表叶节点返回生成器对象而非叶节点本身。",
+        "confidence": 1,
+        "content": "assert list(flatten(values)) == expected",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_flatten.py"
+          ],
+          "exit_code": 1,
+          "failure_output": "                                                               [100%]\n=================================== FAILURES ===================================\n_______________________ test_flatten[values0-expected0] ________________________\n\nvalues = [[1, [], [2, 3]], [[4]], 5], expected = [1, 2, 3, 4, 5]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([[1, [], [2, 3]], [[4]], 5], [1, 2, 3, 4, 5]),\n            ([[], [], 1, [], 1, [], []], [1, 1]),\n            ([\"moe\", \"curly\", \"larry\"], [\"moe\", \"curly\", \"larry\"]),\n            ([\"a\", \"b\", [\"c\"], [\"d\"], [[\"e\"]]], [\"a\", \"b\", \"c\", \"d\", \"e\"]),\n        ],\n    )\n    def test_flatten(values: list[object], expected: list[object]) -> None:\n>       assert list(flatten(values)) == expected\nE       assert [<generator o...7f878b494e40>] == [1, 2, 3, 4, 5]\nE         \nE         At index 0 diff: <generator object flatten at 0x7f878b494f90> != 1\nE         Use -v to get more diff\n\ntests/test_flatten.py:15: AssertionError\n_______________________ test_flatten[values1-expected1] ________________________\n\nvalues = [[], [], 1, [], 1, [], ...], expected = [1, 1]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([[1, [], [2, 3]], [[4]], 5], [1, 2, 3, 4, 5]),\n            ([[], [], 1, [], 1, [], []], [1, 1]),\n            ([\"moe\", \"curly\", \"larry\"], [\"moe\", \"curly\", \"larry\"]),\n            ([\"a\", \"b\", [\"c\"], [\"d\"], [[\"e\"]]], [\"a\", \"b\", \"c\", \"d\", \"e\"]),\n        ],\n    )\n    def test_flatten(values: list[object], expected: list[object]) -> None:\n>       assert list(flatten(values)) == expected\nE       assert [<generator o...7f878b4963b0>] == [1, 1]\nE         \nE         At index 0 diff: <generator object flatten at 0x7f878b496260> != 1\nE         Use -v to get more diff\n\ntests/test_flatten.py:15: AssertionError\n_______________________ test_flatten[values2-expected2] ________________________\n\nvalues = ['moe', 'curly', 'larry'], expected = ['moe', 'curly', 'larry']\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([[1, [], [2, 3]], [[4]], 5], [1, 2, 3, 4, 5]),\n            ([[], [], 1, [], 1, [], []], [1, 1]),\n            ([\"moe\", \"curly\", \"larry\"], [\"moe\", \"curly\", \"larry\"]),\n            ([\"a\", \"b\", [\"c\"], [\"d\"], [[\"e\"]]], [\"a\", \"b\", \"c\", \"d\", \"e\"]),\n        ],\n    )\n    def test_flatten(values: list[object], expected: list[object]) -> None:\n>       assert list(flatten(values)) == expected\nE       AssertionError: assert [<generator o...7f878b496b20>] == ['moe', 'curly', 'larry']\nE         \nE         At index 0 diff: <generator object flatten at 0x7f878b496960> != 'moe'\nE         Use -v to get more diff\n\ntests/test_flatten.py:15: AssertionError\n_______________________ test_flatten[values3-expected3] ________________________\n\nvalues = ['a', 'b', ['c'], ['d'], [['e']]], expected = ['a', 'b', 'c', 'd', 'e']\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([[1, [], [2, 3]], [[4]], 5], [1, 2, 3, 4, 5]),\n            ([[], [], 1, [], 1, [], []], [1, 1]),\n            ([\"moe\", \"curly\", \"larry\"], [\"moe\", \"curly\", \"larry\"]),\n            ([\"a\", \"b\", [\"c\"], [\"d\"], [[\"e\"]]], [\"a\", \"b\", \"c\", \"d\", \"e\"]),\n        ],\n    )\n    def test_flatten(values: list[object], expected: list[object]) -> None:\n>       assert list(flatten(values)) == expected\nE       AssertionError: assert [<generator o...7f878b496f10>] == ['a', 'b', 'c', 'd', 'e']\nE         \nE         At index 0 diff: <generator object flatten at 0x7f878b4963b0> != 'a'\nE         Use -v to get more diff\n\ntests/test_flatten.py:15: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_flatten.py::test_flatten[values0-expected0] - assert [<gene...\nFAILED tests/test_flatten.py::test_flatten[values1-expected1] - assert [<gene...\nFAILED tests/test_flatten.py::test_flatten[values2-expected2] - AssertionErro...\nFAILED tests/test_flatten.py::test_flatten[values3-expected3] - AssertionErro...\n",
+          "failure_type": "AssertionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 15,
+          "line_start": 15,
+          "path": "tests/test_flatten.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "flatten 函数对非列表叶节点返回生成器对象而非叶节点本身。"
+        ],
+        "tool_trace_ids": [
+          "3740dea5ccae4832aa5369b88fa8fdfc"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-16T07:46:52.868537+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "6dfba600e0df46cd8f9c0e810401e525",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "flatten"
+        ],
+        "confidence": 1,
+        "counter_evidence": [],
+        "direct_cause": "在非列表叶节点分支中，函数调用了 flatten(x) 并将结果作为 yield 的值，导致返回生成器对象而非叶节点。",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "flatten 函数在非列表叶节点分支错误地返回了生成器对象，而不是叶节点本身。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 flatten 函数在非列表叶节点分支的控制流，确认 yield 语句是否被错误执行。",
+          "验证函数递归调用返回值是否被正确迭代消费。",
+          "运行测试用例，确认返回值是否为生成器对象而非叶节点。"
+        ]
+      },
+      "created_at": "2026-08-16T07:47:03.050828+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "a8e8be6819db4cf28cf337df3a018bc9",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "flatten 函数在非列表叶节点分支中错误地返回了生成器对象，而不是叶节点本身。",
+          "测试用例失败表明函数返回值不符合预期，导致断言失败。"
+        ],
+        "mode": "root_cause_recommendation",
+        "recommendation": "修改 flatten 函数的非列表叶节点分支，确保返回叶节点本身，而不是生成器对象。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "函数返回值类型错误可能导致后续处理逻辑错误。",
+          "测试用例失败表明函数未正确实现预期功能。"
+        ],
+        "target_artifact_ref": "N3.hypothesis@v1",
+        "target_artifact_refs": [
+          "N3.hypothesis@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "检查 flatten 函数在非列表叶节点分支的控制流，确认 yield 语句是否被错误执行。",
+          "验证函数递归调用返回值是否被正确迭代消费。",
+          "运行测试用例，确认返回值是否为生成器对象而非叶节点。"
+        ]
+      },
+      "created_at": "2026-08-16T07:47:21.379851+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "cab2caf4dd974e23a8a1113692efdf4a",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/tasks/quixbugs_flatten/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 0,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": false,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 0,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 4106.333333333333,
+        "calls": 3,
+        "total_ms": 12319
+      },
+      "initialization": {
+        "average_ms": 2829.0,
+        "calls": 1,
+        "total_ms": 2829
+      },
+      "investigation": {
+        "average_ms": 10743.75,
+        "calls": 4,
+        "total_ms": 42975
+      },
+      "review": {
+        "average_ms": 5592.0,
+        "calls": 4,
+        "total_ms": 22368
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": false,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 0,
+    "replan_record_count": 0,
+    "replan_succeeded": false,
+    "retry_node_count": 0,
+    "root_cause_review_passed": false,
+    "route_attempts_by_model": {
+      "deepseek-v4-flash-0731": 2,
+      "deepseek-v4-pro-0813": 2,
+      "qwen3.8-max": 10
+    },
+    "route_exhausted_by_model": {
+      "deepseek-v4-flash-0731": 1,
+      "qwen3.8-max": 1
+    },
+    "route_successes_by_model": {
+      "deepseek-v4-flash-0731": 1,
+      "deepseek-v4-pro-0813": 2,
+      "qwen3.8-max": 9
+    },
+    "supervisor_format_repair_count": 1,
+    "supervisor_snapshot_compact_chars": 46621,
+    "supervisor_snapshot_count": 9,
+    "supervisor_snapshot_original_chars": 85967,
+    "supervisor_snapshot_reduction_ratio": 0.4576872520851024,
+    "validation_passed": false,
+    "worker_failure_count": 0,
+    "worker_retry_count": 0,
+    "workspace_clean": true
+  },
+  "engine_status": "failed",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "root_cause_recommendation"
+    },
+    "primary_ref": null,
+    "review_refs": [
+      "N4.review@v1"
+    ],
+    "status": "under_review"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "standard",
+    "gate_records": [
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 INVESTIGATION_TASK（failure_reproduction），预计消耗少量 tool_calls 与 runtime，在预算范围内。",
+        "gate_name": "failure_reproduction_required",
+        "reason": "任务明确要求失败复现但尚无复现证据；源码证据不足以确认运行时行为，必须补充 failure_reproduction 以满足 acceptance_criteria 和诊断前置条件。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 3,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": false,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_attempt:qwen3.8-max:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:qwen3.8-max:DASHSCOPE_API_KEY_2": 9,
+      "supervisor_route_exhausted:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_exhausted:qwen3.8-max:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_format_rejected:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_format_rejected:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_format_rejected:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_format_rejected:qwen3.8-max:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:qwen3.8-max:DASHSCOPE_API_KEY_2": 9
+    },
+    "unnecessary_expansion": true,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T07:46:14.035929+00:00",
+      "created_by_decision_id": "init-investigation-code-retrieval",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T07:46:31.049114+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "检索并分析 flatten.py 的完整源码，识别函数签名、递归/迭代逻辑及叶节点判断条件，输出结构化代码摘要供后续失败复现与诊断使用。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T07:46:14.046586+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T07:46:36.319589+00:00",
+      "created_by_decision_id": "invest-failure-reproduction",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T07:46:52.892186+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "failure_reproduction",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "运行 tests/test_flatten.py 并捕获 flatten 对非列表叶节点返回生成器对象而非叶节点本身的失败现象，记录完整错误输出与堆栈信息作为 verified failure reproduction evidence。",
+      "output_artifact_ids": [
+        "N2.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T07:46:36.338229+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-16T07:46:57.116773+00:00",
+      "created_by_decision_id": "diag-control-flow-init",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T07:47:03.077123+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 flatten.py 源码与失败复现证据，分析 flatten 函数在叶节点分支的控制流：确认 yield 语句是否在非列表输入时被错误执行、递归调用返回值是否被正确迭代消费，定位导致返回生成器对象而非叶节点本身的控制流缺陷位置。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T07:46:57.136251+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-16T07:47:07.289403+00:00",
+      "created_by_decision_id": "review-root-cause-rec",
+      "critical": true,
+      "dependencies": [
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T07:47:21.398114+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "root_cause_recommendation",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "审查 N3.hypothesis@v1 的根因主张是否被 N1.evidence@v1（源码）和 N2.evidence@v1（失败复现）充分支持，评估控制流缺陷定位的准确性与完整性，给出 supported/needs_more_evidence/changes_requested/unsupported/conflict 判定及改进建议。",
+      "output_artifact_ids": [
+        "N4.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T07:47:07.317361+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "NO_PROGRESS_LOOP",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/tasks/quixbugs_flatten/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "b493fef968a1df418a06155b4e41481018c16c9eb073d09ff9a353e88036973f",
+    "before_sha256": "b493fef968a1df418a06155b4e41481018c16c9eb073d09ff9a353e88036973f",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_flatten",
+  "termination": {
+    "code": "NO_PROGRESS_LOOP",
+    "failure_class": "orchestration_failure",
+    "message": "NO_PROGRESS_LOOP",
+    "stage": "review"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_direct_d74a8a5_quixbugs_flatten/tasks/quixbugs_flatten/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 7,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 14712,
+        "output_tokens": 1259
+      },
+      "deepseek-v4-flash-0731": {
+        "calls": 1,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 7369,
+        "output_tokens": 493
+      },
+      "deepseek-v4-pro-0813": {
+        "calls": 2,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 13952,
+        "output_tokens": 397
+      },
+      "qwen3.8-max": {
+        "calls": 9,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 46085,
+        "output_tokens": 2498
+      }
+    },
+    "duration_ms": 96126,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 82118,
+    "model_calls": 21,
+    "output_tokens": 4647,
+    "supervisor_api_calls": 14,
+    "supervisor_policy_calls": 9,
+    "supervisor_tokens": 70794,
+    "tool_calls": 3,
+    "total_tokens": 86765,
+    "worker_model_calls": 7,
+    "worker_tokens": 15971
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

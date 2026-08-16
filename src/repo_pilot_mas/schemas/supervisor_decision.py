@@ -870,49 +870,51 @@ def evidence_gap_recovery_stage(
     return None
 
 
-def supervisor_decision_schema_for_state(
-    snapshot: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Return only actions and Worker contracts that are legal for this state."""
+def evidence_gap_completion_refs(
+    artifacts: Sequence[Mapping[str, Any]],
+) -> tuple[str, ...]:
+    """Return verified Evidence created after the latest explicit root-cause gap."""
 
-    stage = str(snapshot.get("workflow_stage", "initialization"))
-    selections = snapshot.get("selections", {})
-    selections = selections if isinstance(selections, Mapping) else {}
-    resolution = selections.get("hypothesis_resolution", {})
-    resolution = resolution if isinstance(resolution, Mapping) else {}
-    accepted = resolution.get("status") == "accepted"
-    nodes = snapshot.get("nodes", ())
-    nodes = (
-        nodes
-        if isinstance(nodes, Sequence) and not isinstance(nodes, (str, bytes))
-        else ()
-    )
-    artifacts = snapshot.get("artifacts", ())
-    artifacts = (
-        artifacts
-        if isinstance(artifacts, Sequence)
-        and not isinstance(artifacts, (str, bytes))
-        else ()
-    )
-    task = snapshot.get("task", {})
-    task = task if isinstance(task, Mapping) else {}
-    reproduction_pending = bool(task.get("requires_failure_reproduction")) and not bool(
-        task.get("confirmed_failure_reproduction_refs")
-    )
-    artifact_types = {
-        str(item.get("artifact_type", ""))
-        for item in artifacts
-        if isinstance(item, Mapping)
-    }
-    artifact_refs_by_type: dict[str, list[str]] = {}
-    artifacts_by_ref: dict[str, Mapping[str, Any]] = {}
-    for item in artifacts:
-        if not isinstance(item, Mapping) or not item.get("artifact_ref"):
+    latest_gap_index: int | None = None
+    for index, item in enumerate(artifacts):
+        if not isinstance(item, Mapping):
             continue
-        artifacts_by_ref[str(item["artifact_ref"])] = item
-        artifact_refs_by_type.setdefault(
-            str(item.get("artifact_type", "")), []
-        ).append(str(item["artifact_ref"]))
+        artifact_type = str(item.get("artifact_type", ""))
+        content = item.get("content", {})
+        if not isinstance(content, Mapping):
+            continue
+        if (
+            artifact_type == "hypothesis" and content.get("missing_evidence")
+        ) or (
+            artifact_type == "review"
+            and review_opens_hypothesis_evidence_gap(content)
+        ):
+            latest_gap_index = index
+    if latest_gap_index is None:
+        return ()
+    return tuple(
+        str(item["artifact_ref"])
+        for item in artifacts[latest_gap_index + 1 :]
+        if isinstance(item, Mapping)
+        and item.get("artifact_type") == "evidence"
+        and item.get("artifact_ref")
+        and isinstance(item.get("content"), Mapping)
+        and item.get("content", {}).get("verified") is True
+        and item.get("content", {}).get("status") == "verified"
+        and item.get("content", {}).get("tool_trace_ids")
+    )
+
+
+def hypothesis_acceptance_options(
+    artifacts: Sequence[Mapping[str, Any]],
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Return reviewed Hypotheses and root-cause Reviews ready for acceptance."""
+
+    artifacts_by_ref = {
+        str(item["artifact_ref"]): item
+        for item in artifacts
+        if isinstance(item, Mapping) and item.get("artifact_ref")
+    }
     hypothesis_supporting_refs: dict[str, set[str]] = {}
     hypothesis_ready_refs: set[str] = set()
     for item in artifacts:
@@ -966,6 +968,7 @@ def supervisor_decision_schema_for_state(
             ref = str(item["artifact_ref"])
             hypothesis_ready_refs.add(ref)
             hypothesis_supporting_refs[ref] = supporting_refs
+
     acceptable_review_refs: set[str] = set()
     reviewed_ready_refs: set[str] = set()
     for item in artifacts:
@@ -978,10 +981,8 @@ def supervisor_decision_schema_for_state(
             continue
         content = item["content"]
         if (
-            content.get("mode")
-            not in {"root_cause_recommendation", "hypothesis_comparison"}
-            or content.get("verdict")
-            not in {"approved", "compatible", "supported"}
+            content.get("mode") not in _ROOT_CAUSE_REVIEW_MODES
+            or content.get("verdict") not in {"approved", "compatible", "supported"}
         ):
             continue
         raw_targets = content.get("target_artifact_refs")
@@ -1001,10 +1002,91 @@ def supervisor_decision_schema_for_state(
         if covered:
             acceptable_review_refs.add(str(item["artifact_ref"]))
             reviewed_ready_refs.update(covered)
+    return frozenset(reviewed_ready_refs), frozenset(acceptable_review_refs)
+
+
+def supervisor_decision_schema_for_state(
+    snapshot: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return only actions and Worker contracts that are legal for this state."""
+
+    stage = str(snapshot.get("workflow_stage", "initialization"))
+    selections = snapshot.get("selections", {})
+    selections = selections if isinstance(selections, Mapping) else {}
+    resolution = selections.get("hypothesis_resolution", {})
+    resolution = resolution if isinstance(resolution, Mapping) else {}
+    accepted = resolution.get("status") == "accepted"
+    nodes = snapshot.get("nodes", ())
+    nodes = (
+        nodes
+        if isinstance(nodes, Sequence) and not isinstance(nodes, (str, bytes))
+        else ()
+    )
+    artifacts = snapshot.get("artifacts", ())
+    artifacts = (
+        artifacts
+        if isinstance(artifacts, Sequence)
+        and not isinstance(artifacts, (str, bytes))
+        else ()
+    )
+    task = snapshot.get("task", {})
+    task = task if isinstance(task, Mapping) else {}
+    reproduction_pending = bool(task.get("requires_failure_reproduction")) and not bool(
+        task.get("confirmed_failure_reproduction_refs")
+    )
+    artifact_types = {
+        str(item.get("artifact_type", ""))
+        for item in artifacts
+        if isinstance(item, Mapping)
+    }
+    artifact_refs_by_type: dict[str, list[str]] = {}
+    for item in artifacts:
+        if not isinstance(item, Mapping) or not item.get("artifact_ref"):
+            continue
+        artifact_refs_by_type.setdefault(
+            str(item.get("artifact_type", "")), []
+        ).append(str(item["artifact_ref"]))
+    node_ids = tuple(
+        str(item["node_id"])
+        for item in nodes
+        if isinstance(item, Mapping) and item.get("node_id")
+    )
+    reviewed_ready_refs, acceptable_review_refs = hypothesis_acceptance_options(
+        artifacts
+    )
+    accepted_hypothesis_refs = tuple(
+        str(ref) for ref in resolution.get("accepted_refs", ()) if str(ref)
+    )
+    accepted_root_review_refs = tuple(
+        str(ref) for ref in resolution.get("review_refs", ()) if str(ref)
+    )
     recovery = snapshot.get("recovery", {})
     recovery = recovery if isinstance(recovery, Mapping) else {}
     pending_replan = recovery.get("pending_replan") is True
     remaining_replans = int(recovery.get("remaining_replans", 1) or 0)
+    decision_history = snapshot.get("decision_history", {})
+    decision_history = (
+        decision_history if isinstance(decision_history, Mapping) else {}
+    )
+    last_supervisor_call = decision_history.get("last_supervisor_call", {})
+    last_supervisor_call = (
+        last_supervisor_call
+        if isinstance(last_supervisor_call, Mapping)
+        else {}
+    )
+    last_decision_result = last_supervisor_call.get("decision_result", {})
+    last_decision_result = (
+        last_decision_result
+        if isinstance(last_decision_result, Mapping)
+        else {}
+    )
+    rejected_allowed_actions = {
+        str(item)
+        for item in last_decision_result.get("allowed_next_actions", ())
+        if str(item) in {action.value for action in DecisionAction}
+    }
+    if last_decision_result.get("ok") is not False:
+        rejected_allowed_actions.clear()
     patch_refs = set(artifact_refs_by_type.get("patch_candidate", ()))
     validations_by_patch = {
         str(item.get("content", {}).get("patch_ref", "")): item
@@ -1015,12 +1097,49 @@ def supervisor_decision_schema_for_state(
         and item.get("content", {}).get("patch_ref")
     }
     unvalidated_patch_refs = patch_refs.difference(validations_by_patch)
+    validation_review_refs_by_patch: dict[str, tuple[str, ...]] = {
+        patch_ref: tuple(
+            str(item["artifact_ref"])
+            for item in artifacts
+            if isinstance(item, Mapping)
+            and item.get("artifact_type") == "review"
+            and item.get("artifact_ref")
+            and isinstance(item.get("content"), Mapping)
+            and item.get("content", {}).get("mode") == "patch_review"
+            and item.get("content", {}).get("verdict")
+            in {"approved", "compatible", "supported"}
+            and item.get("content", {}).get("target_artifact_ref") == patch_ref
+        )
+        for patch_ref in unvalidated_patch_refs
+    }
+    validation_review_refs_by_patch = {
+        patch_ref: review_refs
+        for patch_ref, review_refs in validation_review_refs_by_patch.items()
+        if review_refs
+    }
     passed_validation_exists = any(
         item.get("content", {}).get("passed") is True
         for item in validations_by_patch.values()
     )
     investigation_required = additional_investigation_required(artifacts)
     gap_recovery_stage = evidence_gap_recovery_stage(artifacts)
+    gap_completion_refs = (
+        evidence_gap_completion_refs(artifacts)
+        if gap_recovery_stage == "diagnosis"
+        else ()
+    )
+    active_nodes_exist = any(
+        isinstance(item, Mapping)
+        and str(item.get("status", "")) in {"PENDING", "READY", "RUNNING", "PAUSED"}
+        for item in nodes
+    )
+    acceptance_ready = (
+        stage in {"diagnosis", "review"}
+        and resolution.get("status") == "under_review"
+        and bool(reviewed_ready_refs)
+        and bool(acceptable_review_refs)
+        and not active_nodes_exist
+    )
 
     allowed_actions = {
         DecisionAction.CREATE_TASK.value,
@@ -1034,6 +1153,8 @@ def supervisor_decision_schema_for_state(
         allowed_actions.add(DecisionAction.REQUEST_REPLAN.value)
     if remaining_replans <= 0 and not pending_replan:
         allowed_actions.discard(DecisionAction.REQUEST_REPLAN.value)
+    elif DecisionAction.REQUEST_REPLAN.value in rejected_allowed_actions:
+        allowed_actions.add(DecisionAction.REQUEST_REPLAN.value)
     if (
         stage in {"diagnosis", "review"}
         and not accepted
@@ -1104,6 +1225,14 @@ def supervisor_decision_schema_for_state(
     ):
         allowed_actions = {DecisionAction.TERMINATE_TASK.value}
         allowed_node_types.clear()
+    if acceptance_ready and not pending_replan and gap_recovery_stage is None:
+        allowed_actions = {
+            DecisionAction.ACCEPT_HYPOTHESIS.value,
+            DecisionAction.TERMINATE_TASK.value,
+        }
+        allowed_node_types.clear()
+    if rejected_allowed_actions and not pending_replan:
+        allowed_actions.intersection_update(rejected_allowed_actions)
     if not allowed_node_types:
         allowed_actions.discard(DecisionAction.CREATE_TASK.value)
     gate_required_node_types = {"CHALLENGE_TASK", "REBUTTAL_TASK"}
@@ -1174,6 +1303,7 @@ def supervisor_decision_schema_for_state(
                 if "next_workflow_stage" not in constrained["required"]:
                     constrained["required"].append("next_workflow_stage")
             if pending_replan:
+                constrained["properties"]["create_tasks"]["maxItems"] = 1
                 trigger_refs = tuple(
                     dict.fromkeys(
                         (
@@ -1234,6 +1364,22 @@ def supervisor_decision_schema_for_state(
             for constrained in _task_contract_variants(
                 task_variant,
                 artifact_refs_by_type,
+                required_diagnosis_evidence_refs=(
+                    tuple(
+                        str(ref)
+                        for ref in task.get(
+                            "confirmed_failure_reproduction_refs", ()
+                        )
+                        if str(ref)
+                    )
+                    if task.get("requires_failure_reproduction")
+                    else ()
+                ),
+                required_diagnosis_all_evidence_refs=gap_completion_refs,
+                allowed_dependency_ids=node_ids,
+                required_patch_hypothesis_refs=accepted_hypothesis_refs,
+                required_patch_review_refs=accepted_root_review_refs,
+                validation_review_refs_by_patch=validation_review_refs_by_patch,
             )
         ]
         if not investigation_required:
@@ -1325,6 +1471,10 @@ def supervisor_decision_schema_for_state(
 _TASK_MODE_ARTIFACT_COUNTS: dict[
     tuple[str, str], dict[str, tuple[int, int | None]]
 ] = {
+    ("InvestigatorAgent", "evidence_completion"): {
+        "evidence": (1, None),
+        "review": (1, None),
+    },
     ("DiagnosticianAgent", "control_flow"): {"evidence": (1, None)},
     ("DiagnosticianAgent", "data_flow"): {"evidence": (1, None)},
     ("DiagnosticianAgent", "challenge"): {
@@ -1379,6 +1529,9 @@ _TASK_MODE_ARTIFACT_COUNTS: dict[
 }
 
 _TASK_MODE_ALLOWED_ARTIFACT_TYPES: dict[tuple[str, str], frozenset[str]] = {
+    ("InvestigatorAgent", "evidence_completion"): frozenset(
+        {"evidence", "review", "artifact_rejection"}
+    ),
     ("DiagnosticianAgent", "control_flow"): frozenset({"evidence"}),
     ("DiagnosticianAgent", "data_flow"): frozenset({"evidence"}),
     ("DiagnosticianAgent", "challenge"): frozenset(
@@ -1393,10 +1546,18 @@ _TASK_MODE_ALLOWED_ARTIFACT_TYPES: dict[tuple[str, str], frozenset[str]] = {
 def _task_contract_variants(
     task_variant: Mapping[str, Any],
     refs_by_type: Mapping[str, Sequence[str]],
+    *,
+    required_diagnosis_evidence_refs: Sequence[str] = (),
+    required_diagnosis_all_evidence_refs: Sequence[str] = (),
+    allowed_dependency_ids: Sequence[str] = (),
+    required_patch_hypothesis_refs: Sequence[str] = (),
+    required_patch_review_refs: Sequence[str] = (),
+    validation_review_refs_by_patch: Mapping[str, Sequence[str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Split Worker modes and encode their minimum Artifact input contracts."""
 
     properties = task_variant["properties"]
+    node_type = str(properties["node_type"]["const"])
     agent_type = str(properties["agent_type"]["const"])
     mode_schema = properties["mode"]
     modes = (
@@ -1406,6 +1567,17 @@ def _task_contract_variants(
     )
     variants: list[dict[str, Any]] = []
     for mode in modes:
+        if node_type == "PATCH_TASK" and (
+            any(
+                ref not in refs_by_type.get("hypothesis", ())
+                for ref in required_patch_hypothesis_refs
+            )
+            or any(
+                ref not in refs_by_type.get("review", ())
+                for ref in required_patch_review_refs
+            )
+        ):
+            continue
         counts = _TASK_MODE_ARTIFACT_COUNTS.get((agent_type, mode), {})
         if any(len(refs_by_type.get(kind, ())) < minimum for kind, (minimum, _) in counts.items()):
             continue
@@ -1415,9 +1587,73 @@ def _task_contract_variants(
             for artifact_type, refs in refs_by_type.items()
             if allowed_types is None or artifact_type in allowed_types
             for ref in refs
+            if not (
+                node_type == "PATCH_TASK"
+                and required_patch_hypothesis_refs
+                and artifact_type == "hypothesis"
+                and ref not in required_patch_hypothesis_refs
+            )
         ]
         constrained = copy.deepcopy(task_variant)
         constrained["properties"]["mode"] = {"const": mode}
+        constrained["properties"]["depends_on"] = (
+            {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": list(allowed_dependency_ids),
+                },
+                "uniqueItems": True,
+            }
+            if allowed_dependency_ids
+            else {"type": "array", "maxItems": 0}
+        )
+        if node_type == "VALIDATION_TASK":
+            for patch_ref, review_refs in (
+                validation_review_refs_by_patch or {}
+            ).items():
+                eligible_review_refs = [
+                    ref
+                    for ref in review_refs
+                    if ref in refs_by_type.get("review", ())
+                ]
+                if (
+                    patch_ref not in refs_by_type.get("patch_candidate", ())
+                    or not eligible_review_refs
+                ):
+                    continue
+                validation_variant = copy.deepcopy(constrained)
+                validation_variant["properties"]["input_artifact_ids"] = {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [patch_ref, *eligible_review_refs],
+                    },
+                    "minItems": 2,
+                    "uniqueItems": True,
+                    "allOf": [
+                        {
+                            "type": "array",
+                            "contains": {"type": "string", "const": patch_ref},
+                            "minContains": 1,
+                            "maxContains": 1,
+                        },
+                        {
+                            "type": "array",
+                            "contains": {
+                                "type": "string",
+                                "enum": eligible_review_refs,
+                            },
+                            "minContains": 1,
+                        },
+                    ],
+                }
+                if "input_artifact_ids" not in validation_variant["required"]:
+                    validation_variant["required"].append(
+                        "input_artifact_ids"
+                    )
+                variants.append(validation_variant)
+            continue
         input_schema: dict[str, Any] = {
             "type": "array",
             "items": {"type": "string", "enum": all_refs},
@@ -1436,6 +1672,47 @@ def _task_contract_variants(
             if maximum is not None:
                 requirement["maxContains"] = maximum
             input_schema["allOf"].append(requirement)
+        if node_type == "DIAGNOSIS_TASK" and required_diagnosis_evidence_refs:
+            confirmed_refs = [
+                ref
+                for ref in required_diagnosis_evidence_refs
+                if ref in refs_by_type.get("evidence", ())
+            ]
+            if not confirmed_refs:
+                continue
+            input_schema["allOf"].append(
+                {
+                    "type": "array",
+                    "contains": {
+                        "type": "string",
+                        "enum": confirmed_refs,
+                    },
+                    "minContains": 1,
+                }
+            )
+        if node_type == "DIAGNOSIS_TASK":
+            for ref in required_diagnosis_all_evidence_refs:
+                if ref not in refs_by_type.get("evidence", ()):
+                    continue
+                input_schema["allOf"].append(
+                    {
+                        "type": "array",
+                        "contains": {"type": "string", "const": ref},
+                        "minContains": 1,
+                    }
+                )
+        if node_type == "PATCH_TASK":
+            for ref in (
+                *required_patch_hypothesis_refs,
+                *required_patch_review_refs,
+            ):
+                input_schema["allOf"].append(
+                    {
+                        "type": "array",
+                        "contains": {"type": "string", "const": ref},
+                        "minContains": 1,
+                    }
+                )
         constrained["properties"]["input_artifact_ids"] = input_schema
         if counts and "input_artifact_ids" not in constrained["required"]:
             constrained["required"].append("input_artifact_ids")

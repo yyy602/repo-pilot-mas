@@ -14,7 +14,10 @@
 
 ### 当前执行状态（2026-08-16）
 
-- Phase A–G 的代码、Schema、契约、指标和 Trace 改造已完成；在 `multi_agent` 环境中，当前运行时通过 241 项全量测试、Ruff、compileall 与 `git diff --check`。新发现的 Review 选择 Gate 修复尚待提交和重新预冻结。
+- Phase A–G 的主体代码、Schema、契约、指标和 Trace 改造已完成；最新 Development 诊断暴露的两个确定性收敛缺口已由回归测试修复：补证后的 Diagnosis 必须携带确认复现和缺口补全 Evidence，根因 Review 达到 acceptance-ready 后只允许 ACCEPT 或 TERMINATE，并由 Engine 拒绝绕过 Schema 的纯阶段切换。
+- 调试流程固定分为四层：Fake/Scripted 单元与契约回归、本地 Qwen3-8B 单任务闭环、最小真实 API 协议探针、正式 Development/Frozen Test。前三层未通过前不得消耗 API 跑完整批次；本地 Supervisor 结果不得进入正式指标。
+- 正式 Supervisor 路由保持 `deepseek-v4-flash-0731 → deepseek-v4-pro-0813 → qwen3.8-max`；`configs/supervisor.local.yaml` 只允许单任务调试，完整 Development/Frozen Test 入口会在加载模型前拒绝该配置。
+- 当前运行时在 `multi_agent` 环境通过 257 项 pytest、全仓 Ruff、compileall 与 `git diff --check`；本地配置 dry-run 与正式入口隔离检查通过。两块 GPU 当前由既有 vLLM 服务占用，本轮没有为加载 Transformers 擅自停止该服务，本地模型单题闭环仍待资源释放后补跑。
 - Smoke 和多轮针对性 Development 使用了真实 API，并持续暴露及修复框架流程问题；完整过程见 `docs/Phase6_真实问题复盘与排障.md`。
 - 最后一轮 `dev_repair_v2_routes_classified` 证明两个账号 × 三个模型共六个 Supervisor 路由均返回上游免费额度耗尽；系统已能在一次策略调用后以 `SUPERVISOR_ROUTES_EXHAUSTED` 立即失败关闭，并将 failure_class 记录为 `provider_quota_exhausted`。
 - 2026-08-12 15:38 的最小真实 API 复查再次按既定顺序请求六个槽位，全部返回 `AllocationQuota.FreeTierOnly`；该证据保存在 `reports/closed_loop/evaluation/api_route_recheck_20260812_1538/trace.jsonl`。

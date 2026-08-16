@@ -67,7 +67,14 @@ class InvestigatorAgent:
         self.budget = budget or ReactBudget(max_steps=8, max_model_calls=10, max_tool_calls=8)
         self.generation_config = generation_config or GenerationConfig(max_output_tokens=768)
 
-    def run(self, task: TaskSpec, node_id: str, mode: str, objective: str) -> Artifact:
+    def run(
+        self,
+        task: TaskSpec,
+        node_id: str,
+        mode: str,
+        objective: str,
+        artifacts: Sequence[Artifact] = (),
+    ) -> Artifact:
         if mode not in INVESTIGATOR_MODES:
             raise WorkerAgentError(f"不支持的 Investigator mode: {mode}")
         tools = self.tools.subset(_MODE_TOOLS[mode])
@@ -95,6 +102,10 @@ class InvestigatorAgent:
                 "此时仍应返回 action.status=success；只有工具调用或调查过程本身无法完成时才返回 failure。"
                 "evidence_completion 和 regression_scope 必须调用 run_tests 取得执行证据；"
                 "仅查看源码不能把待验证的边界行为标记为已完成。"
+                "evidence_completion 必须逐项读取 input_artifacts 中 Review 的"
+                " remaining_uncertainty，并用现有 Evidence 设计能够闭合该缺口的执行检查。"
+                "若 input_artifacts 含 ArtifactRejection，必须读取上一尝试的 code/reason，"
+                "改变工具参数或验证路径，不能原样重复已失败动作。"
                 "最终在 action.artifact 返回 Evidence 内容。"
                 f"当前 mode={mode}。可用工具："
                 + json.dumps(tools.definitions_for_model(), ensure_ascii=False),
@@ -106,6 +117,7 @@ class InvestigatorAgent:
                         "task": worker_task_view(task),
                         "node_id": node_id,
                         "objective": objective,
+                        "input_artifacts": [item.to_dict() for item in artifacts],
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),
@@ -116,9 +128,16 @@ class InvestigatorAgent:
         if result.status != "completed" or result.final_action is None:
             code = (
                 "MODEL_TIMEOUT"
-                if "MODEL_TIMEOUT" in result.reason
+                if result.reason in {"MODEL_TIMEOUT", "RUNTIME_BUDGET_EXHAUSTED"}
                 else "MODEL_FORMAT_ERROR"
-                if "STRUCTURED_OUTPUT_ERROR" in result.reason
+                if result.reason
+                in {
+                    "STRUCTURED_OUTPUT_ERROR",
+                    "MAX_STEPS_EXHAUSTED",
+                    "MODEL_CALL_BUDGET_EXHAUSTED",
+                    "TOOL_CALL_BUDGET_EXHAUSTED",
+                    "TOKEN_OR_MODEL_BUDGET_EXHAUSTED",
+                }
                 else "TRANSIENT_WORKER_ERROR"
             )
             raise WorkerAgentError(
@@ -152,6 +171,14 @@ class InvestigatorAgent:
         content.setdefault("supports_claims", [str(content.get("claim", ""))])
         content.setdefault("contradicts_claims", [])
         content["verified"] = content.get("status") == "verified"
+        if mode in {"evidence_completion", "regression_scope"} and (
+            content["verified"] is not True
+            or bool(content.get("missing_evidence"))
+        ):
+            raise WorkerAgentError(
+                f"Investigator mode={mode} 没有产出已验证的闭合证据",
+                code="BUSINESS_EVIDENCE_INSUFFICIENT",
+            )
 
         reproduction: dict[str, Any] | None = None
         if mode == "failure_reproduction":

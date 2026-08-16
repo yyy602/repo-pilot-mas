@@ -11,6 +11,7 @@ from repo_pilot_mas.models import (
     LocalTransformersAdapter,
     Message,
     ModelAdapterError,
+    create_supervisor_model_adapter,
 )
 
 _SIMPLE_SCHEMA = {
@@ -78,3 +79,36 @@ def test_local_adapter_close_drops_loaded_resources(tmp_path: Path) -> None:
 
     assert adapter._model is None
     assert adapter._tokenizer is None
+
+
+def test_local_supervisor_reuses_matching_worker_slot(tmp_path: Path) -> None:
+    model_root = tmp_path / "Qwen3-8B"
+    model_root.mkdir()
+    worker = LocalTransformersAdapter(model_root, device="cpu", dtype="float32")
+    config_path = tmp_path / "supervisor.local.yaml"
+    config_path.write_text(
+        f"""supervisor:
+  provider: local_transformers
+  model_path: {model_root}
+  device: cpu
+  dtype: float32
+  reuse_worker_slot: 0
+  generation:
+    temperature: 0.0
+    max_output_tokens: 777
+    timeout_seconds: 45
+    max_format_repairs: 2
+""",
+        encoding="utf-8",
+    )
+
+    supervisor, generation = create_supervisor_model_adapter(
+        config_path,
+        raw_log_dir=tmp_path / "raw",
+        shared_worker_models=(worker,),
+    )
+
+    assert supervisor is worker
+    assert generation.max_output_tokens == 777
+    assert generation.timeout_seconds == 45
+    assert generation.max_retries == 2
