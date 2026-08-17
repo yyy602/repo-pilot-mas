@@ -1,0 +1,1148 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "find_first_in_sorted 函数在处理目标值大于数组最大值时发生索引越界。",
+        "confidence": 1,
+        "content": "def find_first_in_sorted(arr, x):\n    lo = 0\n    hi = len(arr)\n\n    while lo <= hi:\n        mid = (lo + hi) // 2\n\n        if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):\n            return mid\n        if x <= arr[mid]:\n            hi = mid\n        else:\n            lo = mid + 1\n\n    return -1",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one"
+          ],
+          "exit_code": 1,
+          "failure_output": "F                                                                        [100%]\n=================================== FAILURES ===================================\n__________________ test_target_above_range_returns_minus_one ___________________\n\n    def test_target_above_range_returns_minus_one() -> None:\n>       assert find_first_in_sorted([3, 4, 5, 5, 5, 5, 6], 7) == -1\n\ntests/test_find_first_in_sorted.py:9: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\narr = [3, 4, 5, 5, 5, 5, ...], x = 7\n\n    def find_first_in_sorted(arr, x):\n        lo = 0\n        hi = len(arr)\n    \n        while lo <= hi:\n            mid = (lo + hi) // 2\n    \n>           if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):\nE           IndexError: list index out of range\n\nfind_first_in_sorted.py:8: IndexError\n=========================== short test summary info ============================\nFAILED tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one\n",
+          "failure_type": "IndexError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 15,
+          "line_start": 8,
+          "path": "find_first_in_sorted.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "测试失败表明函数在处理边界情况时发生索引越界"
+        ],
+        "tool_trace_ids": [
+          "128161a7a52e4990ba7e00fa13b0f697"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-16T15:12:09.806126+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "9a8ad641de184e26b2c0b4d7ef0cffdc",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "find_first_in_sorted",
+          "arr",
+          "x"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "在二分查找循环中，当目标值大于数组最大值时，`hi` 的初始值为 `len(arr)`，导致 `mid` 的计算超出数组索引范围。",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "二分查找循环中未正确处理目标值大于数组最大值的情况，导致索引越界。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "在 `hi` 初始化为 `len(arr) - 1` 时重新运行测试以验证是否解决索引越界问题。",
+          "检查 `mid` 的计算是否在数组索引范围内。",
+          "验证当目标值大于数组最大值时，函数是否正确返回 -1。"
+        ]
+      },
+      "created_at": "2026-08-16T15:12:25.839131+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "74e3f06984374355956bae0895e19355",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "hi",
+          "mid",
+          "arr",
+          "x"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "在二分查找过程中，hi 被初始化为 len(arr)，而 mid = (lo + hi) // 2 的计算可能导致 mid 超出数组索引范围。",
+        "missing_evidence": [],
+        "perspective": "data_flow",
+        "root_cause": "hi 被初始化为 len(arr)，导致在处理目标值大于数组最大值时，mid 计算超出数组索引范围。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 hi 的初始化值是否为 len(arr)，并验证其是否可能导致索引越界。",
+          "在测试用例中添加边界条件，验证当目标值大于数组最大值时，函数是否返回 -1。",
+          "修改 hi 的初始化值为 len(arr) - 1，观察是否解决索引越界问题。"
+        ]
+      },
+      "created_at": "2026-08-16T15:12:25.613103+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "f2a0d0f3af7645b9bcb14a2f1d501f90",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "可能未正确处理目标值小于数组最小值的情况。",
+          "可能未正确处理数组为空的情况。"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "N2.hypothesis@v1 认为二分查找循环中未正确处理目标值大于数组最大值的情况，导致索引越界。",
+          "N3.hypothesis@v1 认为 hi 被初始化为 len(arr)，导致 mid 计算超出数组索引范围。"
+        ],
+        "mode": "hypothesis_comparison",
+        "recommendation": "建议将 hi 初始化为 len(arr) - 1，以确保 mid 的计算在数组索引范围内。",
+        "remaining_uncertainty": [
+          "是否还有其他边界情况未被考虑。"
+        ],
+        "risk_notes": [
+          "未正确处理边界情况可能导致索引越界，影响程序稳定性。",
+          "未正确缩小搜索区间可能导致函数无法正确返回 -1。"
+        ],
+        "target_artifact_ref": "N2.hypothesis@v1",
+        "target_artifact_refs": [
+          "N2.hypothesis@v1",
+          "N3.hypothesis@v1"
+        ],
+        "verdict": "needs_more_evidence",
+        "verification_steps_executed": [
+          "在 hi 初始化为 len(arr) - 1 时重新运行测试以验证是否解决索引越界问题。",
+          "检查 mid 的计算是否在数组索引范围内。",
+          "验证当目标值大于数组最大值时，函数是否正确返回 -1。"
+        ]
+      },
+      "created_at": "2026-08-16T15:12:45.818006+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "f20cfe7cbaf2408b92e004558425fa83",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-16T15:13:27.648984+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "7ad05f5747fe494e8f54796695e6b2e2",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-16T15:14:07.574957+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "fd024f1ee2854f8d8fdc1576d19b1112",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "replan_evidence_completion_001",
+        "failure_class": "evidence_incomplete",
+        "from_stage": "investigation",
+        "reason": "N5 evidence completion task failed twice due to MAX_STEPS_EXHAUSTED, and the review verdict is needs_more_evidence. The remaining uncertainty about boundary cases (target below minimum, empty array) must be addressed before root cause acceptance. A replan is required to create a new investigation task with a more focused scope to gather the missing evidence.",
+        "remaining_replans": 0,
+        "target_stage": "investigation",
+        "trigger_refs": [
+          "N4.review@v1",
+          "N5.rejection.a2@v1"
+        ]
+      },
+      "created_at": "2026-08-16T15:14:15.400731+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N4.review@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "9205fc93be504084bd509fc5c8ea5f3e",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "find_first_in_sorted 函数在处理目标值大于数组最大值时发生索引越界。",
+        "confidence": 1,
+        "content": "def find_first_in_sorted(arr, x):\n    lo = 0\n    hi = len(arr)\n\n    while lo <= hi:\n        mid = (lo + hi) // 2\n\n        if x == arr[mid] and (mid == 0 or x != arr[mid - 1]):\n            return mid\n        if x <= arr[mid]:\n            hi = mid\n        else:\n            lo = mid + 1\n\n    return -1",
+        "contradicts_claims": [],
+        "evidence_kind": "execution",
+        "missing_evidence": [],
+        "mode": "evidence_completion",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 15,
+          "line_start": 8,
+          "path": "find_first_in_sorted.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "测试失败表明函数在处理边界情况时发生索引越界"
+        ],
+        "tool_trace_ids": [
+          "cb6bd2d4366147589fca9f3f83ab6bfe"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-16T15:15:01.387247+00:00",
+      "created_by": "N7",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "197ac2ed41ac49029f21a9f68881d767",
+      "version": 1
+    },
+    {
+      "artifact_id": "N8.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "find_first_in_sorted",
+          "mid",
+          "hi",
+          "lo"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "在循环中计算 mid 时，hi 被初始化为 len(arr)，导致 mid 可能超出数组索引范围。",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "未正确处理目标值大于数组最大值的边界情况，导致索引越界。",
+        "supporting_evidence": [
+          "N1.evidence@v1",
+          "N7.evidence@v1"
+        ],
+        "verification_plan": [
+          "验证当目标值大于数组最大值时，函数是否返回 -1 而不发生索引越界。",
+          "检查 hi 的初始化值是否为 len(arr) 且是否可能导致 mid 超出数组范围。",
+          "测试空数组和目标值小于最小值的情况，确保函数正确返回 -1。"
+        ]
+      },
+      "created_at": "2026-08-16T15:15:14.713417+00:00",
+      "created_by": "N8",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N7.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "74f5ea4cb45e4c4ab089cbf3181d36ad",
+      "version": 1
+    },
+    {
+      "artifact_id": "N9.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "hi 初始化为 len(arr) - 1 可能导致其他边界条件错误。"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1",
+          "N7.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "find_first_in_sorted 函数在处理目标值大于数组最大值时发生索引越界。",
+          "hi 被初始化为 len(arr)，导致 mid 计算超出数组索引范围。",
+          "测试用例表明函数在边界情况时未能正确返回 -1。"
+        ],
+        "mode": "hypothesis_comparison",
+        "recommendation": "建议将 hi 初始化为 len(arr) - 1 以避免索引越界，并验证所有边界条件。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "未正确处理目标值大于数组最大值的边界情况可能导致索引越界。",
+          "hi 初始化为 len(arr) 可能导致 mid 超出数组索引范围。",
+          "函数未能正确返回 -1 可能影响其他边界条件的测试结果。"
+        ],
+        "target_artifact_ref": "N8.hypothesis@v1",
+        "target_artifact_refs": [
+          "N2.hypothesis@v1",
+          "N3.hypothesis@v1",
+          "N8.hypothesis@v1"
+        ],
+        "verdict": "approved",
+        "verification_steps_executed": [
+          "验证当目标值大于数组最大值时，函数是否返回 -1。",
+          "检查 hi 的初始化值是否为 len(arr) 并可能导致索引越界。",
+          "测试空数组和目标值小于最小值的情况，确保函数正确返回 -1。"
+        ]
+      },
+      "created_at": "2026-08-16T15:15:33.559778+00:00",
+      "created_by": "N9",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N7.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1",
+        "N8.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "1969e3ee52a7446c92045d85d980e979",
+      "version": 1
+    },
+    {
+      "artifact_id": "N10.patch",
+      "artifact_type": "patch_candidate",
+      "content": {
+        "based_on_hypothesis_refs": [
+          "N8.hypothesis@v1"
+        ],
+        "changed_files": [
+          "find_first_in_sorted.py"
+        ],
+        "covered_root_causes": {
+          "N8.hypothesis@v1": "未正确处理目标值大于数组最大值的边界情况，导致索引越界。"
+        },
+        "diff": "--- a/find_first_in_sorted.py\n+++ b/find_first_in_sorted.py\n@@ -1,6 +1,6 @@\n def find_first_in_sorted(arr, x):\n     lo = 0\n-    hi = len(arr)\n+    hi = len(arr) - 1\n \n     while lo <= hi:\n         mid = (lo + hi) // 2\n",
+        "diff_sha256": "e8389bb5c622839a9d4ee77ea80b3f6889b697925cbf0a5261ed9db41d442843",
+        "failure_input_walkthrough": "测试用例 test_target_above_range_returns_minus_one 中，目标值 7 大于数组最大值 6，导致 mid 越界，引发 IndexError。修复后，hi 初始化为 len(arr) - 1，mid 计算在数组索引范围内，函数返回 -1。",
+        "post_patch_expected_behavior": "当目标值大于数组最大值时，hi 被初始化为 len(arr) - 1，确保 mid 计算在数组索引范围内，函数正确返回 -1。",
+        "pre_patch_behavior": "当目标值大于数组最大值时，hi 被初始化为 len(arr)，导致 mid 计算超出数组索引范围，引发 IndexError。",
+        "precheck_command": [
+          "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one"
+        ],
+        "precheck_result": {
+          "exit_code": 0,
+          "ok": true,
+          "output_tail": ".                                                                        [100%]\n",
+          "trace_id": "df430e2cec08422cb63919145a052ce2"
+        },
+        "primary_hypothesis_ref": "N8.hypothesis@v1",
+        "protected_path_check": true,
+        "rationale": "将 hi 初始化为 len(arr) - 1 以避免索引越界，确保在目标值大于数组最大值时正确返回 -1。",
+        "risk_notes": [
+          "hi 初始化为 len(arr) - 1 可能影响其他边界条件的处理，需验证所有边界情况。",
+          "确保修复不会引入其他边界条件错误，如目标值小于数组最小值或数组为空的情况。"
+        ],
+        "semantic_rationale": "将 hi 初始化为 len(arr) - 1 是修复索引越界问题的最小改动，确保函数在边界情况时正确返回 -1。",
+        "strategy": "minimal",
+        "workspace_id": "N10-a1-380a2d1f35"
+      },
+      "created_at": "2026-08-16T15:16:49.426092+00:00",
+      "created_by": "N10",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N7.evidence@v1",
+        "N8.hypothesis@v1",
+        "N9.review@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "ec18e4048c634b4fb00d404b964a3265",
+      "version": 1
+    },
+    {
+      "artifact_id": "N11.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "hi 初始化为 len(arr) - 1 可能导致其他边界条件错误。"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1",
+          "N7.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "find_first_in_sorted 函数在处理目标值大于数组最大值时发生索引越界。",
+          "hi 被初始化为 len(arr)，导致 mid 计算超出数组索引范围。",
+          "测试用例表明函数在边界情况时未能正确返回 -1。"
+        ],
+        "mode": "patch_review",
+        "recommendation": "将 hi 初始化为 len(arr) - 1 以避免索引越界，并验证所有边界条件。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "hi 初始化为 len(arr) - 1 可能影响其他边界条件的处理，需验证所有边界情况。",
+          "确保修复不会引入其他边界条件错误，如目标值小于数组最小值或数组为空的情况。"
+        ],
+        "target_artifact_ref": "N10.patch@v1",
+        "target_artifact_refs": [
+          "N10.patch@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "验证当目标值大于数组最大值时，函数是否返回 -1。",
+          "检查 hi 的初始化值是否为 len(arr) 并可能导致索引越界。",
+          "测试空数组和目标值小于最小值的情况，确保函数正确返回 -1。"
+        ]
+      },
+      "created_at": "2026-08-16T15:17:05.208534+00:00",
+      "created_by": "N11",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N7.evidence@v1",
+        "N8.hypothesis@v1",
+        "N9.review@v1",
+        "N10.patch@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "72f4c95d158f4b0babf71cfd40b63a58",
+      "version": 1
+    },
+    {
+      "artifact_id": "N12.validation",
+      "artifact_type": "validation_result",
+      "content": {
+        "applied": true,
+        "changed_files": [
+          "find_first_in_sorted.py"
+        ],
+        "changed_lines": 2,
+        "failure_class": "regression_failure",
+        "invalidated_refs": [
+          "N10.patch@v1"
+        ],
+        "passed": false,
+        "patch_ref": "N10.patch@v1",
+        "patch_review_refs": [
+          "N11.review@v1"
+        ],
+        "patch_sha256": "e8389bb5c622839a9d4ee77ea80b3f6889b697925cbf0a5261ed9db41d442843",
+        "protected_path_check": true,
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "regression_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q"
+          ],
+          "duration_ms": 20003,
+          "exit_code": 1,
+          "output_tail": "..",
+          "trace_id": "e0a9dddd81554fa1b0c43ae85b9d6c37"
+        },
+        "static_check": {
+          "command": [
+            "static_check"
+          ],
+          "duration_ms": 2,
+          "exit_code": 0,
+          "output_tail": "",
+          "trace_id": "147e85f686344e0b81b833b313538e7e"
+        },
+        "target_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one"
+          ],
+          "duration_ms": 616,
+          "exit_code": 0,
+          "output_tail": ".                                                                        [100%]\n",
+          "trace_id": "e9ad58d7142844738187c7f840265f62"
+        },
+        "tool_trace_ids": [
+          "7b383d6d4d304be19c6b8c0bbff9abb3",
+          "e9ad58d7142844738187c7f840265f62",
+          "e0a9dddd81554fa1b0c43ae85b9d6c37",
+          "147e85f686344e0b81b833b313538e7e"
+        ],
+        "workspace_id": "N10-a1-380a2d1f35"
+      },
+      "created_at": "2026-08-16T15:17:30.292124+00:00",
+      "created_by": "N12",
+      "input_refs": [
+        "N10.patch@v1",
+        "N11.review@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "ded805a1622a4e13935d2825e85a1110",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_find_first_in_sorted/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 1,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 2,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": true,
+    "hypothesis_accepted": true,
+    "isolated_worker_failure_count": 1,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 7318.2,
+        "calls": 5,
+        "total_ms": 36591
+      },
+      "initialization": {
+        "average_ms": 3456.0,
+        "calls": 1,
+        "total_ms": 3456
+      },
+      "investigation": {
+        "average_ms": 19107.222222222223,
+        "calls": 9,
+        "total_ms": 171965
+      },
+      "patch": {
+        "average_ms": 25795.666666666668,
+        "calls": 3,
+        "total_ms": 77387
+      },
+      "review": {
+        "average_ms": 8920.166666666666,
+        "calls": 6,
+        "total_ms": 53521
+      },
+      "validation": {
+        "average_ms": 11982.5,
+        "calls": 2,
+        "total_ms": 23965
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": true,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 1,
+    "replan_record_count": 1,
+    "replan_succeeded": false,
+    "retry_node_count": 1,
+    "root_cause_review_passed": true,
+    "route_attempts_by_model": {
+      "deepseek-v4-flash-0731": 15
+    },
+    "route_exhausted_by_model": {
+      "deepseek-v4-flash-0731": 1
+    },
+    "route_successes_by_model": {
+      "deepseek-v4-flash-0731": 14
+    },
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 150576,
+    "supervisor_snapshot_count": 14,
+    "supervisor_snapshot_original_chars": 192010,
+    "supervisor_snapshot_reduction_ratio": 0.21579084422686323,
+    "validation_passed": false,
+    "worker_failure_count": 1,
+    "worker_retry_count": 1,
+    "workspace_clean": true
+  },
+  "engine_status": "terminated",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": 88,
+    "accepted_by_decision_id": "accept_hypothesis_after_review_approved_001",
+    "accepted_refs": [
+      "N8.hypothesis@v1"
+    ],
+    "candidate_refs": [
+      "N8.hypothesis@v1",
+      "N2.hypothesis@v1",
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "hypothesis_comparison"
+    },
+    "primary_ref": "N8.hypothesis@v1",
+    "review_refs": [
+      "N9.review@v1"
+    ],
+    "status": "accepted"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 2,
+        "budget_effect": "新增 2 个诊断节点，预计消耗约 2000 tokens，在预算范围内。",
+        "gate_name": "investigation_to_diagnosis",
+        "reason": "失败复现证据已验证，无新的证据缺口，按规则 22 进入诊断阶段。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "Adds 1 investigation node; within remaining budget (max_nodes=64, current=4).",
+        "gate_name": "evidence_completion_gate",
+        "reason": "Review verdict 'needs_more_evidence' with remaining_uncertainty about additional boundary cases (target below minimum, empty array). Must complete evidence before hypothesis acceptance.",
+        "trigger_artifact_refs": [
+          "N4.review@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 INVESTIGATION_TASK，消耗约 5000 input tokens，剩余预算充足。",
+        "gate_name": "pending_replan_execution",
+        "reason": "执行已获准的恢复计划：N5 证据补全失败两次，N4.review 需要更多证据，必须创建新的 INVESTIGATION_TASK 收集边界情况证据。",
+        "trigger_artifact_refs": [
+          "replan.1@v1",
+          "N4.review@v1",
+          "N5.rejection.a2@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "Adds 1 DIAGNOSIS_TASK node; within remaining budget (max_nodes=64, current=8, supervisor_calls=7/24).",
+        "gate_name": "evidence_gap_closed_diagnosis_reentry",
+        "reason": "N7.evidence@v1 verified the boundary cases (target below minimum, empty array) that N4.review@v1 flagged as remaining uncertainty. Per rules 21 and 24, a new DIAGNOSIS_TASK must be created that only inputs the new evidence and original reproduction evidence to produce a fresh hypothesis, clearing the evidence gap before re-review.",
+        "trigger_artifact_refs": [
+          "N7.evidence@v1",
+          "N4.review@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 1,
+    "parallel_overlap_pairs": 1,
+    "replan_attempted": true,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_attempt:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 14,
+      "supervisor_route_exhausted:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_succeeded:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 14
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T15:11:39.574178+00:00",
+      "created_by_decision_id": "init_create_investigation_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:12:09.820402+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "复现测试 tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one 的失败，确认 find_first_in_sorted 对不存在或位于边界的目标可能越界或无法正确缩小搜索区间的问题。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:11:39.591537+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-16T15:12:15.413631+00:00",
+      "created_by_decision_id": "advance_to_diagnosis_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:12:25.846943+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "分析 find_first_in_sorted 函数的控制流，重点检查二分查找循环的边界条件处理，确定当目标值大于数组最大值时为何会越界或无法正确缩小搜索区间。",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:12:15.439214+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-16T15:12:15.413686+00:00",
+      "created_by_decision_id": "advance_to_diagnosis_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:12:25.847712+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "分析 find_first_in_sorted 函数的数据流，追踪 low/high 索引变量在二分查找过程中的变化，确定导致索引越界的根因。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:12:15.439780+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-16T15:12:29.442351+00:00",
+      "created_by_decision_id": "review_hypotheses_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2",
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:12:45.839514+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "hypothesis_comparison",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "比较 N2.hypothesis@v1（控制流视角）与 N3.hypothesis@v1（数据流视角）两个根因假设，评估二者是否实质冲突、各自证据支持度，并推荐最优根因假设。",
+      "output_artifact_ids": [
+        "N4.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:12:29.462108+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T15:12:50.846270+00:00",
+      "created_by_decision_id": "create_evidence_completion_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：MAX_STEPS_EXHAUSTED",
+      "finished_at": "2026-08-16T15:14:07.575821+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1"
+      ],
+      "mode": "evidence_completion",
+      "node_id": "N5",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Gather additional evidence to address the remaining uncertainty in N4.review@v1: verify behavior when target is below array minimum and when array is empty, to confirm whether the proposed root cause (hi initialized to len(arr)) fully explains all boundary failures or if additional edge cases exist.",
+      "output_artifact_ids": [
+        "N5.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-16T15:13:27.661227+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-16T15:14:15.401540+00:00",
+      "created_by_decision_id": "replan_evidence_completion_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:14:15.401519+00:00",
+      "input_artifact_ids": [
+        "N4.review@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N6",
+      "node_type": "REPLAN_TASK",
+      "objective": "N5 evidence completion task failed twice due to MAX_STEPS_EXHAUSTED, and the review verdict is needs_more_evidence. The remaining uncertainty about boundary cases (target below minimum, empty array) must be addressed before root cause acceptance. A replan is required to create a new investigation task with a more focused scope to gather the missing evidence.",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T15:14:20.858768+00:00",
+      "created_by_decision_id": "execute_pending_replan_evidence_completion_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:15:01.400721+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "mode": "evidence_completion",
+      "node_id": "N7",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "收集补充证据以回应 N4.review@v1 的剩余不确定性：验证当目标值小于数组最小值时函数是否返回 -1，以及当数组为空时函数是否返回 -1。同时确认 hi 初始化为 len(arr) 是否导致索引越界。",
+      "output_artifact_ids": [
+        "N7.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:14:20.888397+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 30.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-16T15:15:07.245527+00:00",
+      "created_by_decision_id": "create_diagnosis_after_evidence_completion_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N7"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:15:14.739011+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N7.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N8",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "Analyze the control flow of find_first_in_sorted using the newly completed evidence (N7.evidence@v1) and the original reproduction evidence (N1.evidence@v1). Produce a fresh hypothesis that references N7.evidence@v1 and addresses the boundary cases (target below minimum, empty array) to confirm the root cause of the index out-of-bounds error.",
+      "output_artifact_ids": [
+        "N8.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:15:07.270056+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-16T15:15:19.785704+00:00",
+      "created_by_decision_id": "review_new_hypothesis_after_evidence_completion_001",
+      "critical": true,
+      "dependencies": [
+        "N8"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:15:33.577419+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N7.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1",
+        "N8.hypothesis@v1"
+      ],
+      "mode": "hypothesis_comparison",
+      "node_id": "N9",
+      "node_type": "REVIEW_TASK",
+      "objective": "Compare the new hypothesis N8.hypothesis@v1 (control_flow perspective, referencing N7.evidence@v1) against the earlier hypotheses N2.hypothesis@v1 and N3.hypothesis@v1. Evaluate whether N8.hypothesis@v1 fully addresses the remaining uncertainty from N4.review@v1 (target below minimum, empty array) and whether it is the most supported root cause. Recommend the best hypothesis for acceptance.",
+      "output_artifact_ids": [
+        "N9.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:15:19.807824+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-16T15:15:40.853364+00:00",
+      "created_by_decision_id": "create_patch_after_review_approved_001",
+      "critical": true,
+      "dependencies": [
+        "N8",
+        "N9"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:16:49.451717+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N7.evidence@v1",
+        "N8.hypothesis@v1",
+        "N9.review@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N10",
+      "node_type": "PATCH_TASK",
+      "objective": "基于已接受的根因假设 N8.hypothesis@v1（hi 初始化为 len(arr) 导致 mid 越界），创建最小补丁，将 hi 初始化为 len(arr) - 1，确保 find_first_in_sorted 在目标值大于数组最大值时正确返回 -1 而不发生索引越界。",
+      "output_artifact_ids": [
+        "N10.patch@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:15:40.875921+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-16T15:16:53.950039+00:00",
+      "created_by_decision_id": "create_patch_review_after_patch_candidate_001",
+      "critical": true,
+      "dependencies": [
+        "N10"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:17:05.226900+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N7.evidence@v1",
+        "N8.hypothesis@v1",
+        "N9.review@v1",
+        "N10.patch@v1"
+      ],
+      "mode": "patch_review",
+      "node_id": "N11",
+      "node_type": "REVIEW_TASK",
+      "objective": "Review patch candidate N10.patch@v1 which changes hi initialization from len(arr) to len(arr)-1. Verify the patch correctly addresses the root cause (index out of bounds when target exceeds array maximum), does not introduce regressions for other boundary cases (target below minimum, empty array), and is consistent with the accepted hypothesis N8.hypothesis@v1 and review N9.review@v1.",
+      "output_artifact_ids": [
+        "N11.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:16:53.975950+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "ValidationExecutor",
+      "created_at": "2026-08-16T15:17:09.616461+00:00",
+      "created_by_decision_id": "create_validation_after_patch_review_supported_001",
+      "critical": true,
+      "dependencies": [
+        "N10",
+        "N11"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:17:30.322720+00:00",
+      "input_artifact_ids": [
+        "N10.patch@v1",
+        "N11.review@v1"
+      ],
+      "mode": "deterministic",
+      "node_id": "N12",
+      "node_type": "VALIDATION_TASK",
+      "objective": "Validate patch candidate N10.patch@v1 (hi initialized to len(arr)-1) against the target test tests/test_find_first_in_sorted.py::test_target_above_range_returns_minus_one and the full regression suite. Confirm the patch resolves the IndexError when target exceeds array maximum and does not introduce regressions for other boundary cases (target below minimum, empty array).",
+      "output_artifact_ids": [
+        "N12.validation@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:17:09.645149+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "Validation N12.validation@v1 failed with failure_class=regression_failure, invalidating patch N10.patch@v1. Per rule 10, a single patch failure with regression failure class routes back to patch stage, but remaining_replans=0 and the MVP has already been replanned once (replan.1@v1). The budget shows max_replans=1 already consumed, and recovery.pending_replan=false. Creating another patch would require a new replan which is prohibited. The validation failure is a regression failure, not a root-cause or evidence issue, so returning to investigation/diagnosis is not appropriate. With no replans remaining and the only patch candidate invalidated by regression, the workflow cannot safely continue within constraints.",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_find_first_in_sorted/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": "N8.hypothesis@v1",
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+    "before_sha256": "ed87131ce81f0dced1a6e274e6154f175396fc4b6aca22aa3d03a2b6034c975b",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_find_first_in_sorted",
+  "termination": {
+    "code": "SUPERVISOR_TERMINATED",
+    "failure_class": "regression_failure",
+    "message": "Validation N12.validation@v1 failed with failure_class=regression_failure, invalidating patch N10.patch@v1. Per rule 10, a single patch failure with regression failure class routes back to patch stage, but remaining_replans=0 and the MVP has already been replanned once (replan.1@v1). The budget shows max_replans=1 already consumed, and recovery.pending_replan=false. Creating another patch would require a new replan which is prohibited. The validation failure is a regression failure, not a root-cause or evidence issue, so returning to investigation/diagnosis is not appropriate. With no replans remaining and the only patch candidate invalidated by regression, the workflow cannot safely continue within constraints.",
+    "stage": "validation"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_find_first_in_sorted/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 36,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 132638,
+        "output_tokens": 6059
+      },
+      "deepseek-v4-flash-0731": {
+        "calls": 14,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 94586,
+        "output_tokens": 5312
+      }
+    },
+    "duration_ms": 357648,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 227224,
+    "model_calls": 51,
+    "output_tokens": 11371,
+    "supervisor_api_calls": 15,
+    "supervisor_policy_calls": 14,
+    "supervisor_tokens": 99898,
+    "tool_calls": 33,
+    "total_tokens": 238595,
+    "worker_model_calls": 36,
+    "worker_tokens": 138697
+  },
+  "validation": {
+    "changed_files": [
+      "find_first_in_sorted.py"
+    ],
+    "passed_validation_count": 0,
+    "patch_applied": true,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": true,
+    "target_test_passed": true,
+    "validation_count": 1
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

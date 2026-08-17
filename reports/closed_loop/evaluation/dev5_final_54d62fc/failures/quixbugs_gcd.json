@@ -1,0 +1,697 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "gcd 函数对第二个参数非零的输入无法正确收敛并返回最大公约数。",
+        "confidence": 1,
+        "content": "def gcd(a, b):\n    if b == 0:\n        return a\n    return gcd(a % b, b)",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_gcd.py"
+          ],
+          "exit_code": 1,
+          "failure_output": "   def test_gcd(a: int, b: int, expected: int) -> None:\n>       assert gcd(a, b) == expected\n\ntests/test_gcd.py:17: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ngcd.py:4: in gcd\n    return gcd(a % b, b)\ngcd.py:4: in gcd\n    return gcd(a % b, b)\ngcd.py:4: in gcd\n    return gcd(a % b, b)\nE   RecursionError: maximum recursion depth exceeded in comparison\n!!! Recursion detected (same locals & position)\n______________________________ test_gcd[37-600-1] ______________________________\n\na = 37, b = 600, expected = 1\n\n    @pytest.mark.parametrize(\n        (\"a\", \"b\", \"expected\"),\n        [\n            (17, 0, 17),\n            (13, 13, 13),\n            (37, 600, 1),\n            (20, 100, 20),\n            (624129, 2061517, 18913),\n            (3, 12, 3),\n        ],\n    )\n    def test_gcd(a: int, b: int, expected: int) -> None:\n>       assert gcd(a, b) == expected\n\ntests/test_gcd.py:17: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ngcd.py:4: in gcd\n    return gcd(a % b, b)\ngcd.py:4: in gcd\n    return gcd(a % b, b)\nE   RecursionError: maximum recursion depth exceeded in comparison\n!!! Recursion detected (same locals & position)\n_____________________________ test_gcd[20-100-20] ______________________________\n\na = 20, b = 100, expected = 20\n\n    @pytest.mark.parametrize(\n        (\"a\", \"b\", \"expected\"),\n        [\n            (17, 0, 17),\n            (13, 13, 13),\n            (37, 600, 1),\n            (20, 100, 20),\n            (624129, 2061517, 18913),\n            (3, 12, 3),\n        ],\n    )\n    def test_gcd(a: int, b: int, expected: int) -> None:\n>       assert gcd(a, b) == expected\n\ntests/test_gcd.py:17: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ngcd.py:4: in gcd\n    return gcd(a % b, b)\ngcd.py:4: in gcd\n    return gcd(a % b, b)\nE   RecursionError: maximum recursion depth exceeded in comparison\n!!! Recursion detected (same locals & position)\n________________________ test_gcd[624129-2061517-18913] ________________________\n\na = 624129, b = 2061517, expected = 18913\n\n    @pytest.mark.parametrize(\n        (\"a\", \"b\", \"expected\"),\n        [\n            (17, 0, 17),\n            (13, 13, 13),\n            (37, 600, 1),\n            (20, 100, 20),\n            (624129, 2061517, 18913),\n            (3, 12, 3),\n        ],\n    )\n    def test_gcd(a: int, b: int, expected: int) -> None:\n>       assert gcd(a, b) == expected\n\ntests/test_gcd.py:17: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ngcd.py:4: in gcd\n    return gcd(a % b, b)\ngcd.py:4: in gcd\n    return gcd(a % b, b)\nE   RecursionError: maximum recursion depth exceeded in comparison\n!!! Recursion detected (same locals & position)\n_______________________________ test_gcd[3-12-3] _______________________________\n\na = 3, b = 12, expected = 3\n\n    @pytest.mark.parametrize(\n        (\"a\", \"b\", \"expected\"),\n        [\n            (17, 0, 17),\n            (13, 13, 13),\n            (37, 600, 1),\n            (20, 100, 20),\n            (624129, 2061517, 18913),\n            (3, 12, 3),\n        ],\n    )\n    def test_gcd(a: int, b: int, expected: int) -> None:\n>       assert gcd(a, b) == expected\n\ntests/test_gcd.py:17: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ngcd.py:4: in gcd\n    return gcd(a % b, b)\ngcd.py:4: in gcd\n    return gcd(a % b, b)\nE   RecursionError: maximum recursion depth exceeded in comparison\n!!! Recursion detected (same locals & position)\n=========================== short test summary info ============================\nFAILED tests/test_gcd.py::test_gcd[13-13-13] - RecursionError: maximum recurs...\nFAILED tests/test_gcd.py::test_gcd[37-600-1] - RecursionError: maximum recurs...\nFAILED tests/test_gcd.py::test_gcd[20-100-20] - RecursionError: maximum recur...\nFAILED tests/test_gcd.py::test_gcd[624129-2061517-18913] - RecursionError: ma...\nFAILED tests/test_gcd.py::test_gcd[3-12-3] - RecursionError: maximum recursio...\n",
+          "failure_type": "RecursionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 4,
+          "line_start": 1,
+          "path": "gcd.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "测试失败显示递归深度超出限制",
+          "gcd 函数的实现未处理 b 为零的情况"
+        ],
+        "tool_trace_ids": [
+          "d0c98570a494414d8de451bd583ee481"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-16T15:18:04.130149+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "f7b6c88853c44be0b1017a848b7aca76",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "gcd",
+          "a",
+          "b"
+        ],
+        "confidence": 1,
+        "counter_evidence": [],
+        "direct_cause": "gcd 函数在 b 非零时未正确更新参数，导致递归无法收敛",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "缺少 b == 0 的终止条件导致无限递归",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 gcd 函数的递归终止条件是否包含 b == 0",
+          "验证递归调用参数是否正确更新",
+          "测试 gcd 函数在 b 非零时的递归深度",
+          "确认递归调用是否在每次调用时改变参数值以确保收敛"
+        ]
+      },
+      "created_at": "2026-08-16T15:18:16.649475+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "64f776917d9d43b28165c33779735998",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "gcd",
+          "a",
+          "b"
+        ],
+        "confidence": 1,
+        "counter_evidence": [],
+        "direct_cause": "gcd 函数在递归调用时未正确更新参数 b，导致无限递归",
+        "missing_evidence": [],
+        "perspective": "data_flow",
+        "root_cause": "递归调用中参数 b 未正确更新导致无法收敛",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 gcd 函数中参数 b 的更新逻辑",
+          "验证递归调用中参数 b 是否正确更新",
+          "测试不同输入参数下的递归深度"
+        ]
+      },
+      "created_at": "2026-08-16T15:18:15.725101+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "3eaaacfedccf4d929f9eaf5a0ddd70e5",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "参数 a 和 b 的初始值导致递归深度过大"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "gcd 函数在 b 非零时未正确更新参数，导致递归无法收敛",
+          "递归调用中参数 b 未正确更新导致无法收敛"
+        ],
+        "mode": "hypothesis_comparison",
+        "recommendation": "添加 b == 0 的终止条件，并确保递归调用中参数 b 正确更新",
+        "remaining_uncertainty": [
+          "是否所有测试用例都覆盖了 b 为零的情况"
+        ],
+        "risk_notes": [
+          "递归深度超出限制可能导致程序崩溃",
+          "未处理 b 为零的情况可能导致错误结果"
+        ],
+        "target_artifact_ref": "N2.hypothesis@v1",
+        "target_artifact_refs": [
+          "N2.hypothesis@v1",
+          "N3.hypothesis@v1"
+        ],
+        "verdict": "needs_more_evidence",
+        "verification_steps_executed": [
+          "检查 gcd 函数的递归终止条件是否包含 b == 0",
+          "验证递归调用参数是否正确更新",
+          "测试 gcd 函数在 b 非零时的递归深度"
+        ]
+      },
+      "created_at": "2026-08-16T15:18:34.825307+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "09129edb7ac34017abb15265dae98129",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Investigator 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-16T15:19:27.335761+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "8071143fdb64460db94177d7240ad7db",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "BUSINESS_EVIDENCE_INSUFFICIENT",
+        "details": {
+          "raw_worker_reason": "BUSINESS_EVIDENCE_INSUFFICIENT:WorkerAgentError:Investigator mode=evidence_completion 没有产出已验证的闭合证据",
+          "recovery_class": "business_evidence"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "BUSINESS_EVIDENCE_INSUFFICIENT:WorkerAgentError:Investigator mode=evidence_completion 没有产出已验证的闭合证据",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-16T15:19:51.951982+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "2980fb6d055d4392b65178c599d4222d",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "replan_001",
+        "failure_class": "evidence_incomplete",
+        "from_stage": "investigation",
+        "reason": "N5 evidence_completion task failed twice due to MODEL_FORMAT_ERROR and BUSINESS_EVIDENCE_INSUFFICIENT. The review N4.review@v1 identified remaining uncertainty about b==0 test coverage, but the evidence completion attempt failed to produce verified evidence. Requesting replan to investigation stage to retry evidence completion with a fresh task, as the retry budget for N5 is exhausted.",
+        "remaining_replans": 0,
+        "target_stage": "investigation",
+        "trigger_refs": [
+          "N4.review@v1",
+          "N5.rejection.a2@v1"
+        ]
+      },
+      "created_at": "2026-08-16T15:20:00.218335+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N4.review@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "8bed4e5dfe7e4b2d8a26d3407c0083c5",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "BUSINESS_EVIDENCE_INSUFFICIENT",
+        "details": {
+          "raw_worker_reason": "BUSINESS_EVIDENCE_INSUFFICIENT:WorkerAgentError:Investigator mode=evidence_completion 没有产出已验证的闭合证据",
+          "recovery_class": "business_evidence"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N7",
+        "origin": "collector",
+        "reason": "BUSINESS_EVIDENCE_INSUFFICIENT:WorkerAgentError:Investigator mode=evidence_completion 没有产出已验证的闭合证据",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-16T15:20:45.109910+00:00",
+      "created_by": "N7",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "bce86a1d18624d6588aa5ed1ad1d62d9",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_gcd/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 3,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": false,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 2,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 5774.666666666667,
+        "calls": 3,
+        "total_ms": 17324
+      },
+      "initialization": {
+        "average_ms": 2877.0,
+        "calls": 1,
+        "total_ms": 2877
+      },
+      "investigation": {
+        "average_ms": 16803.2,
+        "calls": 10,
+        "total_ms": 168032
+      },
+      "review": {
+        "average_ms": 8871.0,
+        "calls": 2,
+        "total_ms": 17742
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 1,
+    "replan_record_count": 1,
+    "replan_succeeded": false,
+    "retry_node_count": 1,
+    "root_cause_review_passed": false,
+    "route_attempts_by_model": {
+      "deepseek-v4-flash-0731": 9
+    },
+    "route_exhausted_by_model": {},
+    "route_successes_by_model": {
+      "deepseek-v4-flash-0731": 9
+    },
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 62903,
+    "supervisor_snapshot_count": 9,
+    "supervisor_snapshot_original_chars": 106554,
+    "supervisor_snapshot_reduction_ratio": 0.4096608292508963,
+    "validation_passed": false,
+    "worker_failure_count": 2,
+    "worker_retry_count": 1,
+    "workspace_clean": true
+  },
+  "engine_status": "terminated",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [
+      "N2.hypothesis@v1",
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "hypothesis_comparison"
+    },
+    "primary_ref": null,
+    "review_refs": [
+      "N4.review@v1"
+    ],
+    "status": "needs_evidence"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 2,
+        "budget_effect": "新增 2 个诊断节点，预计消耗约 2000 tokens，预算充足。",
+        "gate_name": "investigation_to_diagnosis",
+        "reason": "Investigation 已产出 verified 复现证据，确认失败现象且无新证据缺口，进入 Diagnosis 定位根因。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "Adds 1 investigation node; within remaining budget (max_nodes=64, current=4).",
+        "gate_name": "evidence_completion_gate",
+        "reason": "Review verdict needs_more_evidence with remaining_uncertainty about b==0 test coverage requires additional evidence before hypothesis acceptance.",
+        "trigger_artifact_refs": [
+          "N4.review@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 INVESTIGATION_TASK，消耗约 1 次节点预算与相应 token，剩余预算仍充足。",
+        "gate_name": "replan_recovery_gate",
+        "reason": "执行已获准的 pending replan，N5 两次失败后需创建新的 evidence_completion 节点补证，回应 N4.review@v1 中 b==0 测试覆盖的剩余不确定性。",
+        "trigger_artifact_refs": [
+          "replan.1@v1",
+          "N4.review@v1",
+          "N5.rejection.a2@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 2,
+    "parallel_overlap_pairs": 1,
+    "replan_attempted": true,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 9,
+      "supervisor_route_succeeded:deepseek-v4-flash-0731:DASHSCOPE_API_KEY_2": 9
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T15:17:36.876261+00:00",
+      "created_by_decision_id": "init_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:18:04.149635+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "复现 tests/test_gcd.py 中 gcd 对第二个参数非零的输入无法正确收敛并返回最大公约数的失败，确认失败现象并记录复现步骤。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:17:36.886019+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-16T15:18:09.749703+00:00",
+      "created_by_decision_id": "diag_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:18:16.666687+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "分析 gcd.py 中 gcd 函数的控制流，定位第二个参数非零时递归无法收敛的根因，确认是否因缺少 b==0 终止条件导致无限递归。",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:18:09.770988+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-16T15:18:09.749763+00:00",
+      "created_by_decision_id": "diag_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:18:16.667465+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "追踪 gcd 函数参数 a、b 的数据流，验证递归调用中参数变化是否导致无法到达终止条件，确认根因与数据传递相关。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:18:09.771623+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-16T15:18:21.195209+00:00",
+      "created_by_decision_id": "review_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2",
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:18:34.846778+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "hypothesis_comparison",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "比较 N2.hypothesis@v1（控制流视角：缺少 b==0 终止条件）与 N3.hypothesis@v1（数据流视角：递归调用中参数 b 未正确更新）两个候选根因假设，基于 N1.evidence@v1 的复现证据评估两者的合理性、证据支持度和因果链完整性，给出根因推荐。",
+      "output_artifact_ids": [
+        "N4.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:18:21.222815+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 300.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T15:18:39.014367+00:00",
+      "created_by_decision_id": "review_002",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "BUSINESS_EVIDENCE_INSUFFICIENT:WorkerAgentError:Investigator mode=evidence_completion 没有产出已验证的闭合证据",
+      "finished_at": "2026-08-16T15:19:51.952832+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1"
+      ],
+      "mode": "evidence_completion",
+      "node_id": "N5",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "Complete evidence by verifying whether the gcd implementation handles b==0 correctly and whether test cases cover the b==0 scenario, addressing the remaining uncertainty in N4.review@v1.",
+      "output_artifact_ids": [
+        "N5.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-16T15:19:27.347953+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 60.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-16T15:20:00.219106+00:00",
+      "created_by_decision_id": "replan_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-16T15:20:00.219082+00:00",
+      "input_artifact_ids": [
+        "N4.review@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N6",
+      "node_type": "REPLAN_TASK",
+      "objective": "N5 evidence_completion task failed twice due to MODEL_FORMAT_ERROR and BUSINESS_EVIDENCE_INSUFFICIENT. The review N4.review@v1 identified remaining uncertainty about b==0 test coverage, but the evidence completion attempt failed to produce verified evidence. Requesting replan to investigation stage to retry evidence completion with a fresh task, as the retry budget for N5 is exhausted.",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-16T15:20:05.681564+00:00",
+      "created_by_decision_id": "replan_exec_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "BUSINESS_EVIDENCE_INSUFFICIENT:WorkerAgentError:Investigator mode=evidence_completion 没有产出已验证的闭合证据",
+      "finished_at": "2026-08-16T15:20:45.110267+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N4.review@v1"
+      ],
+      "mode": "evidence_completion",
+      "node_id": "N7",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "验证 gcd 实现是否正确处理 b==0 的终止条件，并确认测试用例是否覆盖 b==0 场景，产出已验证的闭合证据以回应 N4.review@v1 中关于 b==0 测试覆盖的剩余不确定性。",
+      "output_artifact_ids": [
+        "N7.rejection.a1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-16T15:20:05.705198+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 300.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "The investigation stage has exhausted all recovery options. The replan budget is fully consumed (remaining_replans=0) and the pending replan recovery node N7 has already been created and failed with BUSINESS_EVIDENCE_INSUFFICIENT. Both evidence completion attempts (N5 and N7) failed to produce verified evidence addressing the remaining uncertainty about b==0 test coverage identified in N4.review@v1. The retry budget for evidence completion is exhausted, and no further REQUEST_REPLAN is permitted. The existing evidence N1.evidence@v1 already confirms the reproduction failure, and the review N4.review@v1 indicates needs_more_evidence, but the system cannot produce the required additional evidence. Continuing would violate the budget constraints and the no-progress limit. The only safe action is to terminate the task as the workflow cannot proceed to diagnosis or patch without the required evidence closure.",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_gcd/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "ddb3b1dd5c46e47f11d538ada192c59236dbb60a0b5305d9f02b7399aa856ba6",
+    "before_sha256": "ddb3b1dd5c46e47f11d538ada192c59236dbb60a0b5305d9f02b7399aa856ba6",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_gcd",
+  "termination": {
+    "code": "SUPERVISOR_TERMINATED",
+    "failure_class": "evidence_incomplete",
+    "message": "The investigation stage has exhausted all recovery options. The replan budget is fully consumed (remaining_replans=0) and the pending replan recovery node N7 has already been created and failed with BUSINESS_EVIDENCE_INSUFFICIENT. Both evidence completion attempts (N5 and N7) failed to produce verified evidence addressing the remaining uncertainty about b==0 test coverage identified in N4.review@v1. The retry budget for evidence completion is exhausted, and no further REQUEST_REPLAN is permitted. The existing evidence N1.evidence@v1 already confirms the reproduction failure, and the review N4.review@v1 indicates needs_more_evidence, but the system cannot produce the required additional evidence. Continuing would violate the budget constraints and the no-progress limit. The only safe action is to terminate the task as the workflow cannot proceed to diagnosis or patch without the required evidence closure.",
+    "stage": "investigation"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_gcd/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 23,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 113083,
+        "output_tokens": 3317
+      },
+      "deepseek-v4-flash-0731": {
+        "calls": 9,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 49255,
+        "output_tokens": 3428
+      }
+    },
+    "duration_ms": 200552,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 162338,
+    "model_calls": 32,
+    "output_tokens": 6745,
+    "supervisor_api_calls": 9,
+    "supervisor_policy_calls": 9,
+    "supervisor_tokens": 52683,
+    "tool_calls": 16,
+    "total_tokens": 169083,
+    "worker_model_calls": 23,
+    "worker_tokens": 116400
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

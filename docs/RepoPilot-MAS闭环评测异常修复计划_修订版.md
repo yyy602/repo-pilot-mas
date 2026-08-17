@@ -6,7 +6,7 @@
 
 本版修订明确：
 
-> 当前正式 Supervisor 路由为 `deepseek-v4-flash-0731 → deepseek-v4-pro-0813 → qwen3.8-max`，使用“Flash 优先、模型内账号其次”的六槽位自动降级策略，以保留强模型免费额度处理前序模型无法完成的决策。模型自动切换属于正常运行逻辑，不视为缺陷。
+> 当前正式 Supervisor 路由为 `deepseek-v4-pro-0813 → deepseek-v4-flash-0731 → qwen3.8-max`，使用“Pro 优先、模型内账号其次”的六槽位自动降级策略。模型自动切换属于正常运行逻辑，不视为缺陷。
 
 因此，模型路由只需要保留完整 Trace、实际调用与 Token 统计，不列入待修复问题。闭环加固 v2 不把人民币价格作为验收指标；调用次数、Token、超时和预算失败关闭仍必须完整记录。历史 Phase 6 v1 的冻结等价成本证据保持不变。
 
@@ -16,7 +16,7 @@
 
 - Phase A–G 的主体代码、Schema、契约、指标和 Trace 改造已完成；最新 Development 诊断暴露的两个确定性收敛缺口已由回归测试修复：补证后的 Diagnosis 必须携带确认复现和缺口补全 Evidence，根因 Review 达到 acceptance-ready 后只允许 ACCEPT 或 TERMINATE，并由 Engine 拒绝绕过 Schema 的纯阶段切换。
 - 调试流程固定分为四层：Fake/Scripted 单元与契约回归、本地 Qwen3-8B 单任务闭环、最小真实 API 协议探针、正式 Development/Frozen Test。前三层未通过前不得消耗 API 跑完整批次；本地 Supervisor 结果不得进入正式指标。
-- 正式 Supervisor 路由保持 `deepseek-v4-flash-0731 → deepseek-v4-pro-0813 → qwen3.8-max`；`configs/supervisor.local.yaml` 只允许单任务调试，完整 Development/Frozen Test 入口会在加载模型前拒绝该配置。
+- 正式 Supervisor 路由保持 `deepseek-v4-pro-0813 → deepseek-v4-flash-0731 → qwen3.8-max`；`configs/supervisor.local.yaml` 只允许单任务调试，完整 Development/Frozen Test 入口会在加载模型前拒绝该配置。
 - 当前运行时在 `multi_agent` 环境通过 257 项 pytest、全仓 Ruff、compileall 与 `git diff --check`；本地配置 dry-run 与正式入口隔离检查通过。两块 GPU 当前由既有 vLLM 服务占用，本轮没有为加载 Transformers 擅自停止该服务，本地模型单题闭环仍待资源释放后补跑。
 - Smoke 和多轮针对性 Development 使用了真实 API，并持续暴露及修复框架流程问题；完整过程见 `docs/Phase6_真实问题复盘与排障.md`。
 - 最后一轮 `dev_repair_v2_routes_classified` 证明两个账号 × 三个模型共六个 Supervisor 路由均返回上游免费额度耗尽；系统已能在一次策略调用后以 `SUPERVISOR_ROUTES_EXHAUSTED` 立即失败关闭，并将 failure_class 记录为 `provider_quota_exhausted`。

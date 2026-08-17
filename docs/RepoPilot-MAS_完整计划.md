@@ -1148,12 +1148,12 @@ supervisor:
 
 ### 12.4 Supervisor 路由顺序
 
-路由使用“Flash 优先、模型内账号其次”的固定六槽位顺序，优先保留强模型免费额度用于前序模型无法完成的决策：
+路由使用“Pro 优先、模型内账号其次”的固定六槽位顺序，优先调用强模型处理全局决策：
 
-1. `deepseek-v4-flash-0731` + 账号 1；
-2. `deepseek-v4-flash-0731` + 账号 2；
-3. `deepseek-v4-pro-0813` + 账号 1；
-4. `deepseek-v4-pro-0813` + 账号 2；
+1. `deepseek-v4-pro-0813` + 账号 1；
+2. `deepseek-v4-pro-0813` + 账号 2；
+3. `deepseek-v4-flash-0731` + 账号 1；
+4. `deepseek-v4-flash-0731` + 账号 2；
 5. `qwen3.8-max` + 账号 1；
 6. `qwen3.8-max` + 账号 2。
 

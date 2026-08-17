@@ -6,8 +6,8 @@ supervisor:
   routing:
     strategy: model_first_account_second
     model_order:
-      - deepseek-v4-flash-0731
       - deepseek-v4-pro-0813
+      - deepseek-v4-flash-0731
       - qwen3.8-max
     api_key_envs:
       - DASHSCOPE_API_KEY_1
