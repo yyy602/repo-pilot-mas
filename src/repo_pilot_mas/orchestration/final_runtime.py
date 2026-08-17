@@ -35,7 +35,10 @@ _MINIMUM_WORKER_TIMEOUT_SECONDS = {
     NodeType.CHALLENGE_TASK: 60.0,
     NodeType.REBUTTAL_TASK: 60.0,
     NodeType.REVIEW_TASK: 60.0,
-    NodeType.PATCH_TASK: 120.0,
+    # PatchAgent 需要多次慢速本地生成 + apply_patch + 目标测试预检查；
+    # 120s 在单流 Qwen3-8B 上只能容纳 1-2 次模型调用，会把正常补丁生成
+    # 误判为超时，因此最小墙钟放宽到 240s。
+    NodeType.PATCH_TASK: 240.0,
 }
 
 

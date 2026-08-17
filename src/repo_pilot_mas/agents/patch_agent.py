@@ -113,12 +113,21 @@ class PatchAgent:
         ) = _hypothesis_binding(hypotheses)
         prompt = (
             "你是 RepoPilot-MAS PatchAgent，只能为当前候选工作区提出一个精确文本替换。"
-            "先用 inspect_code 读取真实代码；绝不能修改 protected_paths。"
-            "所有工具 file_path/path 都必须是候选工作区相对路径，根目录写 '.'，绝不能写绝对路径。"
+            "绝不能修改 protected_paths；所有工具 file_path/path 都必须是候选工作区相对路径，"
+            "根目录写 '.'，绝不能写绝对路径。"
             "最终 action.artifact 的 file_path 必须是相对路径；old_text 必须逐字复制当前文件中"
-            "唯一存在的最小片段，new_text 是替换后的片段。不要输出 Unified Diff。"
-            "确定性控制器会把该替换转换成 Unified Diff，并通过受保护路径检查后应用。"
-            "补丁必须同时覆盖输入中的全部已接受根因，不能只处理 primary 根因。"
+            "唯一存在的最小片段（通常只包含必须变化的 1-3 行），new_text 是替换后的片段。"
+            "不要输出 Unified Diff；确定性控制器会把该替换转换成 Unified Diff 并应用。"
+            "根因落实：先逐字阅读输入中全部 accepted Hypothesis 的 root_cause、direct_cause 与"
+            " affected_symbols，定位真正产生失败输出的那一行代码，只修改该行及其必要相邻行。"
+            "禁止修改与根因无关的 return 条件、禁止等价改写（例如给已经短路的 or 分支补冗余"
+            "条件）、禁止把失败输入走不到的分支当修复点。若推演发现 Hypothesis 指向的代码本身"
+            "正确，必须沿 direct_cause 继续定位真正出错的位置，而不是硬改一个无关行。"
+            "文件状态：每次替换失败后控制器会把工作区回滚到原始状态，因此 old_text 必须始终"
+            "基于当前（原始）文件内容逐字复制，绝不能把上一轮 new_text 当作 old_text。"
+            "工具克制：只有上下文中确实没有目标代码时才调用 inspect_code；已经读过的文件区间"
+            "禁止用相同参数重复读取。整个 attempt 内工具调用尽量少（一般 1-3 次），拿到文件"
+            "内容后直接构造替换并返回 final。"
             "返回补丁前必须用失败输入按实际求值或执行顺序推演旧代码和新代码；"
             "如果要保护一个可能失败的操作，保护条件必须在该操作之前生效，不能追加在"
             "已经执行的访问之后。不能用变量改名、无效条件或只改注释冒充语义修复。"
@@ -297,24 +306,34 @@ class PatchAgent:
                 failure = "尚未成功 inspect_code 并返回结构化文本替换"
             if attempt_index == 2:
                 break
+            has_observation = _has_tool_observation(result.messages)
             if last_failure_code == "PATCH_TARGET_TEST_FAILED":
                 feedback = (
-                    "候选已经成功应用，但目标测试仍失败。先根据 traceback 定位最先失败的"
-                    "操作，并按新代码的实际求值或执行顺序重新推演；保护条件必须在危险操作"
-                    "之前生效。不得重复上一候选的 new_text。失败候选与输出："
+                    "上一轮替换已应用但目标测试仍失败，控制器已把工作区回滚到原始状态。"
+                    "先根据 traceback 定位最先失败的操作，回到输入 Hypothesis 的 direct_cause，"
+                    "检查是否改错了位置（例如改了 return 条件而根因在循环边界初始化），"
+                    "并按原始代码重新推演。保护条件必须在危险操作之前生效。"
+                    "不得重复上一候选的 new_text，也绝不能把上一轮的 new_text 当成 old_text。"
+                    "失败候选与输出："
                     + json.dumps(
                         failed_candidates[-1],
                         ensure_ascii=False,
                         separators=(",", ":"),
                     )
-                    + "。重新 inspect_code 后返回语义不同的修正 artifact。"
                 )
             else:
                 feedback = (
-                    f"候选替换不可应用：{failure}。重新 inspect_code，确保 old_text 在目标文件中"
-                    "逐字且只出现一次，并优先只复制实际发生变化的最小连续行，然后返回修正后的"
-                    " final artifact。"
+                    f"候选替换不可应用：{failure}。工作区已恢复原始状态；old_text 必须从当前"
+                    "（原始）文件逐字复制，只包含必须变化的最小连续行（1-3 行），且整个片段在"
+                    "文件中只出现一次。"
                 )
+            if has_observation:
+                feedback += (
+                    "目标文件内容已经在上下文中，无需再次调用 inspect_code；"
+                    "直接基于已有的文件观察构造修正后的 final artifact。"
+                )
+            else:
+                feedback += "上下文中还没有文件内容，请先用 inspect_code 读取目标文件。"
             result = loop.run((*result.messages, Message("user", feedback)))
         if result.status != "completed" or result.final_action is None:
             failure_context = (
@@ -616,6 +635,16 @@ def _successful_tools(messages: Sequence[Message]) -> set[str]:
         if result.get("ok") is True and isinstance(result.get("tool"), str):
             names.add(result["tool"])
     return names
+
+
+def _has_tool_observation(messages: Sequence[Message]) -> bool:
+    """Return whether the current context already contains any tool observation."""
+
+    return any(
+        message.role == "user"
+        and message.content.startswith("工具执行结果：")
+        for message in messages
+    )
 
 
 def _replacement_diff(

@@ -1,0 +1,734 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "bucketsort 在非空输入上产生数量和取值均不正确的排序结果。",
+        "confidence": 1,
+        "content": "assert bucketsort(values, upper_bound) == expected",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_bucketsort.py"
+          ],
+          "exit_code": 1,
+          "failure_output": ".FFF                                                                     [100%]\n=================================== FAILURES ===================================\n____________________ test_bucketsort[values1-12-expected1] _____________________\n\nvalues = [3, 11, 2, 9, 1, 5], upper_bound = 12, expected = [1, 2, 3, 5, 9, 11]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"upper_bound\", \"expected\"),\n        [\n            ([], 14, []),\n            ([3, 11, 2, 9, 1, 5], 12, [1, 2, 3, 5, 9, 11]),\n            ([3, 2, 4, 2, 3, 5], 6, [2, 2, 3, 3, 4, 5]),\n            ([8, 5, 3, 1, 9, 6, 0, 7, 4, 2, 5], 10, [0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9]),\n        ],\n    )\n    def test_bucketsort(values: list[int], upper_bound: int, expected: list[int]) -> None:\n>       assert bucketsort(values, upper_bound) == expected\nE       assert [0, 0, 0, 1, 1, 1, ...] == [1, 2, 3, 5, 9, 11]\nE         \nE         At index 0 diff: 0 != 1\nE         Left contains 25 more items, first extra item: 1\nE         Use -v to get more diff\n\ntests/test_bucketsort.py:15: AssertionError\n_____________________ test_bucketsort[values2-6-expected2] _____________________\n\nvalues = [3, 2, 4, 2, 3, 5], upper_bound = 6, expected = [2, 2, 3, 3, 4, 5]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"upper_bound\", \"expected\"),\n        [\n            ([], 14, []),\n            ([3, 11, 2, 9, 1, 5], 12, [1, 2, 3, 5, 9, 11]),\n            ([3, 2, 4, 2, 3, 5], 6, [2, 2, 3, 3, 4, 5]),\n            ([8, 5, 3, 1, 9, 6, 0, 7, 4, 2, 5], 10, [0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9]),\n        ],\n    )\n    def test_bucketsort(values: list[int], upper_bound: int, expected: list[int]) -> None:\n>       assert bucketsort(values, upper_bound) == expected\nE       assert [0, 0, 0, 1, 1, 2, ...] == [2, 2, 3, 3, 4, 5]\nE         \nE         At index 0 diff: 0 != 2\nE         Left contains 13 more items, first extra item: 2\nE         Use -v to get more diff\n\ntests/test_bucketsort.py:15: AssertionError\n____________________ test_bucketsort[values3-10-expected3] _____________________\n\nvalues = [8, 5, 3, 1, 9, 6, ...], upper_bound = 10\nexpected = [0, 1, 2, 3, 4, 5, ...]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"upper_bound\", \"expected\"),\n        [\n            ([], 14, []),\n            ([3, 11, 2, 9, 1, 5], 12, [1, 2, 3, 5, 9, 11]),\n            ([3, 2, 4, 2, 3, 5], 6, [2, 2, 3, 3, 4, 5]),\n            ([8, 5, 3, 1, 9, 6, 0, 7, 4, 2, 5], 10, [0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9]),\n        ],\n    )\n    def test_bucketsort(values: list[int], upper_bound: int, expected: list[int]) -> None:\n>       assert bucketsort(values, upper_bound) == expected\nE       assert [0, 0, 0, 0, 0, 0, ...] == [0, 1, 2, 3, 4, 5, ...]\nE         \nE         At index 1 diff: 0 != 1\nE         Left contains 39 more items, first extra item: 1\nE         Use -v to get more diff\n\ntests/test_bucketsort.py:15: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_bucketsort.py::test_bucketsort[values1-12-expected1] - asse...\nFAILED tests/test_bucketsort.py::test_bucketsort[values2-6-expected2] - asser...\nFAILED tests/test_bucketsort.py::test_bucketsort[values3-10-expected3] - asse...\n",
+          "failure_type": "AssertionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 15,
+          "line_start": 15,
+          "path": "tests/test_bucketsort.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "bucketsort 在非空输入上产生数量和取值均不正确的排序结果。"
+        ],
+        "tool_trace_ids": [
+          "645015298d7b4b0798038fd7b85503a2"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-17T06:00:41.053505+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "fb8121d6be664bcfa782f3952665265c",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "bucketsort"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "控制流中未正确处理桶的分配和合并逻辑，导致排序结果错误。",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "bucketsort 函数未能正确处理非空输入的排序逻辑，导致输出结果数量和取值均不正确。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 bucketsort 函数中桶的分配逻辑是否正确",
+          "验证桶合并阶段是否正确地将所有元素合并到最终结果中",
+          "测试不同输入情况下的排序结果是否符合预期"
+        ]
+      },
+      "created_at": "2026-08-17T06:00:52.996055+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "41c1a870db274db1852eb49f845b8438",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "bucketsort",
+          "bucketsort.py"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "bucketsort 函数在处理非空输入时，未正确计算每个桶的索引，导致值被错误地分配到桶中，从而影响最终排序结果。",
+        "missing_evidence": [],
+        "perspective": "data_flow",
+        "root_cause": "bucketsort 函数未能正确处理非空输入的值分布，导致排序结果数量和取值均不正确。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 bucketsort 函数中桶的索引计算逻辑是否正确",
+          "验证 bucketsort 函数在非空输入时是否正确分配值到桶中",
+          "确认 bucketsort 函数的合并阶段是否正确将桶中的值合并为最终排序结果"
+        ]
+      },
+      "created_at": "2026-08-17T06:00:54.024756+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "b753be91c60245e4adbf9673407eb21c",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "控制流逻辑错误导致桶合并阶段失败"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "bucketsort 函数在非空输入时未能正确分配值到桶中，导致排序结果错误",
+          "桶的索引计算逻辑存在缺陷，导致值被错误分配到桶中"
+        ],
+        "mode": "hypothesis_comparison",
+        "recommendation": "应检查 bucketsort 函数中桶的索引计算逻辑，并验证非空输入时值的分配是否正确",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "排序结果数量和取值均不正确，可能导致程序逻辑错误",
+          "桶的分配逻辑错误可能影响所有非空输入的排序结果"
+        ],
+        "target_artifact_ref": "N3.hypothesis@v1",
+        "target_artifact_refs": [
+          "N2.hypothesis@v1",
+          "N3.hypothesis@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "检查 bucketsort 函数中桶的索引计算逻辑是否正确",
+          "验证 bucketsort 函数在非空输入时是否正确分配值到桶中",
+          "确认 bucketsort 函数的合并阶段是否正确将桶中的值合并为最终排序结果"
+        ]
+      },
+      "created_at": "2026-08-17T06:01:13.576083+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "a055bce8fc44433bb2db6d58df5e7161",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED;failed_candidates=[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"bucketsort.py\",\"old_text\":\"bucket_index = value // (upper_bound / len(values))\",\"new_text\":\"bucket_index = value // (upper_bound / len(values)) if len(values) > 0 else 0\",\"semantic_rationale\":\"修复了桶索引计算逻辑，确保在非空输入时值被正确分配到桶中，从而确保最终排序结果正确。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"}]",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED;failed_candidates=[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"bucketsort.py\",\"old_text\":\"bucket_index = value // (upper_bound / len(values))\",\"new_text\":\"bucket_index = value // (upper_bound / len(values)) if len(values) > 0 else 0\",\"semantic_rationale\":\"修复了桶索引计算逻辑，确保在非空输入时值被正确分配到桶中，从而确保最终排序结果正确。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"}]",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T06:02:43.731202+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "16fb9bdf5d8f4204903a505d5ae8b8b6",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED;failed_candidates=[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"bucketsort.py\",\"old_text\":\"bucket_index = value // (upper_bound / len(values))\",\"new_text\":\"bucket_index = value // (upper_bound / len(values)) if len(values) > 0 else 0\",\"semantic_rationale\":\"修复了桶索引计算逻辑，确保在非空输入时值被正确分配到桶中，从而确保最终排序结果正确。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"}]",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED;failed_candidates=[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"bucketsort.py\",\"old_text\":\"bucket_index = value // (upper_bound / len(values))\",\"new_text\":\"bucket_index = value // (upper_bound / len(values)) if len(values) > 0 else 0\",\"semantic_rationale\":\"修复了桶索引计算逻辑，确保在非空输入时值被正确分配到桶中，从而确保最终排序结果正确。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"}]",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T06:03:58.825923+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "ab48c2b986194428bcbe744a16432055",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "request_replan_patch_003",
+        "failure_class": "patch_apply_failure",
+        "from_stage": "patch",
+        "reason": "PatchAgent 在 N5 上因 TOKEN_OR_MODEL_BUDGET_EXHAUSTED 且 old_text 未在目标文件中唯一出现而失败，重试预算已耗尽。该失败属于补丁应用/生成失败，应回退到 patch 阶段重新生成候选补丁，并携带失败信息以修正 old_text 定位。",
+        "remaining_replans": 0,
+        "target_stage": "patch",
+        "trigger_refs": [
+          "N5.rejection.a2@v1",
+          "N5.rejection.a1@v1"
+        ]
+      },
+      "created_at": "2026-08-17T06:04:06.279902+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N5.rejection.a2@v1",
+        "N5.rejection.a1@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "7ee22ca6b20147fc9cce7504761f6781",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_TIMEOUT",
+        "details": {
+          "raw_worker_reason": "worker exceeded 120.0 seconds",
+          "recovery_class": "model_timeout"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N7",
+        "origin": "collector",
+        "reason": "worker exceeded 120.0 seconds",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "TIMED_OUT",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T06:06:12.595059+00:00",
+      "created_by": "N7",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "1bd247d0a56c4340bbc85c7cd9424b0d",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "MODEL_TIMEOUT",
+        "details": {
+          "raw_worker_reason": "worker exceeded 120.0 seconds",
+          "recovery_class": "model_timeout"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N7",
+        "origin": "collector",
+        "reason": "worker exceeded 120.0 seconds",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "TIMED_OUT",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T06:08:12.745476+00:00",
+      "created_by": "N7",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "fc1d99581e3749c68d0cdf712363cb18",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_pro_first_v2/tasks/quixbugs_bucketsort/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 1,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 4,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": true,
+    "hypothesis_accepted": true,
+    "isolated_worker_failure_count": 2,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 6270.0,
+        "calls": 3,
+        "total_ms": 18810
+      },
+      "initialization": {
+        "average_ms": 2499.0,
+        "calls": 1,
+        "total_ms": 2499
+      },
+      "investigation": {
+        "average_ms": 9100.5,
+        "calls": 2,
+        "total_ms": 18201
+      },
+      "patch": {
+        "average_ms": 47747.11111111111,
+        "calls": 9,
+        "total_ms": 429724
+      },
+      "review": {
+        "average_ms": 7328.666666666667,
+        "calls": 3,
+        "total_ms": 21986
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 1,
+    "replan_record_count": 1,
+    "replan_succeeded": false,
+    "retry_node_count": 2,
+    "root_cause_review_passed": true,
+    "route_attempts_by_model": {
+      "deepseek-v4-pro-0813": 11
+    },
+    "route_exhausted_by_model": {},
+    "route_successes_by_model": {
+      "deepseek-v4-pro-0813": 11
+    },
+    "supervisor_format_repair_count": 1,
+    "supervisor_snapshot_compact_chars": 76560,
+    "supervisor_snapshot_count": 10,
+    "supervisor_snapshot_original_chars": 121486,
+    "supervisor_snapshot_reduction_ratio": 0.36980392802462836,
+    "validation_passed": false,
+    "worker_failure_count": 2,
+    "worker_retry_count": 2,
+    "workspace_clean": true
+  },
+  "engine_status": "terminated",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": 36,
+    "accepted_by_decision_id": "accept_hypothesis_n3_001",
+    "accepted_refs": [
+      "N3.hypothesis@v1"
+    ],
+    "candidate_refs": [
+      "N2.hypothesis@v1",
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "hypothesis_comparison"
+    },
+    "primary_ref": "N3.hypothesis@v1",
+    "review_refs": [
+      "N4.review@v1"
+    ],
+    "status": "accepted"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 2,
+        "budget_effect": "新增 2 个诊断节点，消耗节点预算与工具调用预算，符合最小诊断路径。",
+        "gate_name": "investigation_to_diagnosis",
+        "reason": "失败复现 Evidence 已验证且无 missing_evidence，满足进入诊断阶段的条件，创建控制流与数据流两个诊断任务以定位根因。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "消耗 1 个节点预算，不新增 replan 次数。",
+        "gate_name": "patch_recovery_gate",
+        "reason": "已批准的定向重规划要求回退到 patch 阶段创建恢复 PATCH_TASK，并携带失败 Rejection 与原 PatchCandidate 输入，使新候选针对 old_text 定位失败修正。",
+        "trigger_artifact_refs": [
+          "replan.1@v1",
+          "N5.rejection.a2@v1",
+          "N5.rejection.a1@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 2,
+    "parallel_overlap_pairs": 1,
+    "replan_attempted": true,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_1": 10,
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_format_rejected:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_1": 1,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_1": 10,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 1
+    },
+    "unnecessary_expansion": true,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T06:00:27.980071+00:00",
+      "created_by_decision_id": "init_investigation_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T06:00:41.081838+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "复现 tests/test_bucketsort.py 中的失败，确认 bucketsort 在非空输入上产生数量和取值均不正确的排序结果，并记录具体失败输出。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T06:00:27.998032+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T06:00:46.248035+00:00",
+      "created_by_decision_id": "create_diagnosis_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T06:00:54.041621+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 N1.evidence@v1 的失败复现，分析 bucketsort.py 的控制流，定位导致非空输入产生数量和取值均不正确排序结果的控制流缺陷，并形成可验证的根因假设。",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T06:00:46.276580+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T06:00:46.248091+00:00",
+      "created_by_decision_id": "create_diagnosis_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T06:00:54.043428+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 N1.evidence@v1 的失败复现，分析 bucketsort.py 的数据流，定位导致非空输入产生数量和取值均不正确排序结果的数据流缺陷，并形成可验证的根因假设。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T06:00:46.277158+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-17T06:00:58.426536+00:00",
+      "created_by_decision_id": "create_review_comparison_001",
+      "critical": true,
+      "dependencies": [
+        "N2",
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T06:01:13.599960+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "hypothesis_comparison",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "比较 N2.hypothesis@v1（控制流缺陷）与 N3.hypothesis@v1（数据流缺陷）两个候选根因假设，结合 N1.evidence@v1 的失败复现证据，判断哪个假设更能解释 bucketsort 在非空输入上产生数量和取值均不正确排序结果的现象，并给出根因推荐。",
+      "output_artifact_ids": [
+        "N4.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T06:00:58.452272+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-17T06:01:20.518545+00:00",
+      "created_by_decision_id": "create_patch_minimal_001",
+      "critical": true,
+      "dependencies": [
+        "N3",
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未完成：TOKEN_OR_MODEL_BUDGET_EXHAUSTED;failed_candidates=[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"bucketsort.py\",\"old_text\":\"bucket_index = value // (upper_bound / len(values))\",\"new_text\":\"bucket_index = value // (upper_bound / len(values)) if len(values) > 0 else 0\",\"semantic_rationale\":\"修复了桶索引计算逻辑，确保在非空输入时值被正确分配到桶中，从而确保最终排序结果正确。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"}]",
+      "finished_at": "2026-08-17T06:03:58.826723+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N5",
+      "node_type": "PATCH_TASK",
+      "objective": "基于已接受的根因假设 N3.hypothesis@v1（桶索引计算缺陷导致值被错误分配）和根因审查 N4.review@v1，对 bucketsort.py 实施最小修复，使非空输入产生数量和取值均正确的排序结果，且不修改 tests 目录。",
+      "output_artifact_ids": [
+        "N5.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-17T06:02:43.744451+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-17T06:04:06.280676+00:00",
+      "created_by_decision_id": "request_replan_patch_003",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T06:04:06.280653+00:00",
+      "input_artifact_ids": [
+        "N5.rejection.a2@v1",
+        "N5.rejection.a1@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N6",
+      "node_type": "REPLAN_TASK",
+      "objective": "PatchAgent 在 N5 上因 TOKEN_OR_MODEL_BUDGET_EXHAUSTED 且 old_text 未在目标文件中唯一出现而失败，重试预算已耗尽。该失败属于补丁应用/生成失败，应回退到 patch 阶段重新生成候选补丁，并携带失败信息以修正 old_text 定位。",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-17T06:04:12.429610+00:00",
+      "created_by_decision_id": "create_patch_recovery_004",
+      "critical": true,
+      "dependencies": [
+        "N3",
+        "N4",
+        "N5",
+        "N6"
+      ],
+      "dependency_policy": "all_terminal",
+      "failure_reason": "worker exceeded 120.0 seconds",
+      "finished_at": "2026-08-17T06:08:12.746320+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1",
+        "N5.rejection.a2@v1",
+        "replan.1@v1",
+        "N7.rejection.a1@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N7",
+      "node_type": "PATCH_TASK",
+      "objective": "基于已接受根因假设 N3.hypothesis@v1 和根因审查 N4.review@v1，针对 N5 失败信息（old_text 未在 bucketsort.py 中唯一出现）重新生成最小补丁：先检索 bucketsort.py 中桶索引计算的实际代码行，使用唯一匹配的 old_text 修正桶索引计算缺陷，使非空输入产生数量和取值均正确的排序结果，且不修改 tests 目录。",
+      "output_artifact_ids": [
+        "N7.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-17T06:06:12.610697+00:00",
+      "status": "TIMED_OUT",
+      "timeout_seconds": 20.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "Patch 阶段已耗尽重试与重规划预算：N5 因 TOKEN_OR_MODEL_BUDGET_EXHAUSTED 且 old_text 未唯一匹配而 FAILED，N7 恢复节点两次 MODEL_TIMEOUT 后 TIMED_OUT；recovery.remaining_replans=0 且 pending_replan=false，上一决定 create_patch_recovery_005 已被拒绝，无法再创建逻辑等价的 PATCH_TASK 或再次 REQUEST_REPLAN。在预算约束下无法安全继续生成并验证补丁，因此终止任务。",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_pro_first_v2/tasks/quixbugs_bucketsort/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": "N3.hypothesis@v1",
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "ebbf2b7d9bc7866b7fb0dad69cc5757d09dc3780210d1e7cb12f4327567c5f2e",
+    "before_sha256": "ebbf2b7d9bc7866b7fb0dad69cc5757d09dc3780210d1e7cb12f4327567c5f2e",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_bucketsort",
+  "termination": {
+    "code": "SUPERVISOR_TERMINATED",
+    "failure_class": "patch_apply_failure",
+    "message": "Patch 阶段已耗尽重试与重规划预算：N5 因 TOKEN_OR_MODEL_BUDGET_EXHAUSTED 且 old_text 未唯一匹配而 FAILED，N7 恢复节点两次 MODEL_TIMEOUT 后 TIMED_OUT；recovery.remaining_replans=0 且 pending_replan=false，上一决定 create_patch_recovery_005 已被拒绝，无法再创建逻辑等价的 PATCH_TASK 或再次 REQUEST_REPLAN。在预算约束下无法安全继续生成并验证补丁，因此终止任务。",
+    "stage": "patch"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_pro_first_v2/tasks/quixbugs_bucketsort/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 59,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 398747,
+        "output_tokens": 7864
+      },
+      "deepseek-v4-pro-0813": {
+        "calls": 11,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 72359,
+        "output_tokens": 4663
+      }
+    },
+    "duration_ms": 485185,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 471106,
+    "model_calls": 70,
+    "output_tokens": 12527,
+    "supervisor_api_calls": 11,
+    "supervisor_policy_calls": 10,
+    "supervisor_tokens": 77022,
+    "tool_calls": 42,
+    "total_tokens": 483633,
+    "worker_model_calls": 59,
+    "worker_tokens": 406611
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

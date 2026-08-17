@@ -1,199 +1,185 @@
 {
-  "acceptance_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/acceptance.json",
+  "acceptance_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_patch_prompt_find_first_v3/acceptance.json",
   "full_run": false,
-  "passed": false,
+  "passed": true,
   "phase": 6,
-  "run_id": "dev5_final_54d62fc",
+  "run_id": "targeted_patch_prompt_find_first_v3",
   "split": "development",
   "summary": {
-    "artifact_rejection_count": 12,
-    "average_latency_ms": 252817.4,
-    "average_tokens": 179401.6,
+    "artifact_rejection_count": 0,
+    "average_latency_ms": 144792.0,
+    "average_tokens": 84711.0,
     "budget_violations": 0,
     "contract_rejection_count": 0,
     "estimated_api_cost_cny": 0.0,
-    "estimated_api_cost_per_solved_cny": null,
-    "evidence_gate_pass_rate": 0.2,
-    "failed": 5,
-    "hypothesis_accept_rate": 0.2,
-    "isolated_worker_failure_count": 8,
+    "estimated_api_cost_per_solved_cny": 0.0,
+    "evidence_gate_pass_rate": 1.0,
+    "failed": 0,
+    "hypothesis_accept_rate": 1.0,
+    "isolated_worker_failure_count": 0,
     "latency_by_stage": {
       "diagnosis": {
-        "average_ms": 6641.470588235294,
-        "calls": 17,
-        "total_ms": 112905
+        "average_ms": 4548.5,
+        "calls": 2,
+        "total_ms": 9097
       },
       "initialization": {
-        "average_ms": 2962.8,
-        "calls": 5,
-        "total_ms": 14814
+        "average_ms": 2669.0,
+        "calls": 1,
+        "total_ms": 2669
       },
       "investigation": {
-        "average_ms": 16361.05357142857,
-        "calls": 56,
-        "total_ms": 916219
+        "average_ms": 11213.75,
+        "calls": 4,
+        "total_ms": 44855
       },
       "patch": {
-        "average_ms": 25795.666666666668,
+        "average_ms": 17104.0,
         "calls": 3,
-        "total_ms": 77387
+        "total_ms": 51312
       },
       "review": {
-        "average_ms": 10988.92857142857,
-        "calls": 14,
-        "total_ms": 153845
+        "average_ms": 8237.25,
+        "calls": 4,
+        "total_ms": 32949
       },
       "validation": {
-        "average_ms": 11982.5,
+        "average_ms": 1703.5,
         "calls": 2,
-        "total_ms": 23965
+        "total_ms": 3407
       }
     },
-    "median_latency_ms": 231094,
+    "median_latency_ms": 144792,
     "metric_layers": {
       "business_results": {
-        "patch_success_rate": 0.0,
-        "regression_pass_rate": 0.0,
-        "target_test_pass_rate": 0.2,
-        "task_resolution_rate": 0.0
+        "patch_success_rate": 1.0,
+        "regression_pass_rate": 1.0,
+        "target_test_pass_rate": 1.0,
+        "task_resolution_rate": 1.0
       },
       "closed_loop_mechanism": {
-        "evidence_gate_pass_rate": 0.2,
-        "hypothesis_accept_rate": 0.2,
-        "patch_binding_rate": 0.2,
-        "review_pass_rate": 0.2,
-        "validation_pass_rate": 0.0
+        "evidence_gate_pass_rate": 1.0,
+        "hypothesis_accept_rate": 1.0,
+        "patch_binding_rate": 1.0,
+        "review_pass_rate": 1.0,
+        "validation_pass_rate": 1.0
       },
       "exception_recovery": {
         "contract_rejection_count": 0,
         "node_rebuild_count": 0,
-        "replan_attempt_count": 5,
-        "replan_success_rate": 0.0,
-        "supervisor_format_repair_count": 4,
-        "worker_retry_count": 4
+        "replan_attempt_count": 0,
+        "replan_success_rate": null,
+        "supervisor_format_repair_count": 0,
+        "worker_retry_count": 0
       },
       "routing_and_cost": {
         "estimated_cost_cny": 0.0,
         "latency_by_stage": {
           "diagnosis": {
-            "average_ms": 6641.470588235294,
-            "calls": 17,
-            "total_ms": 112905
+            "average_ms": 4548.5,
+            "calls": 2,
+            "total_ms": 9097
           },
           "initialization": {
-            "average_ms": 2962.8,
-            "calls": 5,
-            "total_ms": 14814
+            "average_ms": 2669.0,
+            "calls": 1,
+            "total_ms": 2669
           },
           "investigation": {
-            "average_ms": 16361.05357142857,
-            "calls": 56,
-            "total_ms": 916219
+            "average_ms": 11213.75,
+            "calls": 4,
+            "total_ms": 44855
           },
           "patch": {
-            "average_ms": 25795.666666666668,
+            "average_ms": 17104.0,
             "calls": 3,
-            "total_ms": 77387
+            "total_ms": 51312
           },
           "review": {
-            "average_ms": 10988.92857142857,
-            "calls": 14,
-            "total_ms": 153845
+            "average_ms": 8237.25,
+            "calls": 4,
+            "total_ms": 32949
           },
           "validation": {
-            "average_ms": 11982.5,
+            "average_ms": 1703.5,
             "calls": 2,
-            "total_ms": 23965
+            "total_ms": 3407
           }
         },
         "route_attempts_by_model": {
-          "deepseek-v4-flash-0731": 56,
-          "deepseek-v4-pro-0813": 4
+          "deepseek-v4-pro-0813": 9
         },
-        "route_exhausted_by_model": {
-          "deepseek-v4-flash-0731": 1
-        },
+        "route_exhausted_by_model": {},
         "route_successes_by_model": {
-          "deepseek-v4-flash-0731": 55,
-          "deepseek-v4-pro-0813": 4
+          "deepseek-v4-pro-0813": 9
         },
-        "supervisor_tokens": 373882,
-        "total_tokens": 897008,
-        "worker_tokens": 523126
+        "supervisor_tokens": 54197,
+        "total_tokens": 84711,
+        "worker_tokens": 30514
       }
     },
     "node_rebuild_count": 0,
-    "patch_apply_rate": 0.2,
-    "patch_binding_rate": 0.2,
-    "patch_success_rate": 0.0,
-    "recovery_attempted_tasks": 5,
+    "patch_apply_rate": 1.0,
+    "patch_binding_rate": 1.0,
+    "patch_success_rate": 1.0,
+    "recovery_attempted_tasks": 0,
     "recovery_succeeded_tasks": 0,
-    "recovery_success_rate": 0.0,
-    "regression_pass_rate": 0.0,
-    "replan_attempt_count": 5,
-    "replan_success_rate": 0.0,
-    "review_pass_rate": 0.2,
+    "recovery_success_rate": null,
+    "regression_pass_rate": 1.0,
+    "replan_attempt_count": 0,
+    "replan_success_rate": null,
+    "review_pass_rate": 1.0,
     "route_attempts_by_model": {
-      "deepseek-v4-flash-0731": 56,
-      "deepseek-v4-pro-0813": 4
+      "deepseek-v4-pro-0813": 9
     },
     "route_distribution": {
-      "deep": 5
+      "standard": 1
     },
-    "route_exhausted_by_model": {
-      "deepseek-v4-flash-0731": 1
-    },
+    "route_exhausted_by_model": {},
     "route_successes_by_model": {
-      "deepseek-v4-flash-0731": 55,
-      "deepseek-v4-pro-0813": 4
+      "deepseek-v4-pro-0813": 9
     },
     "schema_version": 1,
-    "solved": 0,
+    "solved": 1,
     "source_integrity_violations": 0,
-    "supervisor_format_repair_count": 4,
-    "supervisor_snapshot_compact_chars": 491102,
-    "supervisor_snapshot_count": 55,
-    "supervisor_snapshot_original_chars": 689085,
-    "supervisor_snapshot_reduction_ratio": 0.2873128859284413,
-    "supervisor_tokens": 373882,
-    "syntax_valid_rate": 0.2,
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 55868,
+    "supervisor_snapshot_count": 9,
+    "supervisor_snapshot_original_chars": 76103,
+    "supervisor_snapshot_reduction_ratio": 0.26588964955389405,
+    "supervisor_tokens": 54197,
+    "syntax_valid_rate": 1.0,
     "system_id": "closed_loop_dynamic",
-    "target_test_pass_rate": 0.2,
-    "task_count": 5,
-    "task_resolution_rate": 0.0,
+    "target_test_pass_rate": 1.0,
+    "task_count": 1,
+    "task_resolution_rate": 1.0,
     "task_result_paths": [
-      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_find_first_in_sorted/result.json",
-      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_gcd/result.json",
-      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_is_valid_parenthesization/result.json",
-      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_bucketsort/result.json",
-      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_final_54d62fc/tasks/quixbugs_flatten/result.json"
+      "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/targeted_patch_prompt_find_first_v3/tasks/quixbugs_find_first_in_sorted/result.json"
     ],
     "termination_codes": {
-      "SUPERVISOR_TERMINATED": 5
+      "VALIDATION_PASSED": 1
     },
     "termination_failure_classes": {
-      "evidence_incomplete": 4,
-      "regression_failure": 1
+      "none": 1
     },
     "termination_stages": {
-      "investigation": 4,
-      "validation": 1
+      "finalization": 1
     },
     "totals": {
-      "duration_ms": 1264087,
-      "input_tokens": 853871,
-      "model_calls": 185,
-      "output_tokens": 43137,
-      "supervisor_api_calls": 60,
-      "tool_calls": 92,
-      "total_tokens": 897008,
-      "worker_model_calls": 125
+      "duration_ms": 144792,
+      "input_tokens": 79315,
+      "model_calls": 20,
+      "output_tokens": 5396,
+      "supervisor_api_calls": 9,
+      "tool_calls": 11,
+      "total_tokens": 84711,
+      "worker_model_calls": 11
     },
-    "validation_pass_rate": 0.0,
-    "worker_failure_count": 10,
-    "worker_failure_isolation_rate": 0.8,
-    "worker_retry_count": 4,
-    "worker_tokens": 523126,
+    "validation_pass_rate": 1.0,
+    "worker_failure_count": 0,
+    "worker_failure_isolation_rate": null,
+    "worker_retry_count": 0,
+    "worker_tokens": 30514,
     "workspace_cleanup_rate": 1.0
   }
 }
