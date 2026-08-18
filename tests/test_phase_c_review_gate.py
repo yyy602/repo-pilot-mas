@@ -110,6 +110,68 @@ def _review(hypothesis: Artifact, verdict: str = "supported") -> Artifact:
     )
 
 
+def test_root_cause_review_limit_blocks_third_review(tmp_path: Path) -> None:
+    """同一根因候选集合最多 2 次根因审查，防止审查循环耗尽预算。"""
+
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    hypothesis = _hypothesis()
+    engine.add_artifact(evidence)
+    engine.add_artifact(hypothesis)
+    first = _review(hypothesis)
+    engine.add_artifact(first)
+    second = Artifact(
+        "N4.review",
+        ArtifactType.REVIEW,
+        "N4",
+        dict(first.to_dict()["content"]),
+        input_refs=first.input_refs,
+    )
+    engine.add_artifact(second)
+
+    request = CreateTaskRequest(
+        "REVIEW_TASK",
+        "ReviewerAgent",
+        "root_cause_recommendation",
+        "第三次审查",
+        input_artifact_ids=(hypothesis.ref, evidence.ref),
+    )
+    decision = SupervisorDecision(
+        "D-review-limit",
+        DecisionAction.CREATE_TASK,
+        "再次审查同一根因",
+        create_tasks=(request,),
+        next_workflow_stage="review",
+    )
+    with pytest.raises(DecisionPolicyViolation) as exc:
+        engine._validate_root_cause_review_limit(decision)
+    assert exc.value.code == "ROOT_CAUSE_REVIEW_LIMIT"
+
+
+def test_root_cause_review_limit_allows_first_review(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+    evidence = _evidence()
+    hypothesis = _hypothesis()
+    engine.add_artifact(evidence)
+    engine.add_artifact(hypothesis)
+
+    request = CreateTaskRequest(
+        "REVIEW_TASK",
+        "ReviewerAgent",
+        "root_cause_recommendation",
+        "首次审查",
+        input_artifact_ids=(hypothesis.ref, evidence.ref),
+    )
+    decision = SupervisorDecision(
+        "D-review-first",
+        DecisionAction.CREATE_TASK,
+        "首次审查",
+        create_tasks=(request,),
+        next_workflow_stage="review",
+    )
+    engine._validate_root_cause_review_limit(decision)  # 不抛
+
+
 def test_blocking_review_prevents_hypothesis_acceptance(tmp_path: Path) -> None:
     engine = _engine(tmp_path)
     hypothesis = _hypothesis()

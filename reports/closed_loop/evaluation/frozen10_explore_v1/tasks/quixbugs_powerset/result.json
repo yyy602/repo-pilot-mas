@@ -1,0 +1,863 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "powerset 函数未正确生成所有子集",
+        "confidence": 1,
+        "content": "def powerset(arr):\n    if arr:\n        first, *rest = arr\n        rest_subsets = powerset(rest)\n        return [[first] + subset for subset in rest_subsets]\n    return [[]]",
+        "contradicts_claims": [],
+        "evidence_kind": "source",
+        "missing_evidence": [],
+        "mode": "code_retrieval",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 6,
+          "line_start": 1,
+          "path": "powerset.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "powerset 函数未生成空集",
+          "powerset 函数未生成不包含首元素的子集"
+        ],
+        "tool_trace_ids": [
+          "7a9b33f4f32241378eaa8a84262ce1f8",
+          "290de09b4cb642189b4ead3b5bbf641f"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-17T15:26:43.693592+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "ef7b0da6613c48eab7927a0a8c1b7cec",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "powerset 函数未正确生成所有子集",
+        "confidence": 1,
+        "content": "test_powerset 函数的断言失败，实际输出与期望输出不匹配，表明 powerset 函数未生成空集及不包含首元素的子集。",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_powerset.py"
+          ],
+          "exit_code": 1,
+          "failure_output": "FFF.                                                                     [100%]\n=================================== FAILURES ===================================\n_______________________ test_powerset[values0-expected0] _______________________\n\nvalues = ['a', 'b', 'c']\nexpected = [[], ['c'], ['b'], ['b', 'c'], ['a'], ['a', 'c'], ...]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            (\n                [\"a\", \"b\", \"c\"],\n                [[], [\"c\"], [\"b\"], [\"b\", \"c\"], [\"a\"], [\"a\", \"c\"], [\"a\", \"b\"], [\"a\", \"b\", \"c\"]],\n            ),\n            ([\"a\", \"b\"], [[], [\"b\"], [\"a\"], [\"a\", \"b\"]]),\n            ([\"a\"], [[], [\"a\"]]),\n            ([], [[]]),\n        ],\n    )\n    def test_powerset(values: list[str], expected: list[list[str]]) -> None:\n>       assert powerset(values) == expected\nE       AssertionError: assert [['a', 'b', 'c']] == [[], ['c'], [...a', 'c'], ...]\nE         \nE         At index 0 diff: ['a', 'b', 'c'] != []\nE         Right contains 7 more items, first extra item: ['c']\nE         Use -v to get more diff\n\ntests/test_powerset.py:18: AssertionError\n_______________________ test_powerset[values1-expected1] _______________________\n\nvalues = ['a', 'b'], expected = [[], ['b'], ['a'], ['a', 'b']]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            (\n                [\"a\", \"b\", \"c\"],\n                [[], [\"c\"], [\"b\"], [\"b\", \"c\"], [\"a\"], [\"a\", \"c\"], [\"a\", \"b\"], [\"a\", \"b\", \"c\"]],\n            ),\n            ([\"a\", \"b\"], [[], [\"b\"], [\"a\"], [\"a\", \"b\"]]),\n            ([\"a\"], [[], [\"a\"]]),\n            ([], [[]]),\n        ],\n    )\n    def test_powerset(values: list[str], expected: list[list[str]]) -> None:\n>       assert powerset(values) == expected\nE       AssertionError: assert [['a', 'b']] == [[], ['b'], ['a'], ['a', 'b']]\nE         \nE         At index 0 diff: ['a', 'b'] != []\nE         Right contains 3 more items, first extra item: ['b']\nE         Use -v to get more diff\n\ntests/test_powerset.py:18: AssertionError\n_______________________ test_powerset[values2-expected2] _______________________\n\nvalues = ['a'], expected = [[], ['a']]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            (\n                [\"a\", \"b\", \"c\"],\n                [[], [\"c\"], [\"b\"], [\"b\", \"c\"], [\"a\"], [\"a\", \"c\"], [\"a\", \"b\"], [\"a\", \"b\", \"c\"]],\n            ),\n            ([\"a\", \"b\"], [[], [\"b\"], [\"a\"], [\"a\", \"b\"]]),\n            ([\"a\"], [[], [\"a\"]]),\n            ([], [[]]),\n        ],\n    )\n    def test_powerset(values: list[str], expected: list[list[str]]) -> None:\n>       assert powerset(values) == expected\nE       AssertionError: assert [['a']] == [[], ['a']]\nE         \nE         At index 0 diff: ['a'] != []\nE         Right contains one more item: ['a']\nE         Use -v to get more diff\n\ntests/test_powerset.py:18: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_powerset.py::test_powerset[values0-expected0] - AssertionEr...\nFAILED tests/test_powerset.py::test_powerset[values1-expected1] - AssertionEr...\nFAILED tests/test_powerset.py::test_powerset[values2-expected2] - AssertionEr...\n",
+          "failure_type": "AssertionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 23,
+          "line_start": 18,
+          "path": "tests/test_powerset.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "powerset 函数未生成空集",
+          "powerset 函数未生成不包含首元素的子集"
+        ],
+        "tool_trace_ids": [
+          "8ea7402a69e24fd796a8ae9d86e197b3"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-17T15:27:13.823688+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "a081a63a7ce74cf88d80f2f9238c0ecc",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "powerset",
+          "test_powerset"
+        ],
+        "confidence": 1,
+        "counter_evidence": [],
+        "direct_cause": "函数在递归生成子集时，仅将首元素添加到子集中，而未考虑空集和不包含首元素的组合",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "powerset 函数未正确生成所有子集，导致空集及不包含首元素的子集未被包含",
+        "supporting_evidence": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 powerset 函数的递归逻辑，确保所有子集被正确生成",
+          "验证空集和不包含首元素的子集是否被包含在输出中",
+          "运行测试用例以确认问题是否解决"
+        ]
+      },
+      "created_at": "2026-08-17T15:27:25.826999+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "dee7077913e04292b6df7675ac6d627b",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "powerset",
+          "test_powerset"
+        ],
+        "confidence": 1.0,
+        "counter_evidence": [],
+        "direct_cause": "函数在递归生成子集时，仅将首元素添加到子集中，而未考虑空集和不包含首元素的组合",
+        "missing_evidence": [],
+        "perspective": "data_flow",
+        "root_cause": "powerset 函数未正确生成所有子集，导致空集及不包含首元素的子集未被包含",
+        "supporting_evidence": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 powerset 函数的递归逻辑，确认是否生成空集和不包含首元素的子集",
+          "运行 test_powerset 测试用例，验证输出是否符合预期"
+        ]
+      },
+      "created_at": "2026-08-17T15:27:27.043245+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "fd303f958ff54172abd572a0cd7f387c",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "函数未正确处理空列表",
+          "递归逻辑未考虑所有可能的子集组合"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "powerset 函数未正确生成所有子集，导致空集及不包含首元素的子集未被包含",
+          "测试用例失败表明函数输出与预期不符"
+        ],
+        "mode": "hypothesis_comparison",
+        "recommendation": "修改 powerset 函数的递归逻辑，确保生成所有子集，包括空集和不包含首元素的组合",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "未生成空集可能导致逻辑错误",
+          "未包含不包含首元素的子集可能导致组合不完整"
+        ],
+        "target_artifact_ref": "N3.hypothesis@v1",
+        "target_artifact_refs": [
+          "N3.hypothesis@v1",
+          "N4.hypothesis@v1"
+        ],
+        "verdict": "approved",
+        "verification_steps_executed": [
+          "检查 powerset 函数的递归逻辑",
+          "验证空集和不包含首元素的子集是否被包含",
+          "运行测试用例以确认问题是否解决"
+        ]
+      },
+      "created_at": "2026-08-17T15:27:42.021230+00:00",
+      "created_by": "N5",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "069312b2e1ad4e75a624bbef1d254ee7",
+      "version": 1
+    },
+    {
+      "artifact_id": "N6.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未能生成可应用的结构化文本替换",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N6",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:PatchAgent 未能生成可应用的结构化文本替换",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T15:29:27.741511+00:00",
+      "created_by": "N6",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "ad10b65a2d3e4e2697b0288ee04b07cb",
+      "version": 1
+    },
+    {
+      "artifact_id": "N6.patch",
+      "artifact_type": "patch_candidate",
+      "content": {
+        "based_on_hypothesis_refs": [
+          "N3.hypothesis@v1",
+          "N4.hypothesis@v1"
+        ],
+        "changed_files": [
+          "powerset.py"
+        ],
+        "covered_root_causes": {
+          "N3.hypothesis@v1": "powerset 函数未正确生成所有子集，导致空集及不包含首元素的子集未被包含",
+          "N4.hypothesis@v1": "powerset 函数未正确生成所有子集，导致空集及不包含首元素的子集未被包含"
+        },
+        "diff": "--- a/powerset.py\n+++ b/powerset.py\n@@ -2,5 +2,5 @@\n     if arr:\n         first, *rest = arr\n         rest_subsets = powerset(rest)\n-        return [[first] + subset for subset in rest_subsets]\n+        return rest_subsets + [[first] + subset for subset in rest_subsets]\n     return [[]]\n",
+        "diff_sha256": "257d5ca446aad5c59f410db6bc47b3cacdbe4038eb6ae217829fcf0e48e528cb",
+        "failure_input_walkthrough": "当输入为 [1, 2] 时，旧代码仅生成包含首元素的子集，而未生成空集和不包含首元素的子集。",
+        "post_patch_expected_behavior": "函数现在能够正确生成所有子集，包括空集和不包含首元素的组合。",
+        "pre_patch_behavior": "函数在递归生成子集时，仅将首元素添加到子集中，而未考虑空集和不包含首元素的组合。",
+        "precheck_command": [
+          "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/test_powerset.py"
+        ],
+        "precheck_result": {
+          "exit_code": 0,
+          "ok": true,
+          "output_tail": "....                                                                     [100%]\n",
+          "trace_id": "1537675e765846d9aabb6304095c5c12"
+        },
+        "primary_hypothesis_ref": "N3.hypothesis@v1",
+        "protected_path_check": true,
+        "rationale": "修复了 powerset 函数的递归逻辑，确保生成所有子集，包括空集和不包含首元素的组合。",
+        "risk_notes": [
+          "修改后的代码可能影响其他依赖 powerset 函数的模块。",
+          "确保测试用例覆盖所有可能的输入情况以验证修复效果。"
+        ],
+        "semantic_rationale": "修复了递归逻辑，确保所有子集被正确生成，包括空集和不包含首元素的组合。",
+        "strategy": "minimal",
+        "workspace_id": "N6-a2-bfd4d27cff"
+      },
+      "created_at": "2026-08-17T15:30:35.440192+00:00",
+      "created_by": "N6",
+      "input_refs": [
+        "N3.hypothesis@v1",
+        "N4.hypothesis@v1",
+        "N5.review@v1",
+        "N6.rejection.a1@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "de2241938b10452b8bd5f84995d56260",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "函数未正确处理空列表",
+          "递归逻辑未考虑所有可能的子集组合"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "powerset 函数未正确生成所有子集，导致空集及不包含首元素的子集未被包含",
+          "测试用例失败表明函数输出与预期不符"
+        ],
+        "mode": "patch_review",
+        "recommendation": "修改 powerset 函数的递归逻辑，确保生成所有子集，包括空集和不包含首元素的组合。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "修改后的代码可能影响其他依赖 powerset 函数的模块。",
+          "确保测试用例覆盖所有可能的输入情况以验证修复效果。"
+        ],
+        "target_artifact_ref": "N6.patch@v1",
+        "target_artifact_refs": [
+          "N6.patch@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "检查 powerset 函数的递归逻辑",
+          "验证空集和不包含首元素的子集是否被包含",
+          "运行测试用例以确认问题是否解决"
+        ]
+      },
+      "created_at": "2026-08-17T15:30:49.727683+00:00",
+      "created_by": "N7",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.hypothesis@v1",
+        "N5.review@v1",
+        "N6.patch@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "21c65acc5e2d4c9c9ea5f601170c0f72",
+      "version": 1
+    },
+    {
+      "artifact_id": "N8.validation",
+      "artifact_type": "validation_result",
+      "content": {
+        "applied": true,
+        "changed_files": [
+          "powerset.py"
+        ],
+        "changed_lines": 2,
+        "failure_class": "none",
+        "invalidated_refs": [],
+        "passed": true,
+        "patch_ref": "N6.patch@v1",
+        "patch_review_refs": [
+          "N7.review@v1"
+        ],
+        "patch_sha256": "257d5ca446aad5c59f410db6bc47b3cacdbe4038eb6ae217829fcf0e48e528cb",
+        "protected_path_check": true,
+        "recommended_stage": "completed",
+        "recoverable": false,
+        "regression_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q"
+          ],
+          "duration_ms": 616,
+          "exit_code": 0,
+          "output_tail": "....                                                                     [100%]\n",
+          "trace_id": "4c64646875354864bb7ba7822d757c5c"
+        },
+        "static_check": {
+          "command": [
+            "static_check"
+          ],
+          "duration_ms": 1,
+          "exit_code": 0,
+          "output_tail": "",
+          "trace_id": "2742acec16454b0ca410727a6a30a0db"
+        },
+        "target_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_powerset.py"
+          ],
+          "duration_ms": 617,
+          "exit_code": 0,
+          "output_tail": "....                                                                     [100%]\n",
+          "trace_id": "84aa3d9906e2493bab729275c90ea5df"
+        },
+        "tool_trace_ids": [
+          "7b03a75ac8684dc89097355c9af79696",
+          "84aa3d9906e2493bab729275c90ea5df",
+          "4c64646875354864bb7ba7822d757c5c",
+          "2742acec16454b0ca410727a6a30a0db"
+        ],
+        "workspace_id": "N6-a2-bfd4d27cff"
+      },
+      "created_at": "2026-08-17T15:30:54.060264+00:00",
+      "created_by": "N8",
+      "input_refs": [
+        "N6.patch@v1",
+        "N7.review@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "7a0cbb004a86417bb61e05e6cba46e83",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/frozen10_explore_v1/tasks/quixbugs_powerset/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 2,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 1,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": true,
+    "hypothesis_accepted": true,
+    "isolated_worker_failure_count": 0,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 6419.333333333333,
+        "calls": 3,
+        "total_ms": 19258
+      },
+      "initialization": {
+        "average_ms": 2614.0,
+        "calls": 1,
+        "total_ms": 2614
+      },
+      "investigation": {
+        "average_ms": 13263.25,
+        "calls": 4,
+        "total_ms": 53053
+      },
+      "patch": {
+        "average_ms": 43680.5,
+        "calls": 4,
+        "total_ms": 174722
+      },
+      "review": {
+        "average_ms": 6783.75,
+        "calls": 4,
+        "total_ms": 27135
+      },
+      "validation": {
+        "average_ms": 1576.5,
+        "calls": 2,
+        "total_ms": 3153
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": true,
+    "patch_validation_passed": true,
+    "recovery_attempted": true,
+    "recovery_succeeded": true,
+    "replan_attempt_count": 0,
+    "replan_record_count": 0,
+    "replan_succeeded": false,
+    "retry_node_count": 1,
+    "root_cause_review_passed": true,
+    "route_attempts_by_model": {
+      "deepseek-v4-pro-0813": 9
+    },
+    "route_exhausted_by_model": {},
+    "route_successes_by_model": {
+      "deepseek-v4-pro-0813": 9
+    },
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 61548,
+    "supervisor_snapshot_count": 9,
+    "supervisor_snapshot_original_chars": 96957,
+    "supervisor_snapshot_reduction_ratio": 0.3652031312850026,
+    "validation_passed": true,
+    "worker_failure_count": 0,
+    "worker_retry_count": 1,
+    "workspace_clean": true
+  },
+  "engine_status": "succeeded",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": 44,
+    "accepted_by_decision_id": "accept_hypothesis_001",
+    "accepted_refs": [
+      "N3.hypothesis@v1",
+      "N4.hypothesis@v1"
+    ],
+    "candidate_refs": [
+      "N3.hypothesis@v1",
+      "N4.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "hypothesis_comparison"
+    },
+    "primary_ref": "N3.hypothesis@v1",
+    "review_refs": [
+      "N5.review@v1"
+    ],
+    "status": "accepted"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "standard",
+    "gate_records": [
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 INVESTIGATION_TASK 节点，消耗少量工具调用与运行时间预算。",
+        "gate_name": "failure_reproduction_gate",
+        "reason": "任务要求 requires_failure_reproduction=true，且当前缺少失败复现证据，需要补充失败复现以支撑后续诊断。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 2,
+        "budget_effect": "新增 2 个诊断节点，消耗节点预算与工具调用预算。",
+        "gate_name": "investigation_to_diagnosis",
+        "reason": "源码定位与失败复现证据均已 verified，满足进入诊断阶段的条件。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1",
+          "N2.evidence@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 0,
+    "parallel_overlap_pairs": 1,
+    "replan_attempted": false,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 9,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 9
+    },
+    "unnecessary_expansion": true,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T15:26:25.393389+00:00",
+      "created_by_decision_id": "init_investigation_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:26:43.712249+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "定位 powerset 函数实现及相关调用代码，收集源码位置与上下文，为失败复现和根因分析提供基础。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:26:25.414480+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T15:26:47.664493+00:00",
+      "created_by_decision_id": "create_failure_reproduction_001",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:27:13.841843+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "failure_reproduction",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "运行 tests/test_powerset.py 复现 powerset 函数遗漏空集及不包含首元素子集的失败，记录实际输出与期望输出的差异，生成失败复现证据。",
+      "output_artifact_ids": [
+        "N2.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:26:47.674831+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T15:27:18.556945+00:00",
+      "created_by_decision_id": "create_diagnosis_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:27:27.059443+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 powerset.py 源码与失败复现证据，分析控制流路径，定位导致遗漏空集及不包含首元素子集的根因。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:27:18.577122+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T15:27:18.557009+00:00",
+      "created_by_decision_id": "create_diagnosis_001",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:27:27.060263+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N4",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 powerset.py 源码与失败复现证据，分析数据流与状态变化，定位导致遗漏空集及不包含首元素子集的根因。",
+      "output_artifact_ids": [
+        "N4.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:27:18.577690+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-17T15:27:30.640300+00:00",
+      "created_by_decision_id": "create_hypothesis_comparison_001",
+      "critical": true,
+      "dependencies": [
+        "N3",
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:27:42.040028+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.hypothesis@v1"
+      ],
+      "mode": "hypothesis_comparison",
+      "node_id": "N5",
+      "node_type": "REVIEW_TASK",
+      "objective": "比较 N3 控制流视角与 N4 数据流视角两个候选 Hypothesis，评估其根因解释力、证据支持度与验证计划可行性，给出推荐根因结论。",
+      "output_artifact_ids": [
+        "N5.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:27:30.660585+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-17T15:27:47.978624+00:00",
+      "created_by_decision_id": "create_patch_001",
+      "critical": true,
+      "dependencies": [
+        "N5"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:30:35.461557+00:00",
+      "input_artifact_ids": [
+        "N3.hypothesis@v1",
+        "N4.hypothesis@v1",
+        "N5.review@v1",
+        "N6.rejection.a1@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N6",
+      "node_type": "PATCH_TASK",
+      "objective": "基于已接受的根因 Hypothesis（N3、N4）与根因 Review（N5），对 powerset.py 实施最小修复，确保递归生成包含空集及不包含首元素的所有子集，且不修改 tests 目录。",
+      "output_artifact_ids": [
+        "N6.patch@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-17T15:29:27.754661+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-17T15:30:39.804018+00:00",
+      "created_by_decision_id": "create_patch_review_001",
+      "critical": true,
+      "dependencies": [
+        "N6"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:30:49.746098+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1",
+        "N4.hypothesis@v1",
+        "N5.review@v1",
+        "N6.patch@v1"
+      ],
+      "mode": "patch_review",
+      "node_id": "N7",
+      "node_type": "REVIEW_TASK",
+      "objective": "审查 PatchCandidate N6.patch@v1，评估其是否完整修复 powerset 函数遗漏空集及不包含首元素子集的根因，检查补丁的语义正确性、风险与测试覆盖，给出是否可进入验证的 verdict。",
+      "output_artifact_ids": [
+        "N7.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:30:39.825233+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ValidationExecutor",
+      "created_at": "2026-08-17T15:30:52.785623+00:00",
+      "created_by_decision_id": "create_validation_001",
+      "critical": true,
+      "dependencies": [
+        "N7"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:30:54.075438+00:00",
+      "input_artifact_ids": [
+        "N6.patch@v1",
+        "N7.review@v1"
+      ],
+      "mode": "deterministic",
+      "node_id": "N8",
+      "node_type": "VALIDATION_TASK",
+      "objective": "对 PatchCandidate N6.patch@v1 执行确定性验证：运行 tests/test_powerset.py 目标测试及完整回归，确认 powerset 函数正确生成包含空集及不包含首元素的所有子集，且 tests 目录未被修改。",
+      "output_artifact_ids": [
+        "N8.validation@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:30:52.799277+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "VALIDATION_PASSED",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/frozen10_explore_v1/tasks/quixbugs_powerset/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": "N3.hypothesis@v1",
+  "selected_patch_ref": "N6.patch@v1",
+  "source_integrity": {
+    "after_sha256": "4862d06f9e23b200c69bc84fecc878ea3209a9de5c42773ca00f0aab70923666",
+    "before_sha256": "4862d06f9e23b200c69bc84fecc878ea3209a9de5c42773ca00f0aab70923666",
+    "unchanged": true
+  },
+  "status": "succeeded",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_powerset",
+  "termination": {
+    "code": "VALIDATION_PASSED",
+    "failure_class": "none",
+    "message": "VALIDATION_PASSED",
+    "stage": "finalization"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/frozen10_explore_v1/tasks/quixbugs_powerset/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 17,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 48687,
+        "output_tokens": 4324
+      },
+      "deepseek-v4-pro-0813": {
+        "calls": 9,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 55944,
+        "output_tokens": 2683
+      }
+    },
+    "duration_ms": 273288,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 104631,
+    "model_calls": 26,
+    "output_tokens": 7007,
+    "supervisor_api_calls": 9,
+    "supervisor_policy_calls": 9,
+    "supervisor_tokens": 58627,
+    "tool_calls": 15,
+    "total_tokens": 111638,
+    "worker_model_calls": 17,
+    "worker_tokens": 53011
+  },
+  "validation": {
+    "changed_files": [
+      "powerset.py"
+    ],
+    "passed_validation_count": 1,
+    "patch_applied": true,
+    "protected_path_violations": 0,
+    "regression_passed": true,
+    "syntax_valid": true,
+    "target_test_passed": true,
+    "validation_count": 1
+  },
+  "validation_ref": "N8.validation@v1",
+  "workflow_stage": "completed"
+}

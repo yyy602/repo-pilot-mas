@@ -343,7 +343,12 @@ class LangGraphRuntime:
         builder = StateGraph(RuntimeState)
         builder.add_node("validate", self._validate_node)
         builder.add_node("supervisor", self._supervisor_node)
-        builder.add_node("human_review", self._human_review_node)
+        # 异步图需要异步审批节点（interrupt 依赖 runnable context，
+        # 同步节点在 async 图里被丢进线程池会导致 interrupt 失效）。
+        human_review_node = (
+            getattr(self, "_ahuman_review_node", None) or self._human_review_node
+        )
+        builder.add_node("human_review", human_review_node)
         builder.add_node("human_rejected", self._human_rejected_node)
         builder.add_node("prepare_dispatch", self._prepare_dispatch_node)
         builder.add_node(
@@ -724,6 +729,51 @@ class LangGraphRuntime:
 
 class AsyncLangGraphRuntime(LangGraphRuntime):
     """Async Phase 4 runtime using AsyncSqliteSaver and concurrent Worker sends."""
+
+    async def _ahuman_review_node(
+        self,
+        state: RuntimeState,
+        config: RunnableConfig,
+    ) -> RuntimeState:
+        """异步图专用审批节点。
+
+        同步 _human_review_node 在 async 图中会被 LangGraph 丢进线程池执行，
+        而 interrupt() 依赖当前 runnable context（contextvar），在子线程里调用会
+        抛 "Called get_config outside of a runnable context"。异步版本在事件循环
+        上下文中直接调用 interrupt，保证 require_human_approval 在 AsyncRuntime
+        下可用（Phase 7 阶段三审批控制面依赖此修复）。
+        """
+
+        engine = self._restore_engine(state, config)
+        decision = state.get("decision_result") or {}
+        response = interrupt(
+            {
+                "type": "worker_dispatch_approval",
+                "task_id": state["task_id"],
+                "thread_id": state["thread_id"],
+                "state_version": engine.state_version,
+                "decision_id": decision.get("decision_id"),
+                "ready_worker_ids": _ready_node_ids(engine),
+            }
+        )
+        approved = _human_approval(response)
+        approved_ids = list(state.get("approved_decision_ids", ()))
+        decision_id = decision.get("decision_id")
+        if approved and isinstance(decision_id, str) and decision_id not in approved_ids:
+            approved_ids.append(decision_id)
+        event = self._event(
+            "human_review_resumed",
+            state,
+            engine,
+            approved=approved,
+            decision_id=decision_id,
+        )
+        self._trace(event)
+        return {
+            "human_approved": approved,
+            "approved_decision_ids": approved_ids,
+            "last_event": event,
+        }
 
     @classmethod
     async def create(

@@ -1,0 +1,659 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "next_permutation 函数的实现逻辑正确。",
+        "confidence": 0.9,
+        "content": "def next_permutation(perm):\n    for i in range(len(perm) - 2, -1, -1):\n        if perm[i] < perm[i + 1]:\n            for j in range(len(perm) - 1, i, -1):\n                if perm[j] < perm[i]:\n                    next_perm = list(perm)\n                    next_perm[i], next_perm[j] = perm[j], perm[i]\n                    next_perm[i + 1 :] = reversed(next_perm[i + 1 :])\n                    return next_perm",
+        "contradicts_claims": [],
+        "evidence_kind": "source",
+        "missing_evidence": [
+          "需要执行测试以验证函数是否正确",
+          "需要检查函数是否处理所有边界情况"
+        ],
+        "mode": "code_retrieval",
+        "observation_type": "direct",
+        "source": {
+          "line_end": 9,
+          "line_start": 1,
+          "path": "next_permutation.py"
+        },
+        "status": "unverified",
+        "supports_claims": [
+          "函数实现了字典序的下一个排列",
+          "函数返回输入序列的直接后继"
+        ],
+        "tool_trace_ids": [
+          "8d52beea513943f3bd4cb17b8bb5825d",
+          "911811845f4046ff93767bc2a8264e28"
+        ],
+        "verified": false
+      },
+      "created_at": "2026-08-17T15:21:24.658429+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "47d616d08df4473c9ac565c144d97865",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "next_permutation 函数未正确返回输入序列按字典序排列的直接后继。",
+        "confidence": 0.95,
+        "content": "assert next_permutation(values) == expected",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [
+          "需要进一步调查 next_permutation 函数的实现逻辑"
+        ],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_next_permutation.py"
+          ],
+          "exit_code": 1,
+          "failure_output": "FFFF                                                                     [100%]\n=================================== FAILURES ===================================\n___________________ test_next_permutation[values0-expected0] ___________________\n\nvalues = [3, 2, 4, 1], expected = [3, 4, 1, 2]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([3, 2, 4, 1], [3, 4, 1, 2]),\n            ([3, 5, 6, 2, 1], [3, 6, 1, 2, 5]),\n            ([4, 5, 1, 7, 9], [4, 5, 1, 9, 7]),\n            ([4, 5, 8, 7, 1], [4, 7, 1, 5, 8]),\n        ],\n    )\n    def test_next_permutation(values: list[int], expected: list[int]) -> None:\n>       assert next_permutation(values) == expected\nE       assert [3, 1, 2, 4] == [3, 4, 1, 2]\nE         \nE         At index 1 diff: 1 != 4\nE         Use -v to get more diff\n\ntests/test_next_permutation.py:15: AssertionError\n___________________ test_next_permutation[values1-expected1] ___________________\n\nvalues = [3, 5, 6, 2, 1], expected = [3, 6, 1, 2, 5]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([3, 2, 4, 1], [3, 4, 1, 2]),\n            ([3, 5, 6, 2, 1], [3, 6, 1, 2, 5]),\n            ([4, 5, 1, 7, 9], [4, 5, 1, 9, 7]),\n            ([4, 5, 8, 7, 1], [4, 7, 1, 5, 8]),\n        ],\n    )\n    def test_next_permutation(values: list[int], expected: list[int]) -> None:\n>       assert next_permutation(values) == expected\nE       assert [3, 1, 5, 2, 6] == [3, 6, 1, 2, 5]\nE         \nE         At index 1 diff: 1 != 6\nE         Use -v to get more diff\n\ntests/test_next_permutation.py:15: AssertionError\n___________________ test_next_permutation[values2-expected2] ___________________\n\nvalues = [4, 5, 1, 7, 9], expected = [4, 5, 1, 9, 7]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([3, 2, 4, 1], [3, 4, 1, 2]),\n            ([3, 5, 6, 2, 1], [3, 6, 1, 2, 5]),\n            ([4, 5, 1, 7, 9], [4, 5, 1, 9, 7]),\n            ([4, 5, 8, 7, 1], [4, 7, 1, 5, 8]),\n        ],\n    )\n    def test_next_permutation(values: list[int], expected: list[int]) -> None:\n>       assert next_permutation(values) == expected\nE       assert [1, 9, 7, 4, 5] == [4, 5, 1, 9, 7]\nE         \nE         At index 0 diff: 1 != 4\nE         Use -v to get more diff\n\ntests/test_next_permutation.py:15: AssertionError\n___________________ test_next_permutation[values3-expected3] ___________________\n\nvalues = [4, 5, 8, 7, 1], expected = [4, 7, 1, 5, 8]\n\n    @pytest.mark.parametrize(\n        (\"values\", \"expected\"),\n        [\n            ([3, 2, 4, 1], [3, 4, 1, 2]),\n            ([3, 5, 6, 2, 1], [3, 6, 1, 2, 5]),\n            ([4, 5, 1, 7, 9], [4, 5, 1, 9, 7]),\n            ([4, 5, 8, 7, 1], [4, 7, 1, 5, 8]),\n        ],\n    )\n    def test_next_permutation(values: list[int], expected: list[int]) -> None:\n>       assert next_permutation(values) == expected\nE       assert [4, 1, 5, 7, 8] == [4, 7, 1, 5, 8]\nE         \nE         At index 1 diff: 1 != 7\nE         Use -v to get more diff\n\ntests/test_next_permutation.py:15: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_next_permutation.py::test_next_permutation[values0-expected0]\nFAILED tests/test_next_permutation.py::test_next_permutation[values1-expected1]\nFAILED tests/test_next_permutation.py::test_next_permutation[values2-expected2]\nFAILED tests/test_next_permutation.py::test_next_permutation[values3-expected3]\n",
+          "failure_type": "AssertionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 15,
+          "line_start": 15,
+          "path": "tests/test_next_permutation.py"
+        },
+        "status": "unverified",
+        "supports_claims": [
+          "目标测试失败",
+          "实际输出与期望输出不一致"
+        ],
+        "tool_trace_ids": [
+          "e08b9d187b4347d9ab5c5c0094af1a7e"
+        ],
+        "verified": false
+      },
+      "created_at": "2026-08-17T15:22:02.320888+00:00",
+      "created_by": "N2",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "d3028f512f944150b51d6726c3053ac3",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "next_permutation",
+          "perm",
+          "next_perm"
+        ],
+        "confidence": 0.85,
+        "counter_evidence": [],
+        "direct_cause": "在找到第一个可以交换的元素后，未正确反转后续元素，导致生成的排列不是字典序的直接后继。",
+        "missing_evidence": [
+          "需要执行测试以验证函数是否正确",
+          "需要检查函数是否处理所有边界情况"
+        ],
+        "perspective": "control_flow",
+        "root_cause": "未正确处理字典序排列的后继生成逻辑，导致返回的排列不是直接后继。",
+        "supporting_evidence": [
+          "N2.evidence@v1"
+        ],
+        "verification_plan": [
+          "执行测试用例验证函数是否返回正确的字典序后继",
+          "检查函数在所有边界情况下的行为",
+          "验证函数是否正确处理递减序列和重复元素"
+        ]
+      },
+      "created_at": "2026-08-17T15:22:11.701091+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "5768ec6222bb4c4e944b78cc5f915f7b",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N4",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T15:23:13.178540+00:00",
+      "created_by": "N4",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "5dba8c3c379742a8905fd86e215a2301",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "MODEL_TIMEOUT",
+        "details": {
+          "raw_worker_reason": "worker exceeded 60.0 seconds",
+          "recovery_class": "model_timeout"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N4",
+        "origin": "collector",
+        "reason": "worker exceeded 60.0 seconds",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "TIMED_OUT",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T15:24:13.285764+00:00",
+      "created_by": "N4",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "fdc0cbf5056b4a919681ba1078de1c47",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "replan_evidence_incomplete_006",
+        "failure_class": "evidence_incomplete",
+        "from_stage": "investigation",
+        "reason": "N4 补证任务已耗尽重试预算（MODEL_FORMAT_ERROR 与 MODEL_TIMEOUT），N3.hypothesis@v1 的 missing_evidence 仍未得到回应，无法进入根因审查。需要一次重规划以恢复补证能力。",
+        "remaining_replans": 0,
+        "target_stage": "investigation",
+        "trigger_refs": [
+          "N4.rejection.a2@v1",
+          "N3.hypothesis@v1"
+        ]
+      },
+      "created_at": "2026-08-17T15:24:20.371700+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N4.rejection.a2@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "0d79218965704d24aaf9fa372882a796",
+      "version": 1
+    },
+    {
+      "artifact_id": "N6.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N6",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T15:25:18.799789+00:00",
+      "created_by": "N6",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "197c8544286a4baba415c85f8fd18249",
+      "version": 1
+    },
+    {
+      "artifact_id": "N6.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "MODEL_FORMAT_ERROR",
+        "details": {
+          "raw_worker_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+          "recovery_class": "model_format"
+        },
+        "expected_artifact_type": "evidence",
+        "max_attempts": 2,
+        "node_id": "N6",
+        "origin": "collector",
+        "reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+        "recommended_stage": "investigation",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T15:26:15.618631+00:00",
+      "created_by": "N6",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "fa256efde36644b2adf0dff4b15108d2",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/frozen10_explore_v1/tasks/quixbugs_next_permutation/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 0,
+    "accepted_review_count": 0,
+    "artifact_rejection_count": 4,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": false,
+    "hypothesis_accepted": false,
+    "isolated_worker_failure_count": 2,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 5730.5,
+        "calls": 2,
+        "total_ms": 11461
+      },
+      "initialization": {
+        "average_ms": 2939.0,
+        "calls": 1,
+        "total_ms": 2939
+      },
+      "investigation": {
+        "average_ms": 23224.076923076922,
+        "calls": 13,
+        "total_ms": 301913
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": false,
+    "patch_validation_passed": false,
+    "recovery_attempted": true,
+    "recovery_succeeded": false,
+    "replan_attempt_count": 1,
+    "replan_record_count": 1,
+    "replan_succeeded": false,
+    "retry_node_count": 2,
+    "root_cause_review_passed": false,
+    "route_attempts_by_model": {
+      "deepseek-v4-pro-0813": 10
+    },
+    "route_exhausted_by_model": {},
+    "route_successes_by_model": {
+      "deepseek-v4-pro-0813": 10
+    },
+    "supervisor_format_repair_count": 1,
+    "supervisor_snapshot_compact_chars": 61353,
+    "supervisor_snapshot_count": 10,
+    "supervisor_snapshot_original_chars": 103627,
+    "supervisor_snapshot_reduction_ratio": 0.4079438756308684,
+    "validation_passed": false,
+    "worker_failure_count": 2,
+    "worker_retry_count": 2,
+    "workspace_clean": true
+  },
+  "engine_status": "terminated",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": null,
+    "accepted_by_decision_id": null,
+    "accepted_refs": [],
+    "candidate_refs": [
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {},
+    "primary_ref": null,
+    "review_refs": [],
+    "status": "unresolved"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 INVESTIGATION_TASK，消耗少量工具调用与运行时间预算。",
+        "gate_name": "failure_reproduction_gate",
+        "reason": "任务 acceptance_criteria 要求失败复现，且现有证据仅覆盖源码检索，缺少执行测试验证函数行为的证据。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 INVESTIGATION_TASK，消耗节点预算和工具调用预算，但避免在证据不足时提前进入 Review 或 Patch。",
+        "gate_name": "evidence_gap_recovery",
+        "reason": "N3.hypothesis@v1 的 missing_evidence 明确要求执行测试验证函数正确性并检查边界情况，属于 Hypothesis 提出的新证据缺口，必须补证后才能进入 Review。",
+        "trigger_artifact_refs": [
+          "N3.hypothesis@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "消耗 1 个节点预算，remaining_replans 保持 0，不新增重规划请求。",
+        "gate_name": "replan_recovery",
+        "reason": "执行已获准的 targeted_replan 恢复：N4 补证任务耗尽重试预算，N3.hypothesis@v1 的 missing_evidence 仍未回应，需创建新的 INVESTIGATION_TASK 补证。",
+        "trigger_artifact_refs": [
+          "replan.1@v1",
+          "N4.rejection.a2@v1",
+          "N3.hypothesis@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 3,
+    "parallel_overlap_pairs": 0,
+    "replan_attempted": true,
+    "replan_recovered": false,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 10,
+      "supervisor_route_format_rejected:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 1,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 10
+    },
+    "unnecessary_expansion": true,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T15:21:04.067217+00:00",
+      "created_by_decision_id": "init_investigation_001",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:21:24.679081+00:00",
+      "input_artifact_ids": [],
+      "mode": "code_retrieval",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "检索并定位 next_permutation.py 中 next_permutation 函数的完整实现，记录其控制流与数据流相关代码位置。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:21:04.084978+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T15:21:28.738178+00:00",
+      "created_by_decision_id": "reproduce_failure_002",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:22:02.342519+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "failure_reproduction",
+      "node_id": "N2",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "运行 tests/test_next_permutation.py 中的失败测试，复现 next_permutation 未返回输入序列按字典序排列的直接后继这一失败现象，并记录实际输出与期望输出。",
+      "output_artifact_ids": [
+        "N2.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:21:28.758003+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T15:22:05.610059+00:00",
+      "created_by_decision_id": "diagnose_control_flow_003",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:22:11.709688+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于源码定位证据 N1.evidence@v1 和失败复现证据 N2.evidence@v1，分析 next_permutation 函数的控制流，定位导致未返回字典序直接后继的根因。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T15:22:05.644394+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T15:22:21.694795+00:00",
+      "created_by_decision_id": "evidence_completion_004",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2",
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "worker exceeded 60.0 seconds",
+      "finished_at": "2026-08-17T15:24:13.286600+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "failure_reproduction",
+      "node_id": "N4",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "执行 tests/test_next_permutation.py 中的测试用例，并补充检查 next_permutation 函数在递减序列、重复元素等边界情况下的行为，验证其是否返回输入序列按字典序排列的直接后继，以回应 N3.hypothesis@v1 中 missing_evidence 提出的证据缺口。",
+      "output_artifact_ids": [
+        "N4.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-17T15:23:13.188277+00:00",
+      "status": "TIMED_OUT",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-17T15:24:20.372546+00:00",
+      "created_by_decision_id": "replan_evidence_incomplete_006",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T15:24:20.372522+00:00",
+      "input_artifact_ids": [
+        "N4.rejection.a2@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N5",
+      "node_type": "REPLAN_TASK",
+      "objective": "N4 补证任务已耗尽重试预算（MODEL_FORMAT_ERROR 与 MODEL_TIMEOUT），N3.hypothesis@v1 的 missing_evidence 仍未得到回应，无法进入根因审查。需要一次重规划以恢复补证能力。",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T15:24:24.774778+00:00",
+      "created_by_decision_id": "recover_evidence_completion_007",
+      "critical": true,
+      "dependencies": [
+        "N1",
+        "N2",
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "MODEL_FORMAT_ERROR:WorkerAgentError:Evidence 引用了当前上下文中不存在的工具 trace_id",
+      "finished_at": "2026-08-17T15:26:15.619440+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.evidence@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "failure_reproduction",
+      "node_id": "N6",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "执行 tests/test_next_permutation.py 中的测试用例，并补充检查 next_permutation 函数在递减序列、重复元素等边界情况下的行为，验证其是否返回输入序列按字典序排列的直接后继，以回应 N3.hypothesis@v1 中 missing_evidence 提出的证据缺口。",
+      "output_artifact_ids": [
+        "N6.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-17T15:25:18.809507+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 60.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "N3.hypothesis@v1 的 missing_evidence 仍未得到回应，N4 与 N6 补证任务均已耗尽重试预算，且剩余重规划次数为 0，无法安全进入根因审查或补丁阶段。",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/frozen10_explore_v1/tasks/quixbugs_next_permutation/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": null,
+  "selected_patch_ref": null,
+  "source_integrity": {
+    "after_sha256": "238f106db19a8cd8110007c778244afde6b3c6bda0b5a39ccf6ed74431062f22",
+    "before_sha256": "238f106db19a8cd8110007c778244afde6b3c6bda0b5a39ccf6ed74431062f22",
+    "unchanged": true
+  },
+  "status": "failed",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_next_permutation",
+  "termination": {
+    "code": "SUPERVISOR_TERMINATED",
+    "failure_class": "evidence_incomplete",
+    "message": "N3.hypothesis@v1 的 missing_evidence 仍未得到回应，N4 与 N6 补证任务均已耗尽重试预算，且剩余重规划次数为 0，无法安全进入根因审查或补丁阶段。",
+    "stage": "investigation"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/frozen10_explore_v1/tasks/quixbugs_next_permutation/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 24,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 95841,
+        "output_tokens": 3758
+      },
+      "deepseek-v4-pro-0813": {
+        "calls": 10,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 48422,
+        "output_tokens": 3580
+      }
+    },
+    "duration_ms": 321430,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 144263,
+    "model_calls": 34,
+    "output_tokens": 7338,
+    "supervisor_api_calls": 10,
+    "supervisor_policy_calls": 10,
+    "supervisor_tokens": 52002,
+    "tool_calls": 17,
+    "total_tokens": 151601,
+    "worker_model_calls": 24,
+    "worker_tokens": 99599
+  },
+  "validation": {
+    "changed_files": [],
+    "passed_validation_count": 0,
+    "patch_applied": false,
+    "protected_path_violations": 0,
+    "regression_passed": false,
+    "syntax_valid": false,
+    "target_test_passed": false,
+    "validation_count": 0
+  },
+  "validation_ref": null,
+  "workflow_stage": "terminated"
+}

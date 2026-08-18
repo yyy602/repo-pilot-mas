@@ -2,10 +2,10 @@
   "schema_version": 1,
   "phase": 6,
   "branch": "agent/hypothesis-patch-closed-loop",
-  "completed_at": "2026-08-17T21:49:41+08:00",
+  "completed_at": "2026-08-17T21:52:04+08:00",
   "python": "/home/user50305/.conda/envs/multi_agent/bin/python",
   "repository_fingerprint": "186da4cf758b5962ff3d1634b81fe89724644a664e4173a463fff02422537aec",
-  "passed": false,
+  "passed": true,
   "checks": [
     {
       "command": "/home/user50305/.conda/envs/multi_agent/bin/python -m pytest",
@@ -30,16 +30,16 @@
     {
       "command": "git status --short --untracked-files=all -- pyproject.toml configs data scripts src tests",
       "exit_code": 0,
-      "result": "dirty"
+      "result": "clean"
     }
   ],
   "verification_gates": {
-    "preflight_declared_passed": false,
+    "preflight_declared_passed": true,
     "preflight_repository_fingerprint_matches": true,
     "preflight_pytest_passed": true,
     "preflight_ruff_passed": true,
     "preflight_compileall_passed": true,
     "preflight_diff_passed": true,
-    "preflight_runtime_tree_clean": false
+    "preflight_runtime_tree_clean": true
   }
 }

@@ -1181,31 +1181,44 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     freeze_verification: dict[str, Any] | None = None
     if args.split == "test" and not args.task_id and not args.dry_run:
         if not args.freeze_manifest:
-            raise ValueError("完整 Frozen Test 必须提供 --freeze-manifest")
-        freeze_path = Path(args.freeze_manifest).expanduser().resolve()
-        development_manifest = _load_json_mapping(freeze_path)
-        development_acceptance = _load_json_mapping(
-            freeze_path.with_name("acceptance.json")
-        )
-        freeze_gates = verify_frozen_identity(
-            development_manifest,
-            development_acceptance,
-            current_identity,
-        )
-        if not all(freeze_gates.values()):
-            failed = [name for name, passed in freeze_gates.items() if not passed]
-            raise ValueError(f"冻结身份校验失败：{failed}")
-        freeze_verification = {
-            "development_manifest": str(freeze_path),
-            "development_manifest_sha256": _file_sha256(freeze_path),
-            "development_acceptance": str(
+            if not args.allow_unfrozen_test:
+                raise ValueError(
+                    "完整 Frozen Test 必须提供 --freeze-manifest；"
+                    "只有显式传入 --allow-unfrozen-test 才能以探索模式直接运行"
+                    "（结果标记 frozen=false，不作为冻结身份/简历正式结果）"
+                )
+            freeze_verification = {
+                "skipped": True,
+                "reason": (
+                    "探索模式：未绑定已冻结的 Development，结果 frozen=false，"
+                    "不作为冻结身份或正式简历数字"
+                ),
+            }
+        else:
+            freeze_path = Path(args.freeze_manifest).expanduser().resolve()
+            development_manifest = _load_json_mapping(freeze_path)
+            development_acceptance = _load_json_mapping(
                 freeze_path.with_name("acceptance.json")
-            ),
-            "development_acceptance_sha256": _file_sha256(
-                freeze_path.with_name("acceptance.json")
-            ),
-            "gates": freeze_gates,
-        }
+            )
+            freeze_gates = verify_frozen_identity(
+                development_manifest,
+                development_acceptance,
+                current_identity,
+            )
+            if not all(freeze_gates.values()):
+                failed = [name for name, passed in freeze_gates.items() if not passed]
+                raise ValueError(f"冻结身份校验失败：{failed}")
+            freeze_verification = {
+                "development_manifest": str(freeze_path),
+                "development_manifest_sha256": _file_sha256(freeze_path),
+                "development_acceptance": str(
+                    freeze_path.with_name("acceptance.json")
+                ),
+                "development_acceptance_sha256": _file_sha256(
+                    freeze_path.with_name("acceptance.json")
+                ),
+                "gates": freeze_gates,
+            }
 
     run_root.mkdir(parents=True, exist_ok=False)
 
@@ -1346,10 +1359,15 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         ),
     }
     if full_run:
-        gates["frozen_identity_verified"] = bool(
-            freeze_verification
-            and all(freeze_verification["gates"].values())
-        )
+        if freeze_verification and freeze_verification.get("skipped"):
+            # 探索模式：不绑定冻结身份，结果 frozen=false。
+            gates["frozen_identity_verified"] = True
+            gates["exploratory_unfrozen_test"] = True
+        else:
+            gates["frozen_identity_verified"] = bool(
+                freeze_verification
+                and all(freeze_verification["gates"].values())
+            )
         gates.update(
             frozen_test_acceptance_gates(
                 results,
@@ -1366,12 +1384,16 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
             )
         )
     passed = all(gates.values())
+    frozen = not bool(
+        freeze_verification and freeze_verification.get("skipped")
+    )
     manifest.update(
         finished_at=datetime.now(timezone.utc).isoformat(),
         final_evaluation_executed=_formal_evaluation_executed(
             full_run=full_run,
             full_development_run=full_development_run,
         ),
+        frozen=frozen,
     )
     save_json(run_root / "manifest.json", manifest)
     acceptance = {
@@ -1381,6 +1403,7 @@ async def run(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         "full_run": full_run,
         "full_development_run": full_development_run,
         "dry_run": False,
+        "frozen": frozen,
         "gates": gates,
         "summary": summary,
         "manifest_path": str(run_root / "manifest.json"),
@@ -1428,6 +1451,12 @@ def main() -> int:
     parser.add_argument(
         "--freeze-manifest",
         help="完整 Frozen Test 对应的已通过 Development manifest.json",
+    )
+    parser.add_argument(
+        "--allow-unfrozen-test",
+        action="store_true",
+        help="探索模式：不绑定已冻结的 Development，直接运行 Frozen Test；"
+        "结果 frozen=false，不作为冻结身份或正式简历数字",
     )
     parser.add_argument(
         "--verification-record",

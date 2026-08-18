@@ -1,0 +1,9 @@
+{
+  "dry_run": true,
+  "full_run": false,
+  "manifest_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/probe_unfrozen_dryrun/manifest.json",
+  "passed": true,
+  "pending_tasks_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/probe_unfrozen_dryrun/pending_tasks.json",
+  "phase": 6,
+  "run_id": "probe_unfrozen_dryrun"
+}

@@ -26,6 +26,14 @@ model = [
     "torch>=2.1",
     "transformers>=4.51",
 ]
+# Phase 7 前端可视化与控制面（只读驾驶舱 + 常驻运行服务）
+visualization = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "streamlit>=1.36",
+    "plotly>=5.20",
+    "pandas>=2.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

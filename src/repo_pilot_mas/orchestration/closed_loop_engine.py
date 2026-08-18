@@ -589,6 +589,8 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                         "required_next_node_type": NodeType.DIAGNOSIS_TASK.value,
                     },
                 )
+        if decision.action is DecisionAction.CREATE_TASK:
+            self._validate_root_cause_review_limit(decision)
         super()._validate_decision(decision)
         if decision.action is DecisionAction.ACCEPT_HYPOTHESIS:
             self._validate_hypothesis_acceptance(decision)
@@ -718,6 +720,57 @@ class OrchestrationEngine(legacy_engine.OrchestrationEngine):
                 str(decision.patch_ref),
                 str(decision.validation_ref),
             )
+
+    def _validate_root_cause_review_limit(
+        self,
+        decision: SupervisorDecision,
+    ) -> None:
+        """同一根因候选集合的根因审查最多 2 次，防止审查循环耗尽预算。
+
+        Review 节点不受动态扩图门约束（semantic_duplicate 只挡完全相同的
+        节点），Supervisor 可能反复为同一 Hypothesis 集合创建审查直到
+        supervisor 调用预算耗尽。该门在确定性层面限制审查轮数：
+        已有 2 次同类审查时，要求转向 ACCEPT_HYPOTHESIS 或补证/重新诊断。
+        """
+
+        for request in decision.create_tasks:
+            if (
+                NodeType(request.node_type) is not NodeType.REVIEW_TASK
+                or request.mode not in _ROOT_CAUSE_REVIEW_MODES
+            ):
+                continue
+            target_refs = frozenset(
+                self.blackboard.artifacts.get(ref).ref
+                for ref in request.input_artifact_ids
+                if self.blackboard.artifacts.get(ref).artifact_type
+                is ArtifactType.HYPOTHESIS
+            )
+            if not target_refs:
+                continue
+            existing = sum(
+                1
+                for review in self.blackboard.artifacts.latest_values()
+                if review.artifact_type is ArtifactType.REVIEW
+                and review.content.get("mode") in _ROOT_CAUSE_REVIEW_MODES
+                and self._review_target_refs(review) == target_refs
+            )
+            if existing >= 2:
+                raise DecisionPolicyViolation(
+                    "ROOT_CAUSE_REVIEW_LIMIT",
+                    f"同一根因候选集合已有 {existing} 次根因审查；"
+                    "应 ACCEPT_HYPOTHESIS、补证或重新诊断，禁止重复创建审查",
+                    recommended_stage=legacy_engine.WorkflowStage.REVIEW.value,
+                    allowed_next_actions=(
+                        "ACCEPT_HYPOTHESIS",
+                        "CREATE_TASK",
+                        "TERMINATE_TASK",
+                    ),
+                    trigger_artifact_refs=tuple(sorted(target_refs)),
+                    details={
+                        "existing_review_count": existing,
+                        "review_mode": request.mode,
+                    },
+                )
 
     @staticmethod
     def _contract_recovery_stage(node_type: NodeType) -> str:

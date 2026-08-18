@@ -68,10 +68,10 @@ def test_repository_config_matches_current_six_route_policy() -> None:
     )
 
     assert [(route.model_id, route.api_key_env) for route in config.routes] == [
+        ("glm-5.2", "DASHSCOPE_API_KEY_1"),
+        ("glm-5.2", "DASHSCOPE_API_KEY_2"),
         ("deepseek-v4-pro-0813", "DASHSCOPE_API_KEY_1"),
         ("deepseek-v4-pro-0813", "DASHSCOPE_API_KEY_2"),
-        ("deepseek-v4-flash-0731", "DASHSCOPE_API_KEY_1"),
-        ("deepseek-v4-flash-0731", "DASHSCOPE_API_KEY_2"),
         ("qwen3.8-max", "DASHSCOPE_API_KEY_1"),
         ("qwen3.8-max", "DASHSCOPE_API_KEY_2"),
     ]

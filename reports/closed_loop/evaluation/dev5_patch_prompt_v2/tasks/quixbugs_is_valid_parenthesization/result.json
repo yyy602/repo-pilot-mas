@@ -1,0 +1,898 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "N1.evidence",
+      "artifact_type": "evidence",
+      "content": {
+        "claim": "is_valid_parenthesization 函数错误地将只有未闭合左括号的字符串判断为有效。",
+        "confidence": 1,
+        "content": "assert is_valid_parenthesization(parens) is expected\nE       AssertionError: assert True is False\nE        +  where True = is_valid_parenthesization('((')",
+        "contradicts_claims": [],
+        "evidence_kind": "reproduction",
+        "missing_evidence": [],
+        "mode": "failure_reproduction",
+        "observation_type": "direct",
+        "reproduction": {
+          "attempted": true,
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_is_valid_parenthesization.py"
+          ],
+          "exit_code": 1,
+          "failure_output": "..F                                                                      [100%]\n=================================== FAILURES ===================================\n___________________ test_is_valid_parenthesization[((-False] ___________________\n\nparens = '((', expected = False\n\n    @pytest.mark.parametrize(\n        (\"parens\", \"expected\"),\n        [\n            (\"((()()))()\", True),\n            (\")()(\", False),\n            (\"((\", False),\n        ],\n    )\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\n>       assert is_valid_parenthesization(parens) is expected\nE       AssertionError: assert True is False\nE        +  where True = is_valid_parenthesization('((')\n\ntests/test_is_valid_parenthesization.py:14: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\n",
+          "failure_type": "AssertionError",
+          "succeeded": true
+        },
+        "source": {
+          "line_end": 14,
+          "line_start": 14,
+          "path": "tests/test_is_valid_parenthesization.py"
+        },
+        "status": "verified",
+        "supports_claims": [
+          "is_valid_parenthesization 函数未正确处理未闭合的左括号"
+        ],
+        "tool_trace_ids": [
+          "2f4a51cc152743a6b63d6b916618dcad"
+        ],
+        "verified": true
+      },
+      "created_at": "2026-08-17T14:05:56.764557+00:00",
+      "created_by": "N1",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "17ce7c95f2c04aff8303c3fee7d47e71",
+      "version": 1
+    },
+    {
+      "artifact_id": "N2.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "is_valid_parenthesization"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "函数在处理字符串时未验证左括号和右括号的数量是否相等，导致未闭合的左括号被误判为有效。",
+        "missing_evidence": [],
+        "perspective": "control_flow",
+        "root_cause": "缺少对左括号数量的最终检查，导致未闭合的左括号被误判为有效。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查函数中是否在循环结束后验证左括号和右括号的数量是否相等。",
+          "测试函数对仅包含未闭合左括号的字符串的处理结果。",
+          "验证函数是否在所有情况下正确返回布尔值。"
+        ]
+      },
+      "created_at": "2026-08-17T14:06:10.992219+00:00",
+      "created_by": "N2",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "48776a69041848fb9ff4a6793788e7e6",
+      "version": 1
+    },
+    {
+      "artifact_id": "N3.hypothesis",
+      "artifact_type": "hypothesis",
+      "content": {
+        "affected_symbols": [
+          "is_valid_parenthesization"
+        ],
+        "confidence": 0.95,
+        "counter_evidence": [],
+        "direct_cause": "函数在处理未闭合的左括号时，未正确更新或检查括号计数或栈状态。",
+        "missing_evidence": [],
+        "perspective": "data_flow",
+        "root_cause": "未闭合的左括号未被正确检测，导致函数错误地返回 True。",
+        "supporting_evidence": [
+          "N1.evidence@v1"
+        ],
+        "verification_plan": [
+          "检查 is_valid_parenthesization 函数中括号计数或栈状态的逻辑，确认是否在未闭合左括号时正确更新状态。",
+          "使用测试用例 '((' 验证函数是否返回 False。",
+          "检查函数是否在所有括号未闭合的情况下正确返回 False。"
+        ]
+      },
+      "created_at": "2026-08-17T14:06:10.972283+00:00",
+      "created_by": "N3",
+      "input_refs": [
+        "N1.evidence@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "6d1f56965d7541a384e596a0c6d5d666",
+      "version": 1
+    },
+    {
+      "artifact_id": "N4.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "括号计数逻辑错误",
+          "栈状态未正确更新"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "N2.hypothesis@v1 提出的控制流问题更符合失败测试的直接证据，即函数未验证左括号和右括号数量是否相等。",
+          "N3.hypothesis@v1 的数据流问题虽然相关，但未直接解释为何未闭合的左括号未被检测到。"
+        ],
+        "mode": "hypothesis_comparison",
+        "recommendation": "应检查函数中是否在循环结束后验证左括号和右括号的数量是否相等，并确保所有未闭合括号的测试用例通过。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "未验证左括号和右括号数量可能导致其他未闭合括号的错误判断。",
+          "未正确检测未闭合括号可能影响其他测试用例的正确性。"
+        ],
+        "target_artifact_ref": "N2.hypothesis@v1",
+        "target_artifact_refs": [
+          "N2.hypothesis@v1",
+          "N3.hypothesis@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "检查函数中是否在循环结束后验证左括号和右括号的数量是否相等。",
+          "测试函数对仅包含未闭合左括号的字符串的处理结果。"
+        ]
+      },
+      "created_at": "2026-08-17T14:06:35.230720+00:00",
+      "created_by": "N4",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "f50abc78346142bd86c63c496341547b",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a1",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 1,
+        "code": "PATCH_TARGET_TEST_FAILED",
+        "details": {
+          "raw_worker_reason": "PATCH_TARGET_TEST_FAILED:WorkerAgentError:目标测试预检查失败；失败候选与真实输出：{\"failed_candidates\":[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if right > left:\\n        return False\\n    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"修复了函数在循环结束后未检查左括号和右括号数量是否相等的问题，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"},{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"修复了函数在循环结束后未检查左括号和右括号数量是否相等的问题，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"     assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '((()()))()'\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '(('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}],\"last_test_output_tail\":\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '((()()))()'\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '(('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}",
+          "recovery_class": "patch_policy"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "PATCH_TARGET_TEST_FAILED:WorkerAgentError:目标测试预检查失败；失败候选与真实输出：{\"failed_candidates\":[{\"code\":\"MODEL_FORMAT_ERROR\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if right > left:\\n        return False\\n    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"修复了函数在循环结束后未检查左括号和右括号数量是否相等的问题，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"old_text 必须在目标文件中唯一出现，实际为 0 次\"},{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"修复了函数在循环结束后未检查左括号和右括号数量是否相等的问题，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"     assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '((()()))()'\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '(('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}],\"last_test_output_tail\":\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '((()()))()'\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = '(('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n                if depth < 0:\\n                    return False\\n    \\n>       if left != right:\\nE       NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:11: NameError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T14:07:32.307840+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "37f703bb8b4d418ba701440df29ca076",
+      "version": 1
+    },
+    {
+      "artifact_id": "N5.rejection.a2",
+      "artifact_type": "artifact_rejection",
+      "content": {
+        "actual_artifact_refs": [],
+        "allowed_next_actions": [
+          "RETRY_TASK",
+          "CREATE_TASK",
+          "REQUEST_REPLAN"
+        ],
+        "attempt": 2,
+        "code": "PATCH_TARGET_TEST_FAILED",
+        "details": {
+          "raw_worker_reason": "PATCH_TARGET_TEST_FAILED:WorkerAgentError:目标测试预检查失败；失败候选与真实输出：{\"failed_candidates\":[{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if depth < 0:\\n        return False\\n    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\")(-False] __________________\\n\\nparens = ')()(', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = ')()('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n>               if left != right:\\nE               NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:8: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[)()(-False]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"},{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if depth < 0:\\n        return False\\n    return True\",\"new_text\":\"    if depth != 0:\\n        return False\\n    return True\",\"semantic_rationale\":\"在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"目标测试仍失败，必须根据真实输出修改根因对应逻辑，不能重复相同替换：F.F                                                                      [100%]\\n=================================== FAILURES ===================================\\n_______________ test_is_valid_parenthesization[((()()))()-True] ________________\\n\\nparens = '((()()))()', expected = True\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert False is True\\nE        +  where False = is_valid_parenthesization('((()()))()')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}],\"last_test_output_tail\":\"F.F                                                                      [100%]\\n=================================== FAILURES ===================================\\n_______________ test_is_valid_parenthesization[((()()))()-True] ________________\\n\\nparens = '((()()))()', expected = True\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert False is True\\nE        +  where False = is_valid_parenthesization('((()()))()')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}",
+          "recovery_class": "patch_policy"
+        },
+        "expected_artifact_type": "patch_candidate",
+        "max_attempts": 2,
+        "node_id": "N5",
+        "origin": "collector",
+        "reason": "PATCH_TARGET_TEST_FAILED:WorkerAgentError:目标测试预检查失败；失败候选与真实输出：{\"failed_candidates\":[{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if depth < 0:\\n        return False\\n    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\")(-False] __________________\\n\\nparens = ')()(', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = ')()('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n>               if left != right:\\nE               NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:8: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[)()(-False]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"},{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if depth < 0:\\n        return False\\n    return True\",\"new_text\":\"    if depth != 0:\\n        return False\\n    return True\",\"semantic_rationale\":\"在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"目标测试仍失败，必须根据真实输出修改根因对应逻辑，不能重复相同替换：F.F                                                                      [100%]\\n=================================== FAILURES ===================================\\n_______________ test_is_valid_parenthesization[((()()))()-True] ________________\\n\\nparens = '((()()))()', expected = True\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert False is True\\nE        +  where False = is_valid_parenthesization('((()()))()')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}],\"last_test_output_tail\":\"F.F                                                                      [100%]\\n=================================== FAILURES ===================================\\n_______________ test_is_valid_parenthesization[((()()))()-True] ________________\\n\\nparens = '((()()))()', expected = True\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert False is True\\nE        +  where False = is_valid_parenthesization('((()()))()')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}",
+        "recommended_stage": "patch",
+        "recoverable": true,
+        "terminal_status": "FAILED",
+        "workspace_id": ""
+      },
+      "created_at": "2026-08-17T14:08:37.755409+00:00",
+      "created_by": "N5",
+      "input_refs": [],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "a8bd9840ba054363a31da13bf9372872",
+      "version": 1
+    },
+    {
+      "artifact_id": "replan.1",
+      "artifact_type": "replan_record",
+      "content": {
+        "attempt": 1,
+        "decision_id": "request_replan_patch_1",
+        "failure_class": "target_test_failure",
+        "from_stage": "patch",
+        "reason": "N5 补丁任务两次尝试均因 PATCH_TARGET_TEST_FAILED 失败，属于目标测试失败类，需按 patch 阶段重规划以生成针对真实失败修正的新候选补丁。",
+        "remaining_replans": 0,
+        "target_stage": "patch",
+        "trigger_refs": [
+          "N5.rejection.a1@v1",
+          "N5.rejection.a2@v1"
+        ]
+      },
+      "created_at": "2026-08-17T14:08:40.192842+00:00",
+      "created_by": "OrchestrationEngine",
+      "input_refs": [
+        "N5.rejection.a1@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "371b5187ec6e487bb30c9d96d48aec80",
+      "version": 1
+    },
+    {
+      "artifact_id": "N7.patch",
+      "artifact_type": "patch_candidate",
+      "content": {
+        "based_on_hypothesis_refs": [
+          "N2.hypothesis@v1"
+        ],
+        "changed_files": [
+          "is_valid_parenthesization.py"
+        ],
+        "covered_root_causes": {
+          "N2.hypothesis@v1": "缺少对左括号数量的最终检查，导致未闭合的左括号被误判为有效。"
+        },
+        "diff": "--- a/is_valid_parenthesization.py\n+++ b/is_valid_parenthesization.py\n@@ -8,4 +8,6 @@\n             if depth < 0:\n                 return False\n \n+    if depth != 0:\n+        return False\n     return True\n",
+        "diff_sha256": "0fdd67cbb64e315b9a7316bcd395d704f3b012d5507075a8b57a6d0f591ccf44",
+        "failure_input_walkthrough": "对于输入 '((()'，函数在循环结束后返回 True，但实际应返回 False。修复后，函数会检查左括号和右括号的数量是否相等，返回 False。",
+        "post_patch_expected_behavior": "函数在循环结束后检查左括号和右括号的数量是否相等，只有数量相等时返回 True，否则返回 False。",
+        "pre_patch_behavior": "函数在循环结束后直接返回 True，未检查左括号和右括号的数量是否相等，导致未闭合的左括号被误判为有效。",
+        "precheck_command": [
+          "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+          "-m",
+          "pytest",
+          "-q",
+          "tests/test_is_valid_parenthesization.py"
+        ],
+        "precheck_result": {
+          "exit_code": 0,
+          "ok": true,
+          "output_tail": "...                                                                      [100%]\n",
+          "trace_id": "08345b28e8664f63930a3c2833605867"
+        },
+        "primary_hypothesis_ref": "N2.hypothesis@v1",
+        "protected_path_check": true,
+        "rationale": "在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。",
+        "risk_notes": [
+          "修改后的逻辑可能影响其他测试用例，需确保所有测试用例通过。",
+          "确保新逻辑不会破坏已闭合但顺序非法的输入，如 ')()('。"
+        ],
+        "semantic_rationale": "修复了函数在循环结束后未检查左括号和右括号数量是否相等的问题，确保只有未闭合的左括号返回 False。",
+        "strategy": "minimal",
+        "workspace_id": "N7-a1-170fa45918"
+      },
+      "created_at": "2026-08-17T14:09:47.374919+00:00",
+      "created_by": "N7",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1",
+        "N5.rejection.a2@v1",
+        "replan.1@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "0d9408a4fc3d4fb4b728c2d23ae06804",
+      "version": 1
+    },
+    {
+      "artifact_id": "N8.review",
+      "artifact_type": "review",
+      "content": {
+        "alternative_causes": [
+          "括号计数逻辑错误",
+          "栈状态未正确更新"
+        ],
+        "causal_chain_complete": true,
+        "counterexample_checked": true,
+        "evidence_refs": [
+          "N1.evidence@v1"
+        ],
+        "failure_explained": true,
+        "findings": [
+          "补丁直接覆盖了已接受的根因，即在循环结束后添加了对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。",
+          "补丁未修改测试文件，符合保护路径要求。"
+        ],
+        "mode": "patch_review",
+        "recommendation": "应验证补丁是否通过所有目标测试，并确保没有引入新的问题。",
+        "remaining_uncertainty": [],
+        "risk_notes": [
+          "修改后的逻辑可能影响其他测试用例，需确保所有测试用例通过。",
+          "确保新逻辑不会破坏已闭合但顺序非法的输入，如 ')()('。"
+        ],
+        "target_artifact_ref": "N7.patch@v1",
+        "target_artifact_refs": [
+          "N7.patch@v1"
+        ],
+        "verdict": "supported",
+        "verification_steps_executed": [
+          "检查函数中是否在循环结束后验证左括号和右括号的数量是否相等。",
+          "测试函数对仅包含未闭合左括号的字符串的处理结果。"
+        ]
+      },
+      "created_at": "2026-08-17T14:10:01.898410+00:00",
+      "created_by": "N8",
+      "input_refs": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N4.review@v1",
+        "N7.patch@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "13856c73eff94786ba1d06cfb00ee16b",
+      "version": 1
+    },
+    {
+      "artifact_id": "N9.validation",
+      "artifact_type": "validation_result",
+      "content": {
+        "applied": true,
+        "changed_files": [
+          "is_valid_parenthesization.py"
+        ],
+        "changed_lines": 2,
+        "failure_class": "none",
+        "invalidated_refs": [],
+        "passed": true,
+        "patch_ref": "N7.patch@v1",
+        "patch_review_refs": [
+          "N8.review@v1"
+        ],
+        "patch_sha256": "0fdd67cbb64e315b9a7316bcd395d704f3b012d5507075a8b57a6d0f591ccf44",
+        "protected_path_check": true,
+        "recommended_stage": "completed",
+        "recoverable": false,
+        "regression_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q"
+          ],
+          "duration_ms": 666,
+          "exit_code": 0,
+          "output_tail": "...                                                                      [100%]\n",
+          "trace_id": "001326e75dab471791587e2c33a60b1b"
+        },
+        "static_check": {
+          "command": [
+            "static_check"
+          ],
+          "duration_ms": 1,
+          "exit_code": 0,
+          "output_tail": "",
+          "trace_id": "200b2f8db8ce4743ac66ae21b828bd91"
+        },
+        "target_test": {
+          "command": [
+            "/home/user50305/.conda/envs/multi_agent/bin/python3.10",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_is_valid_parenthesization.py"
+          ],
+          "duration_ms": 666,
+          "exit_code": 0,
+          "output_tail": "...                                                                      [100%]\n",
+          "trace_id": "af5426731d464db58eadc646e25ade59"
+        },
+        "tool_trace_ids": [
+          "a1428d3be44c4258a7d84658f532080c",
+          "af5426731d464db58eadc646e25ade59",
+          "001326e75dab471791587e2c33a60b1b",
+          "200b2f8db8ce4743ac66ae21b828bd91"
+        ],
+        "workspace_id": "N7-a1-170fa45918"
+      },
+      "created_at": "2026-08-17T14:10:07.264697+00:00",
+      "created_by": "N9",
+      "input_refs": [
+        "N7.patch@v1",
+        "N8.review@v1"
+      ],
+      "status": "created",
+      "supersedes": null,
+      "trace_id": "98c741da456142698ae87281a46e63d5",
+      "version": 1
+    }
+  ],
+  "budget": {
+    "effective_engine_limits": {
+      "max_concurrent_nodes": 4,
+      "max_input_tokens": 600000,
+      "max_no_progress_decisions": 2,
+      "max_nodes": 64,
+      "max_output_tokens": 100000,
+      "max_replans": 1,
+      "max_retries_per_node": 1,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_calls": 24,
+      "max_tool_calls": 120
+    },
+    "limits": {
+      "max_input_tokens": 600000,
+      "max_output_tokens": 100000,
+      "max_patch_candidates": 2,
+      "max_runtime_seconds": 1200,
+      "max_supervisor_api_calls": 40,
+      "max_supervisor_decisions": 24,
+      "max_tool_calls": 120,
+      "max_worker_model_calls": 120
+    },
+    "within_budget": true
+  },
+  "checkpoint_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_patch_prompt_v2/tasks/quixbugs_is_valid_parenthesization/langgraph.sqlite3",
+  "closed_loop": {
+    "accepted_hypothesis_count": 1,
+    "accepted_review_count": 1,
+    "artifact_rejection_count": 2,
+    "contract_rejection_count": 0,
+    "evidence_gate_passed": true,
+    "hypothesis_accepted": true,
+    "isolated_worker_failure_count": 1,
+    "latency_by_stage": {
+      "diagnosis": {
+        "average_ms": 7211.666666666667,
+        "calls": 3,
+        "total_ms": 21635
+      },
+      "initialization": {
+        "average_ms": 2715.0,
+        "calls": 1,
+        "total_ms": 2715
+      },
+      "investigation": {
+        "average_ms": 9441.5,
+        "calls": 2,
+        "total_ms": 18883
+      },
+      "patch": {
+        "average_ms": 27821.0,
+        "calls": 7,
+        "total_ms": 194747
+      },
+      "review": {
+        "average_ms": 8964.5,
+        "calls": 4,
+        "total_ms": 35858
+      },
+      "validation": {
+        "average_ms": 1962.0,
+        "calls": 2,
+        "total_ms": 3924
+      }
+    },
+    "node_rebuild_count": 0,
+    "patch_bound_to_accepted_set": true,
+    "patch_validation_passed": true,
+    "recovery_attempted": true,
+    "recovery_succeeded": true,
+    "replan_attempt_count": 1,
+    "replan_record_count": 1,
+    "replan_succeeded": true,
+    "retry_node_count": 1,
+    "root_cause_review_passed": true,
+    "route_attempts_by_model": {
+      "deepseek-v4-pro-0813": 10
+    },
+    "route_exhausted_by_model": {},
+    "route_successes_by_model": {
+      "deepseek-v4-pro-0813": 10
+    },
+    "supervisor_format_repair_count": 0,
+    "supervisor_snapshot_compact_chars": 85607,
+    "supervisor_snapshot_count": 10,
+    "supervisor_snapshot_original_chars": 243848,
+    "supervisor_snapshot_reduction_ratio": 0.6489329418326171,
+    "validation_passed": true,
+    "worker_failure_count": 1,
+    "worker_retry_count": 1,
+    "workspace_clean": true
+  },
+  "engine_status": "succeeded",
+  "hypothesis_resolution": {
+    "accepted_at_state_version": 36,
+    "accepted_by_decision_id": "accept_hypothesis_1",
+    "accepted_refs": [
+      "N2.hypothesis@v1"
+    ],
+    "candidate_refs": [
+      "N2.hypothesis@v1",
+      "N3.hypothesis@v1"
+    ],
+    "invalidation_reason": null,
+    "metadata": {
+      "latest_root_cause_review_mode": "hypothesis_comparison"
+    },
+    "primary_ref": "N2.hypothesis@v1",
+    "review_refs": [
+      "N4.review@v1"
+    ],
+    "status": "accepted"
+  },
+  "mechanism": {
+    "challenge_nodes": 0,
+    "critique_induced_corrections": 0,
+    "execution_path": "deep",
+    "gate_records": [
+      {
+        "added_node_count": 2,
+        "budget_effect": "新增 2 个诊断节点，消耗节点预算与工具调用预算，但属于最小诊断路径。",
+        "gate_name": "investigation_to_diagnosis",
+        "reason": "失败复现 Evidence 已验证且无 missing_evidence，满足进入诊断阶段的条件，创建控制流与数据流两个诊断任务以定位根因。",
+        "trigger_artifact_refs": [
+          "N1.evidence@v1"
+        ]
+      },
+      {
+        "added_node_count": 1,
+        "budget_effect": "新增 1 个 PATCH_TASK 节点，消耗节点预算与一次 PatchAgent 调用；remaining_replans 已为 0，本次为已批准恢复的执行，不新增 replan。",
+        "gate_name": "patch_recovery_after_target_test_failure",
+        "reason": "N5 补丁任务两次尝试均因 PATCH_TARGET_TEST_FAILED 失败，replan.1@v1 已批准按 patch 阶段重规划。恢复节点必须引用失败拒绝记录与 replan 记录，使新候选针对真实失败修正。",
+        "trigger_artifact_refs": [
+          "replan.1@v1",
+          "N5.rejection.a1@v1",
+          "N5.rejection.a2@v1"
+        ]
+      }
+    ],
+    "invalid_decisions": 0,
+    "parallel_overlap_pairs": 1,
+    "replan_attempted": true,
+    "replan_recovered": true,
+    "route_usage": {
+      "supervisor_route_attempt:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 10,
+      "supervisor_route_succeeded:deepseek-v4-pro-0813:DASHSCOPE_API_KEY_2": 10
+    },
+    "unnecessary_expansion": false,
+    "valid_challenges": 0
+  },
+  "nodes": [
+    {
+      "agent_type": "InvestigatorAgent",
+      "created_at": "2026-08-17T14:05:43.102176+00:00",
+      "created_by_decision_id": "init_investigation_1",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:05:56.783970+00:00",
+      "input_artifact_ids": [],
+      "mode": "failure_reproduction",
+      "node_id": "N1",
+      "node_type": "INVESTIGATION_TASK",
+      "objective": "复现 tests/test_is_valid_parenthesization.py 中 is_valid_parenthesization 对只有未闭合左括号的字符串错误判断为有效的失败，并记录实际输出与期望输出。",
+      "output_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:05:43.135307+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T14:06:02.058074+00:00",
+      "created_by_decision_id": "create_diagnosis_1",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:06:11.012526+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "control_flow",
+      "node_id": "N2",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 N1.evidence@v1 的失败复现，分析 is_valid_parenthesization 的控制流，定位导致只有未闭合左括号被误判为有效的分支或循环逻辑。",
+      "output_artifact_ids": [
+        "N2.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:06:02.068808+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "DiagnosticianAgent",
+      "created_at": "2026-08-17T14:06:02.058128+00:00",
+      "created_by_decision_id": "create_diagnosis_1",
+      "critical": true,
+      "dependencies": [
+        "N1"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:06:11.013303+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1"
+      ],
+      "mode": "data_flow",
+      "node_id": "N3",
+      "node_type": "DIAGNOSIS_TASK",
+      "objective": "基于 N1.evidence@v1 的失败复现，分析 is_valid_parenthesization 中括号计数或栈状态的数据流，定位未闭合左括号未被正确检测的数据依赖问题。",
+      "output_artifact_ids": [
+        "N3.hypothesis@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:06:02.069188+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-17T14:06:14.858084+00:00",
+      "created_by_decision_id": "create_hypothesis_comparison_1",
+      "critical": true,
+      "dependencies": [
+        "N2",
+        "N3"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:06:35.260606+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N3.hypothesis@v1"
+      ],
+      "mode": "hypothesis_comparison",
+      "node_id": "N4",
+      "node_type": "REVIEW_TASK",
+      "objective": "比较 N2.hypothesis@v1（控制流：缺少左括号数量最终检查）与 N3.hypothesis@v1（数据流：未闭合左括号未被正确检测）两个候选根因，结合 N1.evidence@v1 的失败复现，给出主根因推荐与审查结论。",
+      "output_artifact_ids": [
+        "N4.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:06:14.885941+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-17T14:06:40.766927+00:00",
+      "created_by_decision_id": "create_patch_1",
+      "critical": true,
+      "dependencies": [
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": "PATCH_TARGET_TEST_FAILED:WorkerAgentError:目标测试预检查失败；失败候选与真实输出：{\"failed_candidates\":[{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if depth < 0:\\n        return False\\n    return True\",\"new_text\":\"    if left != right:\\n        return False\\n    return True\",\"semantic_rationale\":\"在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\")(-False] __________________\\n\\nparens = ')()(', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\n\\ntests/test_is_valid_parenthesization.py:14: \\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \\n\\nparens = ')()('\\n\\n    def is_valid_parenthesization(parens):\\n        depth = 0\\n        for paren in parens:\\n            if paren == \\\"(\\\":\\n                depth += 1\\n            else:\\n                depth -= 1\\n>               if left != right:\\nE               NameError: name 'left' is not defined\\n\\nis_valid_parenthesization.py:8: NameError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[)()(-False]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"},{\"code\":\"PATCH_TARGET_TEST_FAILED\",\"file_path\":\"./is_valid_parenthesization.py\",\"old_text\":\"    if depth < 0:\\n        return False\\n    return True\",\"new_text\":\"    if depth != 0:\\n        return False\\n    return True\",\"semantic_rationale\":\"在循环结束后添加对左括号和右括号数量相等的检查，确保只有未闭合的左括号返回 False。\",\"failure_tail\":\"目标测试仍失败，必须根据真实输出修改根因对应逻辑，不能重复相同替换：F.F                                                                      [100%]\\n=================================== FAILURES ===================================\\n_______________ test_is_valid_parenthesization[((()()))()-True] ________________\\n\\nparens = '((()()))()', expected = True\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert False is True\\nE        +  where False = is_valid_parenthesization('((()()))()')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}],\"last_test_output_tail\":\"F.F                                                                      [100%]\\n=================================== FAILURES ===================================\\n_______________ test_is_valid_parenthesization[((()()))()-True] ________________\\n\\nparens = '((()()))()', expected = True\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert False is True\\nE        +  where False = is_valid_parenthesization('((()()))()')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n___________________ test_is_valid_parenthesization[((-False] ___________________\\n\\nparens = '((', expected = False\\n\\n    @pytest.mark.parametrize(\\n        (\\\"parens\\\", \\\"expected\\\"),\\n        [\\n            (\\\"((()()))()\\\", True),\\n            (\\\")()(\\\", False),\\n            (\\\"((\\\", False),\\n        ],\\n    )\\n    def test_is_valid_parenthesization(parens: str, expected: bool) -> None:\\n>       assert is_valid_parenthesization(parens) is expected\\nE       AssertionError: assert True is False\\nE        +  where True = is_valid_parenthesization('((')\\n\\ntests/test_is_valid_parenthesization.py:14: AssertionError\\n=========================== short test summary info ============================\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((()()))()-True]\\nFAILED tests/test_is_valid_parenthesization.py::test_is_valid_parenthesization[((-False]\\n\"}",
+      "finished_at": "2026-08-17T14:08:37.756036+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N5",
+      "node_type": "PATCH_TASK",
+      "objective": "基于已接受的根因 N2.hypothesis@v1，修复 is_valid_parenthesization 函数，在循环结束后增加左括号与右括号数量相等的最终检查，使只有未闭合左括号的字符串返回 False，同时保持其他合法输入行为不变。",
+      "output_artifact_ids": [
+        "N5.rejection.a2@v1"
+      ],
+      "retry_count": 1,
+      "started_at": "2026-08-17T14:07:32.320207+00:00",
+      "status": "FAILED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "OrchestrationEngine",
+      "created_at": "2026-08-17T14:08:40.193179+00:00",
+      "created_by_decision_id": "request_replan_patch_1",
+      "critical": true,
+      "dependencies": [],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:08:40.193165+00:00",
+      "input_artifact_ids": [
+        "N5.rejection.a1@v1",
+        "N5.rejection.a2@v1"
+      ],
+      "mode": "targeted_replan",
+      "node_id": "N6",
+      "node_type": "REPLAN_TASK",
+      "objective": "N5 补丁任务两次尝试均因 PATCH_TARGET_TEST_FAILED 失败，属于目标测试失败类，需按 patch 阶段重规划以生成针对真实失败修正的新候选补丁。",
+      "output_artifact_ids": [
+        "replan.1@v1"
+      ],
+      "retry_count": 0,
+      "started_at": null,
+      "status": "SUCCEEDED",
+      "timeout_seconds": 120.0
+    },
+    {
+      "agent_type": "PatchAgent",
+      "created_at": "2026-08-17T14:08:47.675134+00:00",
+      "created_by_decision_id": "create_patch_recovery_1",
+      "critical": true,
+      "dependencies": [
+        "N4"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:09:47.391985+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N4.review@v1",
+        "N5.rejection.a1@v1",
+        "N5.rejection.a2@v1",
+        "replan.1@v1"
+      ],
+      "mode": "minimal",
+      "node_id": "N7",
+      "node_type": "PATCH_TASK",
+      "objective": "基于已接受根因 N2.hypothesis@v1，修复 is_valid_parenthesization 函数，在循环结束后增加左括号与右括号数量相等的最终检查，使只有未闭合左括号的字符串返回 False。必须针对 N5.rejection.a1@v1（old_text 在目标文件中出现 0 次）与 N5.rejection.a2@v1（目标测试失败，')()(' 期望 False）的真实失败修正：先读取 is_valid_parenthesization.py 的实际源码以确定唯一可匹配的 old_text，并确保新逻辑不会破坏 ')()(' 等已闭合但顺序非法的输入。",
+      "output_artifact_ids": [
+        "N7.patch@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:08:47.687757+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ReviewerAgent",
+      "created_at": "2026-08-17T14:09:51.786590+00:00",
+      "created_by_decision_id": "create_patch_review_1",
+      "critical": true,
+      "dependencies": [
+        "N7"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:10:01.921900+00:00",
+      "input_artifact_ids": [
+        "N1.evidence@v1",
+        "N2.hypothesis@v1",
+        "N4.review@v1",
+        "N7.patch@v1"
+      ],
+      "mode": "patch_review",
+      "node_id": "N8",
+      "node_type": "REVIEW_TASK",
+      "objective": "审查 N7.patch@v1 是否针对已接受根因 N2.hypothesis@v1 正确修复 is_valid_parenthesization 函数，在循环结束后增加左括号与右括号数量相等的最终检查，使只有未闭合左括号的字符串返回 False，同时保持其他合法输入行为不变，并评估其对 ')()(' 等已闭合但顺序非法输入的风险。",
+      "output_artifact_ids": [
+        "N8.review@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:09:51.814392+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    },
+    {
+      "agent_type": "ValidationExecutor",
+      "created_at": "2026-08-17T14:10:05.878721+00:00",
+      "created_by_decision_id": "create_validation_1",
+      "critical": true,
+      "dependencies": [
+        "N8"
+      ],
+      "dependency_policy": "all_succeeded",
+      "failure_reason": null,
+      "finished_at": "2026-08-17T14:10:07.299235+00:00",
+      "input_artifact_ids": [
+        "N7.patch@v1",
+        "N8.review@v1"
+      ],
+      "mode": "deterministic",
+      "node_id": "N9",
+      "node_type": "VALIDATION_TASK",
+      "objective": "验证 N7.patch@v1 是否修复 is_valid_parenthesization 函数，使只有未闭合左括号的字符串返回 False，同时确保目标测试 tests/test_is_valid_parenthesization.py 与完整回归全部通过，且 tests 目录未被修改。",
+      "output_artifact_ids": [
+        "N9.validation@v1"
+      ],
+      "retry_count": 0,
+      "started_at": "2026-08-17T14:10:05.906040+00:00",
+      "status": "SUCCEEDED",
+      "timeout_seconds": 20.0
+    }
+  ],
+  "protocol_version": "closed_loop_v1",
+  "reason": "VALIDATION_PASSED",
+  "result_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_patch_prompt_v2/tasks/quixbugs_is_valid_parenthesization/result.json",
+  "schema_version": 1,
+  "seed": 0,
+  "selected_hypothesis_ref": "N2.hypothesis@v1",
+  "selected_patch_ref": "N7.patch@v1",
+  "source_integrity": {
+    "after_sha256": "37608890d4b49dc1b5cde9cc7f54ee24fc0dc9eacb28d3595bad9bca92d3c20a",
+    "before_sha256": "37608890d4b49dc1b5cde9cc7f54ee24fc0dc9eacb28d3595bad9bca92d3c20a",
+    "unchanged": true
+  },
+  "status": "succeeded",
+  "system_id": "closed_loop_dynamic",
+  "task_id": "quixbugs_is_valid_parenthesization",
+  "termination": {
+    "code": "VALIDATION_PASSED",
+    "failure_class": "none",
+    "message": "VALIDATION_PASSED",
+    "stage": "finalization"
+  },
+  "trace_path": "/home/user50305/yjh/repo-pilot-mas/reports/closed_loop/evaluation/dev5_patch_prompt_v2/tasks/quixbugs_is_valid_parenthesization/trace.jsonl",
+  "usage": {
+    "by_model": {
+      "Qwen3-8B": {
+        "calls": 17,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 84628,
+        "output_tokens": 5065
+      },
+      "deepseek-v4-pro-0813": {
+        "calls": 10,
+        "estimated_cost_cny": 0.0,
+        "input_tokens": 65404,
+        "output_tokens": 3151
+      }
+    },
+    "duration_ms": 269589,
+    "estimated_api_cost_cny": 0.0,
+    "input_tokens": 150032,
+    "model_calls": 27,
+    "output_tokens": 8216,
+    "supervisor_api_calls": 10,
+    "supervisor_policy_calls": 10,
+    "supervisor_tokens": 68555,
+    "tool_calls": 19,
+    "total_tokens": 158248,
+    "worker_model_calls": 17,
+    "worker_tokens": 89693
+  },
+  "validation": {
+    "changed_files": [
+      "is_valid_parenthesization.py"
+    ],
+    "passed_validation_count": 1,
+    "patch_applied": true,
+    "protected_path_violations": 0,
+    "regression_passed": true,
+    "syntax_valid": true,
+    "target_test_passed": true,
+    "validation_count": 1
+  },
+  "validation_ref": "N9.validation@v1",
+  "workflow_stage": "completed"
+}

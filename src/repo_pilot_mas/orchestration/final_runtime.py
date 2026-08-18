@@ -51,7 +51,10 @@ class _ClosedLoopRuntimeMixin:
         builder = StateGraph(_base.RuntimeState)
         builder.add_node("validate", self._validate_node)
         builder.add_node("supervisor", self._supervisor_node)
-        builder.add_node("human_review", self._human_review_node)
+        human_review_node = (
+            getattr(self, "_ahuman_review_node", None) or self._human_review_node
+        )
+        builder.add_node("human_review", human_review_node)
         builder.add_node("human_rejected", self._human_rejected_node)
         builder.add_node("prepare_dispatch", self._prepare_dispatch_node)
         builder.add_node(

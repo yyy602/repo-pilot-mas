@@ -1934,3 +1934,14 @@ Phase 6 已在 `docs/Phase6_面试讲解.md` 中根据真实结果给出简历�
 最终项目卖点：
 
 > RepoPilot-MAS 不是十几个角色串行调用的 Prompt 流水线，也不是一个万能 Single-Agent。它是由 SupervisorAgent 统一决策、OrchestrationEngine 负责约束执行、专业 Worker 按不确定性动态协作，并由真实工具和测试结果完成闭环验证的层级式多智能体代码修复系统。
+
+---
+
+## Phase 7：前端可视化与控制面（进行中）
+
+对应唯一计划基线 §20.4 的"可视化 Trace、断点续跑、人工介入"落地。范围与验收以 `docs/前端可视化方案.md` 为唯一依据；前端与运行服务只做执行引擎的"另一个消费者"，不修改 Engine/Supervisor/Worker 行为，不影响 Phase 0-6 验收门与冻结流程。
+
+- 技术选型：Streamlit 面板 + FastAPI 只读服务（纯 Python 栈）；
+- 子阶段一（只读驾驶舱）：已完成——解析器、只读 API、Streamlit 仪表盘/任务详情（动态任务图回放、节点侧栏、时间线、Artifact/diff、事件流、模型调用明细、失败归因）/对比页；14 项可视化测试全绿，真实 reports 与 Phase5 机制 Trace 冒烟通过，`streamlit run` 可启动；
+- 子阶段二（常驻运行模式）：已完成——`WebTaskRunner` 常驻模型池 + 串行单任务 + 状态机，`POST /runs`/`GET /runs/{id}/status`，产物写 `reports/web_runs/`（与正式评测隔离）；`parsers.discover_runs` 支持 web 运行；真实冒烟（模型池加载一次、状态收敛、仪表盘可见）；阶段二专项测试 9 项，全量 pytest/Ruff 通过；
+- 子阶段三（人工审批控制面）：已完成——`require_human_approval` 审批模式（同步 LangGraphRuntime + interrupt/resume），`GET /approvals`/`/pending`、`POST /runs/{id}/approve`，前端审批队列页；同步修复 `AsyncLangGraphRuntime` 异步图 `interrupt` 不可用问题（新增 `_ahuman_review_node`）；审批专项测试全绿；真实冒烟受 API 额度限制，审批挂起点待额度恢复后在界面完整验证。
