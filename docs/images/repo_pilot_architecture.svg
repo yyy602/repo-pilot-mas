@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="920" viewBox="0 0 1440 920" role="img" aria-labelledby="title desc">
+  <title id="title">RepoPilot-MAS 系统架构</title>
+  <desc id="desc">从 Streamlit 和 FastAPI 控制面到 LangGraph、Supervisor、OrchestrationEngine、WorkerPool、确定性工具以及状态和证据存储的代码架构。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#475569"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <style>
+      .title { font: 700 30px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .subtitle { font: 15px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .section { font: 700 14px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; letter-spacing: 1.5px; fill: #475569; }
+      .heading { font: 700 17px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0f172a; text-anchor: middle; }
+      .body { font: 13px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #475569; text-anchor: middle; }
+      .mini { font: 600 12px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #334155; text-anchor: middle; }
+      .label { font: 12px Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748b; text-anchor: middle; }
+      .boundary { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 18; }
+      .box { stroke-width: 1.7; rx: 12; filter: url(#shadow); }
+      .arrow { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .arrow-blue { fill: none; stroke: #2563eb; stroke-width: 2.2; marker-end: url(#arrowBlue); }
+      .return { fill: none; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 7 6; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1440" height="920" fill="#f8fafc"/>
+  <text id="architecture-title" x="720" y="42" class="title" text-anchor="middle">RepoPilot-MAS 系统架构</text>
+  <text x="720" y="68" class="subtitle" text-anchor="middle">Web 控制面、持久化执行闭环、Worker 与确定性验证、状态与证据</text>
+
+  <!-- Web control plane -->
+  <rect x="36" y="92" width="1368" height="178" class="boundary"/>
+  <text x="62" y="119" class="section">WEB CONTROL PLANE</text>
+
+  <rect x="72" y="142" width="172" height="76" class="box" fill="#e2e8f0" stroke="#64748b"/>
+  <text x="158" y="172" class="heading">Browser</text>
+  <text x="158" y="196" class="body">localhost:8501</text>
+
+  <rect x="300" y="132" width="250" height="96" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="425" y="163" class="heading">Streamlit</text>
+  <text x="425" y="187" class="body">Dashboard · Task Detail · Compare</text>
+  <text x="425" y="207" class="body">Submit · HITL Approval</text>
+
+  <rect x="612" y="132" width="250" height="96" class="box" fill="#cffafe" stroke="#0891b2"/>
+  <text x="737" y="163" class="heading">FastAPI</text>
+  <text x="737" y="187" class="body">REST · localhost:8000</text>
+  <text x="737" y="207" class="body">runs · status · approvals</text>
+
+  <rect x="924" y="132" width="264" height="96" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="1056" y="163" class="heading">WebTaskRunner</text>
+  <text x="1056" y="187" class="body">trusted TaskSpec · serial run</text>
+  <text x="1056" y="207" class="body">persistent WorkerPool</text>
+
+  <rect x="1248" y="142" width="120" height="76" class="box" fill="#fef3c7" stroke="#d97706"/>
+  <text x="1308" y="172" class="heading">CLI</text>
+  <text x="1308" y="196" class="body">evaluation</text>
+
+  <path d="M244 180 L300 180" class="arrow"/>
+  <path d="M550 180 L612 180" class="arrow-blue"/>
+  <path d="M612 205 L550 205" class="return"/>
+  <path d="M862 180 L924 180" class="arrow-blue"/>
+  <path d="M924 205 L862 205" class="return"/>
+  <text x="581" y="166" class="label">HTTP/JSON</text>
+
+  <!-- Core runtime -->
+  <rect x="36" y="302" width="1368" height="362" class="boundary"/>
+  <text x="62" y="329" class="section">DURABLE CLOSED LOOP</text>
+
+  <rect x="72" y="365" width="260" height="98" class="box" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="202" y="395" class="heading">LangGraph Runtime</text>
+  <text x="202" y="420" class="body">execution loop · resume · HITL</text>
+  <text x="202" y="442" class="body">thread_id · state_version</text>
+
+  <rect x="382" y="365" width="260" height="98" class="box" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="512" y="395" class="heading">SupervisorAgent</text>
+  <text x="512" y="420" class="body">OpenAI-compatible ModelAdapter</text>
+  <text x="512" y="442" class="body">SupervisorDecision</text>
+
+  <rect x="692" y="365" width="290" height="98" class="box" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="837" y="395" class="heading">OrchestrationEngine</text>
+  <text x="837" y="420" class="body">TaskGraph · Gate · Budget · Policy</text>
+  <text x="837" y="442" class="body">HypothesisResolution · Patch selection</text>
+
+  <rect x="1032" y="365" width="300" height="98" class="box" fill="#e2e8f0" stroke="#475569"/>
+  <text x="1182" y="395" class="heading">Dispatcher / Collector</text>
+  <text x="1182" y="420" class="body">READY node dispatch</text>
+  <text x="1182" y="442" class="body">contract check · atomic commit</text>
+
+  <path d="M332 414 L382 414" class="arrow-blue"/>
+  <path d="M642 414 L692 414" class="arrow-blue"/>
+  <path d="M982 414 L1032 414" class="arrow-blue"/>
+  <text x="667" y="399" class="label">decision</text>
+
+  <path d="M1318 365 C1350 318 432 318 414 365" class="return"/>
+  <text x="878" y="315" class="label">Artifact / Validation / rejection → next decision</text>
+
+  <rect x="382" y="520" width="600" height="110" class="box" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="682" y="547" class="heading">WorkerPool · Qwen3-8B</text>
+  <rect x="406" y="565" width="128" height="42" rx="8" fill="#ffedd5" stroke="#fb923c"/>
+  <rect x="548" y="565" width="128" height="42" rx="8" fill="#ffedd5" stroke="#fb923c"/>
+  <rect x="690" y="565" width="128" height="42" rx="8" fill="#ffedd5" stroke="#fb923c"/>
+  <rect x="832" y="565" width="128" height="42" rx="8" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="470" y="590" class="mini">Investigator</text>
+  <text x="612" y="590" class="mini">Diagnostician</text>
+  <text x="754" y="590" class="mini">Reviewer</text>
+  <text x="896" y="590" class="mini">PatchAgent</text>
+
+  <rect x="1032" y="520" width="300" height="110" class="box" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="1182" y="552" class="heading">Tools / ValidationExecutor</text>
+  <text x="1182" y="578" class="body">path guard · trusted commands</text>
+  <text x="1182" y="600" class="body">patch · tests · static check</text>
+
+  <path d="M1182 463 L1182 498 L890 498 L890 520" class="arrow"/>
+  <path d="M982 575 L1032 575" class="arrow"/>
+  <path d="M1032 607 L982 607" class="return"/>
+  <text x="1007" y="562" class="label">tool call</text>
+  <text x="1007" y="624" class="label">evidence</text>
+
+  <path d="M1056 228 L1056 286 L202 286 L202 365" class="arrow-blue"/>
+  <path d="M1308 218 L1308 286 L242 286 L242 365" class="arrow"/>
+
+  <!-- State, evidence and workspace -->
+  <rect x="36" y="696" width="1368" height="184" class="boundary"/>
+  <text x="62" y="723" class="section">STATE, EVIDENCE AND ISOLATION</text>
+
+  <rect x="72" y="758" width="300" height="84" class="box" fill="#ecfccb" stroke="#65a30d"/>
+  <text x="222" y="789" class="heading">Blackboard / Artifact Store</text>
+  <text x="222" y="815" class="body">Evidence · Hypothesis · Review · Patch</text>
+
+  <rect x="408" y="758" width="284" height="84" class="box" fill="#e0f2fe" stroke="#0284c7"/>
+  <text x="550" y="789" class="heading">SQLite Checkpoint</text>
+  <text x="550" y="815" class="body">graph state · interrupt · resume</text>
+
+  <rect x="728" y="758" width="284" height="84" class="box" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="870" y="789" class="heading">JSONL Trace / Reports</text>
+  <text x="870" y="815" class="body">events · metrics · result · audit</text>
+
+  <rect x="1048" y="758" width="284" height="84" class="box" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="1190" y="789" class="heading">Managed Workspaces</text>
+  <text x="1190" y="815" class="body">candidate copy · protected_paths</text>
+
+  <path d="M837 463 L837 684 L222 684 L222 758" class="arrow"/>
+  <path d="M202 463 L202 674 L550 674 L550 758" class="arrow"/>
+  <path d="M1182 630 L1182 758" class="arrow"/>
+  <path d="M1182 630 L1182 674 L870 674 L870 758" class="arrow"/>
+
+  <text x="720" y="902" class="subtitle" text-anchor="middle">Worker 只返回结构化 Artifact；成功状态必须绑定 Engine 生成的 ValidationResult。</text>
+</svg>
