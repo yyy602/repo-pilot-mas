@@ -103,21 +103,5 @@ Dynamic Hybrid 在这个小型固定协议内完成更多任务，但也更慢�
 git diff --check
 ```
 
-Phase 6 最终验收环境中，全量 `130 passed`，Ruff 与 `git diff --check` 均通过。
+最终验收环境中，全量 `130 passed`，Ruff 与 `git diff --check` 均通过。
 
-## 当前限制
-
-- 仅评测 10 个小型 Python 算法任务和一个 seed，没有显著性检验；
-- 真实 Dynamic 运行的有效 Challenge 为 0，3 次重规划均未恢复成功；
-- Dynamic 只有 1 对 Worker 时间重叠，不能宣称并行加速；
-- 尚未运行 SWE-bench Verified、SWE-Gym Lite、Java 或 C 项目；
-- 不是容器级不可信代码沙箱，也没有多用户队列和前端平台。
-
-## 文档
-
-- 唯一计划基线：`docs/RepoPilot-MAS_完整计划.md`；
-- Phase 6 设计与结果：`docs/Phase6_评测观测与简历交付.md`；
-- Phase 6 验收报告：`docs/Phase6_验收报告.md`；
-- 真实框架问题复盘：`docs/Phase6_真实问题复盘与排障.md`；
-- 面试讲解与简历表述：`docs/Phase6_面试讲解.md`；
-- Phase 1～Phase 5 的设计和验收报告均位于 `docs/`。
